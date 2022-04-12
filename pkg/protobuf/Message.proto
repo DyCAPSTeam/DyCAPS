@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+option go_package = "/protobuf";
+
+message Message {
+  string type = 1;// instance id
+  bytes id = 2;
+  uint32 sender = 3;
+  bytes data = 4;
+}
+
+
+// provable broadcast
+message Value{
+  bytes value = 2;// paload
+  bytes validation = 3;// for external validating
+}
+message Echo{
+  bytes sigshare = 1 ;
+}
