@@ -1,12 +1,13 @@
 package core
 
 import (
-	"Buada_BFT/pkg/protobuf"
 	"bytes"
 	"encoding/binary"
 	"io"
 	"log"
 	"net"
+
+	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 
 	"google.golang.org/protobuf/proto"
 )

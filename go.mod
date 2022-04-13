@@ -1,4 +1,4 @@
-module Buada_BFT
+module github.com/DyCAPSTeam/DyCAPS
 
 go 1.18
 

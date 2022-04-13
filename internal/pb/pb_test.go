@@ -1,10 +1,11 @@
 package pb
 
 import (
-	"Buada_BFT/internal/party"
 	"bytes"
 	"fmt"
 	"testing"
+
+	"github.com/DyCAPSTeam/DyCAPS/internal/party"
 
 	"go.dedis.ch/kyber/v3/pairing"
 	"go.dedis.ch/kyber/v3/sign/bls"

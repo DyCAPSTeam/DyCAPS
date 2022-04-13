@@ -1,8 +1,9 @@
 package core
 
 import (
-	"Buada_BFT/pkg/protobuf"
 	"sync"
+
+	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 )
 
 // MakeDispatcheChannels dispatche messages from receiveChannel

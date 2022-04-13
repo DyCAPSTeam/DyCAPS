@@ -1,9 +1,10 @@
 package smvba //strong provable broadcast
 
 import (
-	"Buada_BFT/internal/party"
-	"Buada_BFT/internal/pb"
 	"bytes"
+
+	"github.com/DyCAPSTeam/DyCAPS/internal/party"
+	"github.com/DyCAPSTeam/DyCAPS/internal/pb"
 
 	"go.dedis.ch/kyber/v3/pairing"
 	"go.dedis.ch/kyber/v3/sign/bls"

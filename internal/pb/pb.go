@@ -1,10 +1,11 @@
 package pb //provable broadcast
 
 import (
-	"Buada_BFT/internal/party"
-	"Buada_BFT/pkg/core"
-	"Buada_BFT/pkg/protobuf"
 	"bytes"
+
+	"github.com/DyCAPSTeam/DyCAPS/internal/party"
+	"github.com/DyCAPSTeam/DyCAPS/pkg/core"
+	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 
 	"go.dedis.ch/kyber/v3/pairing"
 	"go.dedis.ch/kyber/v3/sign/tbls"

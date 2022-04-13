@@ -1,10 +1,11 @@
 package party
 
 import (
-	"Buada_BFT/pkg/protobuf"
 	"fmt"
 	"strconv"
 	"testing"
+
+	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 )
 
 func TestParty(t *testing.T) {

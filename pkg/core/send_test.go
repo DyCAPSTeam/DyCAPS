@@ -1,10 +1,11 @@
 package core
 
 import (
-	"Buada_BFT/pkg/protobuf"
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 )
 
 func TestMakeSendChannel(t *testing.T) {

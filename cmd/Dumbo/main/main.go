@@ -1,8 +1,9 @@
 package main
 
 import (
-	"Buada_BFT/pkg/core"
 	"fmt"
+
+	"github.com/DyCAPSTeam/DyCAPS/pkg/core"
 )
 
 func main() {

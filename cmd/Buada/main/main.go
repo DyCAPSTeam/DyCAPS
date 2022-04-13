@@ -1,10 +1,11 @@
 package main
 
 import (
-	"Buada_BFT/internal/party"
-	"Buada_BFT/internal/smvba"
 	"bytes"
 	"fmt"
+
+	"github.com/DyCAPSTeam/DyCAPS/internal/party"
+	"github.com/DyCAPSTeam/DyCAPS/internal/smvba"
 
 	"go.dedis.ch/kyber/v3/pairing"
 	"go.dedis.ch/kyber/v3/sign/bls"

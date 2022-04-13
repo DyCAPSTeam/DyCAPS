@@ -1,11 +1,12 @@
 package party
 
 import (
-	"Buada_BFT/pkg/core"
-	"Buada_BFT/pkg/protobuf"
 	"errors"
 	"log"
 	"sync"
+
+	"github.com/DyCAPSTeam/DyCAPS/pkg/core"
+	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 
 	"go.dedis.ch/kyber/v3/share"
 )

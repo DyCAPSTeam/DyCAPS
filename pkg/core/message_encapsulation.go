@@ -1,8 +1,9 @@
 package core
 
 import (
-	"Buada_BFT/pkg/protobuf"
 	"log"
+
+	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 
 	"google.golang.org/protobuf/proto"
 )
