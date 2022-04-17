@@ -55,6 +55,8 @@ type Node struct {
 	// IP Information
 	// [+] Node IP Address List
 	ipList []string
+	// [+] Node port Address List
+	portList []string
 	// [+] Node send channel list
 	sendChannels []chan *protobuf.Message
 	// [+] Node dispatche channel List
@@ -135,7 +137,7 @@ func (p *Node) InitReceiveChannel() error {
 //InitSendChannel setup the sender and Init the sendChannel, please run this after initializing all party's receiveChannel
 func (p *Node) InitSendChannel() error {
 	for i := uint32(0); i < uint32(p.counter); i++ {
-		p.sendChannels[i] = core.MakeSendChannel(p.ipList[i])
+		p.sendChannels[i] = core.MakeSendChannel(p.ipList[i], p.portList[i])
 	}
 	fmt.Println(p.sendChannels, "====")
 	return nil
@@ -196,6 +198,14 @@ func ReadIpList(metadataPath string) []string {
 	return strings.Split(string(ipData), "\n")
 }
 
+func ReadPortList(metadataPath string) []string {
+	portData, err := ioutil.ReadFile(metadataPath + "/port_list")
+	if err != nil {
+		log.Fatalf("node failed to read portlist %v\n", err)
+	}
+	return strings.Split(string(portData), "\n")
+}
+
 // New a Node
 func New(degree int, label int, counter int, metadataPath string) (Node, error) {
 	f, _ := os.Create(metadataPath + "/log" + strconv.Itoa(label))
@@ -203,6 +213,8 @@ func New(degree int, label int, counter int, metadataPath string) (Node, error) 
 
 	ipRaw := ReadIpList(metadataPath)[0 : counter+1]
 	ipList := ipRaw[1 : counter+1]
+	portRaw := ReadPortList(metadataPath)[0 : counter+1]
+	portList := portRaw[1 : counter+1]
 
 	sendChannels := make([]chan *protobuf.Message, counter)
 	dispatcheChannels := make([]*sync.Map, counter)
@@ -311,6 +323,7 @@ func New(degree int, label int, counter int, metadataPath string) (Node, error) 
 	return Node{
 		metadataPath:      metadataPath,
 		ipList:            ipList,
+		portList:          portList,
 		sendChannels:      sendChannels,
 		dispatcheChannels: dispatcheChannels,
 		degree:            degree,

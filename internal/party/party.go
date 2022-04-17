@@ -57,7 +57,7 @@ func (p *HonestParty) InitReceiveChannel() error {
 //InitSendChannel setup the sender and Init the sendChannel, please run this after initializing all party's receiveChannel
 func (p *HonestParty) InitSendChannel() error {
 	for i := uint32(0); i < p.N; i++ {
-		p.sendChannels[i] = core.MakeSendChannel(p.ipList[i])
+		p.sendChannels[i] = core.MakeSendChannel(p.ipList[i], p.portList[i])
 	}
 	// fmt.Println(p.sendChannels, "====")
 	return nil

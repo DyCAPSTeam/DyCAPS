@@ -28,10 +28,14 @@ func main() {
 	for i := uint32(0); i < N; i++ {
 		p[i].InitReceiveChannel()
 	}
+	fmt.Printf("initReceiveChannel success.\n")
 
 	for i := uint32(0); i < N; i++ {
+		fmt.Printf("i: %v\n", i)
+		fmt.Printf("p[%v]: %v\n", i, p[i])
 		p[i].InitSendChannel()
 	}
+	fmt.Printf("initSendChannel success.\n")
 
 	value := make([]byte, 10)
 	validation := make([]byte, 1)

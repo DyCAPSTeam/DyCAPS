@@ -16,14 +16,14 @@ import (
 var MAXMESSAGE = 1024
 
 //MakeSendChannel returns a channel to send messages to hostIP
-func MakeSendChannel(hostIP string) chan *protobuf.Message {
+func MakeSendChannel(hostIP string, hostPort string) chan *protobuf.Message {
 	var addr *net.TCPAddr
 	var conn *net.TCPConn
 	var err1, err2 error
 	//Retry to connet to node
 	retry := true
 	for retry {
-		addr, err1 = net.ResolveTCPAddr("tcp4", hostIP)
+		addr, err1 = net.ResolveTCPAddr("tcp4", hostIP+":"+hostPort)
 		fmt.Printf("addr: %v\n", addr)
 		conn, err2 = net.DialTCP("tcp4", nil, addr)
 		fmt.Printf("conn: %v\n", conn)

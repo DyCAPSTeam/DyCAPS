@@ -47,7 +47,7 @@ func TestParty(t *testing.T) {
 		}(i)
 	}
 
-	for {
+	// for {
 
-	}
+	// }
 }
