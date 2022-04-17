@@ -18,3 +18,44 @@ message Value{
 message Echo{
   bytes sigshare = 1 ;
 }
+
+// The node service definition
+service NodeService {
+	// Node RPC for reconstruction phase
+	rpc StartPhase1(EmptyMsg) returns (AckMsg) {}
+	rpc SharePhase1(PointMsg) returns (AckMsg) {}
+	// Node RPC for proactivization phase
+	rpc SharePhase2(ZeroMsg) returns (AckMsg) {}
+	rpc StartVerifPhase2(EmptyMsg) returns (AckMsg) {}
+	// Node RPC for share distribution phase
+	rpc SharePhase3(PointMsg) returns (AckMsg) {}
+	rpc StartVerifPhase3(EmptyMsg) returns (AckMsg) {}
+}
+
+message EmptyMsg {}
+
+message AckMsg {}
+
+message Cmt1Msg {
+	int32 index = 1;
+	bytes polycmt = 2;
+}
+
+message Cmt2Msg {
+	int32 index = 1;
+	bytes sharecmt = 2;
+	bytes polycmt = 3;
+	bytes zerowitness = 4;
+}
+
+message PointMsg {
+	int32 index = 1;
+	int32 x = 2;
+	bytes y = 3;
+	bytes witness = 4;
+}
+
+message ZeroMsg {
+	int32 index = 1;
+    bytes share = 2;
+}

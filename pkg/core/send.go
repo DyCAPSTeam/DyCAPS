@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"log"
 	"net"
 
@@ -15,18 +16,23 @@ import (
 var MAXMESSAGE = 1024
 
 //MakeSendChannel returns a channel to send messages to hostIP
-func MakeSendChannel(hostIP string, hostPort string) chan *protobuf.Message {
+func MakeSendChannel(hostIP string) chan *protobuf.Message {
 	var addr *net.TCPAddr
 	var conn *net.TCPConn
 	var err1, err2 error
 	//Retry to connet to node
 	retry := true
 	for retry {
-		addr, err1 = net.ResolveTCPAddr("tcp4", hostIP+":"+hostPort)
+		addr, err1 = net.ResolveTCPAddr("tcp4", hostIP)
+		fmt.Printf("addr: %v\n", addr)
 		conn, err2 = net.DialTCP("tcp4", nil, addr)
+		fmt.Printf("conn: %v\n", conn)
+		fmt.Printf("err2: %v\n", err2)
 		conn.SetKeepAlive(true)
 		if err1 != nil || err2 != nil {
+			fmt.Printf("err1: %v\n", err1)
 			log.Fatalln(err1)
+			fmt.Printf("err2: %v\n", err2)
 			log.Fatalln(err2)
 			retry = true
 		} else {

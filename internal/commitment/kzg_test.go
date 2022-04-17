@@ -1,4 +1,4 @@
-package kzg
+package commitment
 
 /*
 forked from https://github.com/CHURPTeam/CHURP

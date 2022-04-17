@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -22,6 +23,7 @@ func MakeReceiveChannel(port string) chan *protobuf.Message {
 	for retry {
 		addr, err1 = net.ResolveTCPAddr("tcp4", ":"+port)
 		lis, err2 = net.ListenTCP("tcp4", addr)
+
 		if err1 != nil || err2 != nil {
 			log.Fatalln(err1)
 			log.Fatalln(err2)
@@ -30,10 +32,13 @@ func MakeReceiveChannel(port string) chan *protobuf.Message {
 			retry = false
 		}
 	}
+	fmt.Printf("tcp listen success\n")
+
 	//Make the receive channel and the handle func
 	var conn *net.TCPConn
 	var err3 error
 	receiveChannel := make(chan *protobuf.Message, MAXMESSAGE)
+	fmt.Printf("receiveChannel: %v\n", receiveChannel)
 	go func() {
 		for {
 			//The handle func run forever

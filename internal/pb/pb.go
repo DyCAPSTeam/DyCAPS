@@ -22,7 +22,7 @@ func AsSender(p *party.HonestParty, ID []byte, value []byte, validation []byte) 
 	p.Broadcast(valueMessage)
 
 	sigs := [][]byte{}
-	h := sha3.Sum512(value)
+	h := sha3.Sum512(value) //TODO: change to sha256
 	var buf bytes.Buffer
 	buf.Write([]byte("Echo"))
 	buf.Write(ID)

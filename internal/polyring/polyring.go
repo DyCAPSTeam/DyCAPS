@@ -136,14 +136,17 @@ func (poly *Polynomial) resetToDegree(degree int) {
 	poly.Reset()
 }
 
+// remove the useless zeros at high degrees
 func (poly *Polynomial) shrinkToSize() {
 	poly.coeff = poly.coeff[:poly.GetDegree()+1]
 }
 
+// get the slice gap of poly.coeff
 func (poly Polynomial) GetCap() int {
 	return len(poly.coeff)
 }
 
+// grow the slice cap of poly.coeff
 func (poly *Polynomial) GrowCapTo(cap int) {
 	current := poly.GetCap()
 	if cap <= current {
@@ -178,7 +181,7 @@ func New(degree int) (Polynomial, error) {
 	return Polynomial{coeff}, nil
 }
 
-// NewOne returns create a constant polynomial P(x) = c
+// NewConstant returns create a constant polynomial P(x) = c
 func NewConstant(c int64) Polynomial {
 	zero, err := New(0)
 	if err != nil {
@@ -295,6 +298,7 @@ func (poly Polynomial) String() string {
 	return s
 }
 
+// used within Print to print the polynomial
 func (poly Polynomial) ToString() string {
 	var s = ""
 

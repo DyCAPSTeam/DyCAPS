@@ -1,7 +1,7 @@
 package polyring
 
 /*
-forked from https://github.com/CHURPTeam/CHURP/tree/master/src/utils
+forked from https://github.com/CHURPTeam/CHURP/
 */
 
 import (
