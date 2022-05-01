@@ -12,8 +12,8 @@ package bls
 
 import (
 	"crypto/sha256"
+	"io/ioutil"
 	"math/rand"
-	"os"
 	"testing"
 	"time"
 )
@@ -24,7 +24,7 @@ func TestSignVerify(test *testing.T) {
 
 	// Generate a key pair.
 	// params := GenParamsTypeA(160, 512)
-	body, err := os.ReadFile("param/ecparam.param")
+	body, err := ioutil.ReadFile("param/ecparam.param")
 	params, _ := ParamsFromBytes(body)
 	pairing := GenPairing(params)
 	system, err := GenSystem(pairing)
@@ -67,7 +67,7 @@ func TestAggregateVerify(test *testing.T) {
 
 	// Generate key pairs.
 	// params, err := GenParamsTypeD(9563, 512)
-	body, err := os.ReadFile("param/ecparam.param")
+	body, err := ioutil.ReadFile("param/ecparam.param")
 	params, _ := ParamsFromBytes(body)
 	if err != nil {
 		test.Fatal(err)
@@ -128,7 +128,7 @@ func TestThresholdSignature(test *testing.T) {
 
 	// Generate key shares.
 	// params := GenParamsTypeF(256)
-	body, _ := os.ReadFile("param/ecparam.param")
+	body, _ := ioutil.ReadFile("param/ecparam.param")
 	params, _ := ParamsFromBytes(body)
 
 	pairing := GenPairing(params)
@@ -188,7 +188,7 @@ func TestToFromBytes(test *testing.T) {
 
 	// Generate a key pair.
 	// params := GenParamsTypeA(160, 512)
-	body, err := os.ReadFile("param/ecparam.param")
+	body, err := ioutil.ReadFile("param/ecparam.param")
 	params, _ := ParamsFromBytes(body)
 	pairing := GenPairing(params)
 	system, err := GenSystem(pairing)

@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"log"
 	"math/rand"
-	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -15,8 +14,6 @@ import (
 
 	"github.com/DyCAPSTeam/DyCAPS/pkg/core"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 
 	"github.com/DyCAPSTeam/DyCAPS/internal/commitment"
 	// "github.com/DyCAPSTeam/DyCAPS/internal/interpolation"
@@ -129,8 +126,8 @@ type Node struct {
 
 //InitReceiveChannel setup the listener and Init the receiveChannel
 func (p *Node) InitReceiveChannel() error {
-	port := strings.Split(p.ipList[p.label], ":")[1]
-	p.dispatcheChannels = core.MakeDispatcheChannels(core.MakeReceiveChannel(port), uint32(p.counter))
+	// port := strings.Split(p.ipList[p.label], ":")[1]
+	p.dispatcheChannels = core.MakeDispatcheChannels(core.MakeReceiveChannel(p.portList[p.label]), uint32(p.counter))
 	return nil
 }
 
@@ -366,22 +363,63 @@ func New(degree int, label int, counter int, metadataPath string) (Node, error) 
 	}, nil
 }
 
+func (node *Node) Connect() {
+	node.InitReceiveChannel()
+	fmt.Printf("initReceiveChannel success.\n")
+	node.InitSendChannel()
+	fmt.Printf("initSendChannel success.\n")
+
+	// bConn, err := grpc.Dial(node.bip, grpc.WithInsecure())
+	// if err != nil {
+	// 	log.Fatalf("node did not connect to bulletinboard: %v", err)
+	// }
+	// node.bConn = bConn
+	// node.bClient = pb.NewBulletinBoardServiceClient(node.bConn)
+	// for i := 0; i < node.counter; i++ {
+	// 	if i != node.label-1 {
+	// 		nConn, err := grpc.Dial(node.ipList[i], grpc.WithInsecure())
+	// 		if err != nil {
+	// 			log.Fatalf("node did not connect to node: %v", err)
+	// 		}
+	// 		node.nConn[i] = nConn
+	// 		node.nClient[i] = pb.NewNodeServiceClient(nConn)
+	// 	}
+	// }
+}
+
+func (node *Node) Disconnect() {
+	// node.bConn.Close()
+	// for i := 0; i < node.counter; i++ {
+	// 	if i != node.label-1 {
+	// 		node.nConn[i].Close()
+	// 	}
+	// }
+}
+
 // start a node
 //TODO
 func (node *Node) Serve(aws bool) {
-	port := node.ipList[node.label-1]
+	port := node.ipList[node.label] + ":" + node.portList[node.label]
 	if aws {
 		port = "0.0.0.0:12001"
 	}
-	lis, err := net.Listen("tcp", port)
-	if err != nil {
-		log.Fatalf("node failed to listen %v", err)
-	}
-	s := grpc.NewServer()
+	fmt.Printf("port: %v\n", port)
+	node.InitReceiveChannel()
+	fmt.Printf("node %v init receve channel success\n", node.label)
+
+	node.InitSendChannel()
+	fmt.Printf("node %v init send channel success\n", node.label)
+	// lis, err := net.Listen("tcp", port)
+	// fmt.Printf("lis: %v\n", lis)
+	// if err != nil {
+	// 	log.Fatalf("node failed to listen %v", err)
+	// }
+
+	// s := grpc.NewServer()
 	// pb.RegisterNodeServiceServer(s, node)
-	reflection.Register(s)
-	log.Printf("node %d serve on %s", node.label, port)
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("node failed to serve %v", err)
-	}
+	// reflection.Register(s)
+	// log.Printf("node %d serve on %s", node.label, port)
+	// if err := s.Serve(lis); err != nil {
+	// 	log.Fatalf("node failed to serve %v", err)
+	// }
 }
