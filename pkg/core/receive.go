@@ -1,14 +1,12 @@
 package core
 
 import (
-	"bytes"
-	"encoding/binary"
-	"fmt"
 	"io"
 	"log"
 	"net"
 
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
+	"github.com/DyCAPSTeam/DyCAPS/pkg/utils"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -23,7 +21,6 @@ func MakeReceiveChannel(port string) chan *protobuf.Message {
 	for retry {
 		addr, err1 = net.ResolveTCPAddr("tcp4", ":"+port)
 		lis, err2 = net.ListenTCP("tcp4", addr)
-
 		if err1 != nil || err2 != nil {
 			log.Fatalln(err1)
 			log.Fatalln(err2)
@@ -32,13 +29,10 @@ func MakeReceiveChannel(port string) chan *protobuf.Message {
 			retry = false
 		}
 	}
-	fmt.Printf("tcp listen success\n")
-
 	//Make the receive channel and the handle func
 	var conn *net.TCPConn
 	var err3 error
 	receiveChannel := make(chan *protobuf.Message, MAXMESSAGE)
-	fmt.Printf("receiveChannel: %v\n", receiveChannel)
 	go func() {
 		for {
 			//The handle func run forever
@@ -53,7 +47,7 @@ func MakeReceiveChannel(port string) chan *protobuf.Message {
 					//Receive bytes
 					lengthBuf := make([]byte, 4)
 					_, err1 := io.ReadFull(conn, lengthBuf)
-					length := BytesToInt(lengthBuf)
+					length := utils.BytesToInt(lengthBuf)
 					buf := make([]byte, length)
 					_, err2 := io.ReadFull(conn, buf)
 					if err1 != nil || err2 != nil {
@@ -73,12 +67,4 @@ func MakeReceiveChannel(port string) chan *protobuf.Message {
 		}
 	}()
 	return receiveChannel
-}
-
-//BytesToInt convert bytes to int
-func BytesToInt(byt []byte) int {
-	bytebuff := bytes.NewBuffer(byt)
-	var data uint32
-	binary.Read(bytebuff, binary.BigEndian, &data)
-	return int(data)
 }

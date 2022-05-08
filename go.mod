@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/Nik-U/pbc v0.0.0-20181205041846-3e516ca0c5d6
+	github.com/klauspost/reedsolomon v1.9.16
 	github.com/ncw/gmp v1.0.4
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.7.1
@@ -14,6 +15,7 @@ require (
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/klauspost/cpuid/v2 v2.0.6 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	go.dedis.ch/fixbuf v1.0.3 // indirect
 	golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd // indirect

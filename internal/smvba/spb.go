@@ -1,7 +1,12 @@
-package smvba //strong provable broadcast
+package smvba //strong provable broadcPBt
+
+/*
+forked from https://github.com/xygdys/Buada_BFT
+*/
 
 import (
 	"bytes"
+	"context"
 
 	"github.com/DyCAPSTeam/DyCAPS/internal/party"
 	"github.com/DyCAPSTeam/DyCAPS/internal/pb"
@@ -12,7 +17,7 @@ import (
 )
 
 //SPBSender is run by the sender of a instance of strong provable broadcast
-func SPBSender(p *party.HonestParty, ID []byte, value []byte, validation []byte) ([]byte, []byte) {
+func SPBSender(ctx context.Context, p *party.HonestParty, ID []byte, value []byte, validation []byte) ([]byte, []byte, bool) {
 	var buf1, buf2 bytes.Buffer
 	buf1.Write(ID)
 	buf1.WriteByte(1)
@@ -21,15 +26,20 @@ func SPBSender(p *party.HonestParty, ID []byte, value []byte, validation []byte)
 	ID1 := buf1.Bytes()
 	ID2 := buf2.Bytes()
 
-	sig1 := pb.AsSender(p, ID1, value, validation)
-	sig2 := pb.AsSender(p, ID2, value, sig1)
+	sig1, ok1 := pb.Sender(ctx, p, ID1, value, validation)
+	if ok1 {
+		sig2, ok2 := pb.Sender(ctx, p, ID2, value, sig1)
+		if ok2 {
+			return value, sig2, true //FINISH
+		}
+	}
 
-	return value, sig2 //FINISH
+	return nil, nil, false
 
 }
 
 //SPBReceiver is run by the receiver of a instance of strong provable broadcast
-func SPBReceiver(p *party.HonestParty, sender uint32, ID []byte) ([]byte, []byte, error) {
+func SPBReceiver(ctx context.Context, p *party.HonestParty, sender uint32, ID []byte) ([]byte, []byte, bool) {
 	var buf1, buf2 bytes.Buffer
 	buf1.Write(ID)
 	buf1.WriteByte(1)
@@ -38,13 +48,13 @@ func SPBReceiver(p *party.HonestParty, sender uint32, ID []byte) ([]byte, []byte
 	ID1 := buf1.Bytes()
 	ID2 := buf2.Bytes()
 
-	pb.AsReceiver(p, sender, ID1, nil)
-	value, sig, err := pb.AsReceiver(p, sender, ID2, validator)
-	if err != nil {
-		return nil, nil, err
+	pb.Receiver(ctx, p, sender, ID1, nil)
+	value, sig, ok := pb.Receiver(ctx, p, sender, ID2, validator)
+	if !ok {
+		return nil, nil, false
 	}
 
-	return value, sig, nil //LOCK
+	return value, sig, true //LOCK
 }
 
 func validator(p *party.HonestParty, ID []byte, sender uint32, value []byte, validation []byte) error {

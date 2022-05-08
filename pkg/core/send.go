@@ -1,13 +1,11 @@
 package core
 
 import (
-	"bytes"
-	"encoding/binary"
-	"fmt"
 	"log"
 	"net"
 
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
+	"github.com/DyCAPSTeam/DyCAPS/pkg/utils"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -24,15 +22,10 @@ func MakeSendChannel(hostIP string, hostPort string) chan *protobuf.Message {
 	retry := true
 	for retry {
 		addr, err1 = net.ResolveTCPAddr("tcp4", hostIP+":"+hostPort)
-		fmt.Printf("addr: %v\n", addr)
 		conn, err2 = net.DialTCP("tcp4", nil, addr)
-		fmt.Printf("conn: %v\n", conn)
-		fmt.Printf("err2: %v\n", err2)
 		conn.SetKeepAlive(true)
 		if err1 != nil || err2 != nil {
-			fmt.Printf("err1: %v\n", err1)
 			log.Fatalln(err1)
-			fmt.Printf("err2: %v\n", err2)
 			log.Fatalln(err2)
 			retry = true
 		} else {
@@ -52,7 +45,7 @@ func MakeSendChannel(hostIP string, hostPort string) chan *protobuf.Message {
 			}
 			//Send bytes
 			length := len(byt)
-			_, err2 := conn.Write(IntToBytes(length))
+			_, err2 := conn.Write(utils.IntToBytes(length))
 			_, err3 := conn.Write(byt)
 			if err2 != nil || err3 != nil {
 				log.Fatalln("The send channel has bread down!", err2)
@@ -61,12 +54,4 @@ func MakeSendChannel(hostIP string, hostPort string) chan *protobuf.Message {
 	}(conn, sendChannel)
 
 	return sendChannel
-}
-
-//IntToBytes convert int to bytes
-func IntToBytes(n int) []byte {
-	data := uint32(n)
-	bytebuf := bytes.NewBuffer([]byte{})
-	binary.Write(bytebuf, binary.BigEndian, data)
-	return bytebuf.Bytes()
 }

@@ -9,6 +9,7 @@ import (
 func SigKeyGen(n uint32, t uint32) ([]*share.PriShare, *share.PubPoly) {
 	suit := pairing.NewSuiteBn256()
 	random := suit.RandomStream()
+
 	x := suit.G1().Scalar().Pick(random)
 
 	// priploy
