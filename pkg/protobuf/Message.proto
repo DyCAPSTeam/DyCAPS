@@ -56,3 +56,22 @@ message RBCReady{
   bytes hash = 1;
   bytes m = 2;
 }
+
+message Pi_content{
+  int32 j = 1;
+  bytes CR_j = 2;
+  bytes CZ_j = 3;
+  bytes WZ_0 = 4;
+  bytes g_Fj = 5;
+}
+
+message Pi{
+  bytes gs = 1;
+  repeated Pi_content pi_contents = 2;
+}
+
+message VSSSend{
+  Pi pi = 1;
+  repeated bytes Rji_list = 2;
+  repeated bytes WRji_list = 3;
+}
