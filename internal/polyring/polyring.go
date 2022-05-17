@@ -392,13 +392,11 @@ func (poly *Polynomial) Sub(op1 Polynomial, op2 Polynomial) error {
 	// make sure poly is as long as the longest of op1 and op2
 	deg1 := op1.GetDegree()
 	deg2 := op2.GetDegree()
-
 	if deg1 > deg2 {
 		poly.ResetTo(op1)
 	} else {
 		poly.ResetTo(op2)
 	}
-
 	for i := 0; i < min(deg1, deg2)+1; i++ {
 		poly.coeff[i].Sub(op1.coeff[i], op2.coeff[i])
 	}
@@ -607,4 +605,32 @@ func VecPrint(vec []*gmp.Int) {
 		fmt.Printf("%s, ", vec[i].String())
 	}
 	fmt.Printf("\n")
+}
+
+//get the lagrange coefficients at index "targetIndex", with known indexes x[].
+//remenber to allocate memory for target[] before using this function.
+//execute lambda[i] = gmp.NewInt(i) before using this funciton.
+func GetLagrangeCoefficients(deg int, x []*gmp.Int, p *gmp.Int, targetIndex *gmp.Int, lambda []*gmp.Int) {
+	if len(x) != deg+1 {
+		panic("number of known indexes != deg + 1")
+	}
+
+	for i := 0; i <= deg; i++ {
+		res := gmp.NewInt(1)
+		for j := 0; j <= deg; j++ {
+			if j != i {
+				tmp := gmp.NewInt(0)
+				tmp.Sub(targetIndex, x[j])
+				tmp.Mod(tmp, p)
+				res.Mul(res, tmp)
+
+				tmp.Sub(x[i], x[j])
+				tmp.Mod(tmp, p)
+				tmp.ModInverse(tmp, p)
+				res.Mul(res, tmp)
+				res.Mod(res, p)
+			}
+		}
+		lambda[i].Set(res)
+	}
 }

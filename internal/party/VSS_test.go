@@ -2,6 +2,9 @@ package party
 
 import (
 	"fmt"
+	"github.com/DyCAPSTeam/DyCAPS/internal/conv"
+	"github.com/DyCAPSTeam/DyCAPS/internal/ecparam"
+	"github.com/DyCAPSTeam/DyCAPS/internal/polyring"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 	"github.com/Nik-U/pbc"
 	"github.com/ncw/gmp"
@@ -37,10 +40,11 @@ func TestDealer(t *testing.T) {
 	client.HonestParty = NewHonestParty(N, F, 0x7fffffff, ipList, portList, pk, sk[2*F+1])
 	client.InitSendChannel()
 
-	KZG.SetupFix(int(F))
+	KZG.SetupFix(int(2 * F))
+	primitive := ecparam.PBC256.Ngmp
 
 	client.Share([]byte("vssshare"))
-
+	//note that here i start from 0, j start from 1
 	for i := 0; uint32(i) < N; i++ {
 		m := <-p[i].GetMessage("VSSSend", []byte("vssshare"))
 		data := m.Data
@@ -67,6 +71,28 @@ func TestDealer(t *testing.T) {
 			pi_test.Pi_contents[j].g_Fj.SetCompressedBytes(content.Pi.PiContents[j].G_Fj)
 			fmt.Println("j= ", j, "; CRj= ", pi_test.Pi_contents[j].CR_j.String(), "; CZj= ", pi_test.Pi_contents[j].CZ_j.String(), "; WZj_0= ", pi_test.Pi_contents[j].WZ_0.String(), "; g_Fj= ", pi_test.Pi_contents[j].g_Fj.String())
 		}
+		//Verification Start
+		lambda := make([]*gmp.Int, 2*F+1)
+		knownIndexes := make([]*gmp.Int, 2*F+1)
+		for j := 0; uint32(j) < 2*F+1; j++ {
+			lambda[j] = gmp.NewInt(int64(j + 1))
+		}
+		for j := 0; uint32(j) < 2*F+1; j++ {
+			knownIndexes[j] = gmp.NewInt(int64(j + 1))
+		}
+		polyring.GetLagrangeCoefficients(int(2*F), knownIndexes, primitive, gmp.NewInt(0), lambda)
+		tmp := KZG.NewG1()
+		tmp.Set1()
+		for j := 1; uint32(j) <= 2*F+1; j++ {
+			tmp2 := KZG.NewG1()
+			tmp2.Set1()
+			tmp2.PowBig(pi_test.Pi_contents[j].g_Fj, conv.GmpInt2BigInt(lambda[j-1])) // the x value of index j-1 is j
+			tmp.Mul(tmp, tmp2)
+		}
+		if tmp.Equals(gs) {
+			fmt.Println("g_s == multiply(lambda_i,g_F(i))")
+		}
+		//KZG end
 		for j := 1; uint32(j) <= 2*F+1; j++ {
 			Rji := new(gmp.Int)
 			WRji := new(pbc.Element)
@@ -74,6 +100,8 @@ func TestDealer(t *testing.T) {
 			WRji = KZG.NewG1()
 			Rji.SetBytes(content.RjiList[j])
 			WRji.SetCompressedBytes(content.WRjiList[j])
+			//KZG Verify
+			fmt.Println("KZG commitment: ", KZG.VerifyEval(pi_test.Pi_contents[j].CR_j, gmp.NewInt(int64((i+1))), Rji, WRji))
 			fmt.Println("i= ", i+1, " j = ", j, " Rji = ", Rji, "WRji = ", WRji.String())
 		}
 	}
