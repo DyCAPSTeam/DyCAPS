@@ -849,6 +849,195 @@ func (x *VSSSend) GetWRjiList() [][]byte {
 	return nil
 }
 
+type VSSEcho struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Pi *Pi `protobuf:"bytes,1,opt,name=pi,proto3" json:"pi,omitempty"`
+}
+
+func (x *VSSEcho) Reset() {
+	*x = VSSEcho{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_Message_proto_msgTypes[14]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *VSSEcho) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VSSEcho) ProtoMessage() {}
+
+func (x *VSSEcho) ProtoReflect() protoreflect.Message {
+	mi := &file_Message_proto_msgTypes[14]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VSSEcho.ProtoReflect.Descriptor instead.
+func (*VSSEcho) Descriptor() ([]byte, []int) {
+	return file_Message_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *VSSEcho) GetPi() *Pi {
+	if x != nil {
+		return x.Pi
+	}
+	return nil
+}
+
+type VSSReady struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Pi        *Pi    `protobuf:"bytes,1,opt,name=pi,proto3" json:"pi,omitempty"`
+	ReadyType string `protobuf:"bytes,2,opt,name=ReadyType,proto3" json:"ReadyType,omitempty"`
+	BIl       []byte `protobuf:"bytes,3,opt,name=B_il,json=BIl,proto3" json:"B_il,omitempty"`
+	WBIl      []byte `protobuf:"bytes,4,opt,name=WB_il,json=WBIl,proto3" json:"WB_il,omitempty"`
+}
+
+func (x *VSSReady) Reset() {
+	*x = VSSReady{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_Message_proto_msgTypes[15]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *VSSReady) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VSSReady) ProtoMessage() {}
+
+func (x *VSSReady) ProtoReflect() protoreflect.Message {
+	mi := &file_Message_proto_msgTypes[15]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VSSReady.ProtoReflect.Descriptor instead.
+func (*VSSReady) Descriptor() ([]byte, []int) {
+	return file_Message_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *VSSReady) GetPi() *Pi {
+	if x != nil {
+		return x.Pi
+	}
+	return nil
+}
+
+func (x *VSSReady) GetReadyType() string {
+	if x != nil {
+		return x.ReadyType
+	}
+	return ""
+}
+
+func (x *VSSReady) GetBIl() []byte {
+	if x != nil {
+		return x.BIl
+	}
+	return nil
+}
+
+func (x *VSSReady) GetWBIl() []byte {
+	if x != nil {
+		return x.WBIl
+	}
+	return nil
+}
+
+type VSSDistribute struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Pi        *Pi    `protobuf:"bytes,1,opt,name=pi,proto3" json:"pi,omitempty"`
+	ReadyType string `protobuf:"bytes,2,opt,name=ReadyType,proto3" json:"ReadyType,omitempty"`
+	BLi       []byte `protobuf:"bytes,3,opt,name=B_li,json=BLi,proto3" json:"B_li,omitempty"`
+	WBLi      []byte `protobuf:"bytes,4,opt,name=WB_li,json=WBLi,proto3" json:"WB_li,omitempty"`
+}
+
+func (x *VSSDistribute) Reset() {
+	*x = VSSDistribute{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_Message_proto_msgTypes[16]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *VSSDistribute) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VSSDistribute) ProtoMessage() {}
+
+func (x *VSSDistribute) ProtoReflect() protoreflect.Message {
+	mi := &file_Message_proto_msgTypes[16]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VSSDistribute.ProtoReflect.Descriptor instead.
+func (*VSSDistribute) Descriptor() ([]byte, []int) {
+	return file_Message_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *VSSDistribute) GetPi() *Pi {
+	if x != nil {
+		return x.Pi
+	}
+	return nil
+}
+
+func (x *VSSDistribute) GetReadyType() string {
+	if x != nil {
+		return x.ReadyType
+	}
+	return ""
+}
+
+func (x *VSSDistribute) GetBLi() []byte {
+	if x != nil {
+		return x.BLi
+	}
+	return nil
+}
+
+func (x *VSSDistribute) GetWBLi() []byte {
+	if x != nil {
+		return x.WBLi
+	}
+	return nil
+}
+
 var File_Message_proto protoreflect.FileDescriptor
 
 var file_Message_proto_rawDesc = []byte{
@@ -908,8 +1097,24 @@ var file_Message_proto_rawDesc = []byte{
 	0x02, 0x70, 0x69, 0x12, 0x19, 0x0a, 0x08, 0x52, 0x6a, 0x69, 0x5f, 0x6c, 0x69, 0x73, 0x74, 0x18,
 	0x02, 0x20, 0x03, 0x28, 0x0c, 0x52, 0x07, 0x52, 0x6a, 0x69, 0x4c, 0x69, 0x73, 0x74, 0x12, 0x1b,
 	0x0a, 0x09, 0x57, 0x52, 0x6a, 0x69, 0x5f, 0x6c, 0x69, 0x73, 0x74, 0x18, 0x03, 0x20, 0x03, 0x28,
-	0x0c, 0x52, 0x08, 0x57, 0x52, 0x6a, 0x69, 0x4c, 0x69, 0x73, 0x74, 0x42, 0x0b, 0x5a, 0x09, 0x2f,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x0c, 0x52, 0x08, 0x57, 0x52, 0x6a, 0x69, 0x4c, 0x69, 0x73, 0x74, 0x22, 0x1e, 0x0a, 0x07, 0x56,
+	0x53, 0x53, 0x45, 0x63, 0x68, 0x6f, 0x12, 0x13, 0x0a, 0x02, 0x70, 0x69, 0x18, 0x01, 0x20, 0x01,
+	0x28, 0x0b, 0x32, 0x03, 0x2e, 0x50, 0x69, 0x52, 0x02, 0x70, 0x69, 0x22, 0x65, 0x0a, 0x08, 0x56,
+	0x53, 0x53, 0x52, 0x65, 0x61, 0x64, 0x79, 0x12, 0x13, 0x0a, 0x02, 0x70, 0x69, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x0b, 0x32, 0x03, 0x2e, 0x50, 0x69, 0x52, 0x02, 0x70, 0x69, 0x12, 0x1c, 0x0a, 0x09,
+	0x52, 0x65, 0x61, 0x64, 0x79, 0x54, 0x79, 0x70, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x09, 0x52, 0x65, 0x61, 0x64, 0x79, 0x54, 0x79, 0x70, 0x65, 0x12, 0x11, 0x0a, 0x04, 0x42, 0x5f,
+	0x69, 0x6c, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x03, 0x42, 0x49, 0x6c, 0x12, 0x13, 0x0a,
+	0x05, 0x57, 0x42, 0x5f, 0x69, 0x6c, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x04, 0x57, 0x42,
+	0x49, 0x6c, 0x22, 0x6a, 0x0a, 0x0d, 0x56, 0x53, 0x53, 0x44, 0x69, 0x73, 0x74, 0x72, 0x69, 0x62,
+	0x75, 0x74, 0x65, 0x12, 0x13, 0x0a, 0x02, 0x70, 0x69, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32,
+	0x03, 0x2e, 0x50, 0x69, 0x52, 0x02, 0x70, 0x69, 0x12, 0x1c, 0x0a, 0x09, 0x52, 0x65, 0x61, 0x64,
+	0x79, 0x54, 0x79, 0x70, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x52, 0x65, 0x61,
+	0x64, 0x79, 0x54, 0x79, 0x70, 0x65, 0x12, 0x11, 0x0a, 0x04, 0x42, 0x5f, 0x6c, 0x69, 0x18, 0x03,
+	0x20, 0x01, 0x28, 0x0c, 0x52, 0x03, 0x42, 0x4c, 0x69, 0x12, 0x13, 0x0a, 0x05, 0x57, 0x42, 0x5f,
+	0x6c, 0x69, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x04, 0x57, 0x42, 0x4c, 0x69, 0x42, 0x0b,
+	0x5a, 0x09, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x62, 0x06, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x33,
 }
 
 var (
@@ -924,31 +1129,37 @@ func file_Message_proto_rawDescGZIP() []byte {
 	return file_Message_proto_rawDescData
 }
 
-var file_Message_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_Message_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_Message_proto_goTypes = []interface{}{
-	(*Message)(nil),   // 0: Message
-	(*Value)(nil),     // 1: Value
-	(*Echo)(nil),      // 2: Echo
-	(*Lock)(nil),      // 3: Lock
-	(*Finish)(nil),    // 4: Finish
-	(*Done)(nil),      // 5: Done
-	(*Halt)(nil),      // 6: Halt
-	(*PreVote)(nil),   // 7: PreVote
-	(*Vote)(nil),      // 8: Vote
-	(*RBCEcho)(nil),   // 9: RBCEcho
-	(*RBCReady)(nil),  // 10: RBCReady
-	(*PiContent)(nil), // 11: Pi_content
-	(*Pi)(nil),        // 12: Pi
-	(*VSSSend)(nil),   // 13: VSSSend
+	(*Message)(nil),       // 0: Message
+	(*Value)(nil),         // 1: Value
+	(*Echo)(nil),          // 2: Echo
+	(*Lock)(nil),          // 3: Lock
+	(*Finish)(nil),        // 4: Finish
+	(*Done)(nil),          // 5: Done
+	(*Halt)(nil),          // 6: Halt
+	(*PreVote)(nil),       // 7: PreVote
+	(*Vote)(nil),          // 8: Vote
+	(*RBCEcho)(nil),       // 9: RBCEcho
+	(*RBCReady)(nil),      // 10: RBCReady
+	(*PiContent)(nil),     // 11: Pi_content
+	(*Pi)(nil),            // 12: Pi
+	(*VSSSend)(nil),       // 13: VSSSend
+	(*VSSEcho)(nil),       // 14: VSSEcho
+	(*VSSReady)(nil),      // 15: VSSReady
+	(*VSSDistribute)(nil), // 16: VSSDistribute
 }
 var file_Message_proto_depIdxs = []int32{
 	11, // 0: Pi.pi_contents:type_name -> Pi_content
 	12, // 1: VSSSend.pi:type_name -> Pi
-	2,  // [2:2] is the sub-list for method output_type
-	2,  // [2:2] is the sub-list for method input_type
-	2,  // [2:2] is the sub-list for extension type_name
-	2,  // [2:2] is the sub-list for extension extendee
-	0,  // [0:2] is the sub-list for field type_name
+	12, // 2: VSSEcho.pi:type_name -> Pi
+	12, // 3: VSSReady.pi:type_name -> Pi
+	12, // 4: VSSDistribute.pi:type_name -> Pi
+	5,  // [5:5] is the sub-list for method output_type
+	5,  // [5:5] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_Message_proto_init() }
@@ -1125,6 +1336,42 @@ func file_Message_proto_init() {
 				return nil
 			}
 		}
+		file_Message_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*VSSEcho); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_Message_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*VSSReady); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_Message_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*VSSDistribute); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1132,7 +1379,7 @@ func file_Message_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_Message_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

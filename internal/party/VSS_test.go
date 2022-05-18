@@ -21,9 +21,14 @@ func TestDealer(t *testing.T) {
 	F := uint32(2)
 	sk, pk := SigKeyGen(N, 2*F+2)
 
+	KZG.SetupFix(int(2 * F))
+
+	pi_init := new(Pi)
+	pi_init.Init(F)
+
 	var p []*HonestParty = make([]*HonestParty, N)
 	for i := uint32(0); i < N; i++ {
-		p[i] = NewHonestParty(N, F, i, ipList, portList, pk, sk[i])
+		p[i] = NewHonestParty(N, F, i, ipList, portList, pk, sk[i], pi_init)
 	}
 
 	for i := uint32(0); i < N; i++ {
@@ -37,10 +42,9 @@ func TestDealer(t *testing.T) {
 	var client Client
 	client.s = new(gmp.Int)
 	client.s.SetInt64(int64(111111111111111))
-	client.HonestParty = NewHonestParty(N, F, 0x7fffffff, ipList, portList, pk, sk[2*F+1])
+	client.HonestParty = NewHonestParty(N, F, 0x7fffffff, ipList, portList, pk, sk[2*F+1], pi_init)
 	client.InitSendChannel()
 
-	KZG.SetupFix(int(2 * F))
 	primitive := ecparam.PBC256.Ngmp
 
 	client.Share([]byte("vssshare"))
@@ -57,6 +61,7 @@ func TestDealer(t *testing.T) {
 		fmt.Println("node", i+1, "receive", m.Sender, m.Id, m.Type, m.Data)
 		fmt.Println("the gs received is", gs.String())
 		var pi_test = new(Pi)
+		pi_test.G_s = KZG.NewG1()
 		pi_test.Pi_contents = make([]Pi_Content, 2*F+2)
 		for j := 0; uint32(j) <= 2*F+1; j++ {
 			pi_test.Pi_contents[j].CR_j = KZG.NewG1()
@@ -64,6 +69,7 @@ func TestDealer(t *testing.T) {
 			pi_test.Pi_contents[j].WZ_0 = KZG.NewG1()
 			pi_test.Pi_contents[j].g_Fj = KZG.NewG1()
 		}
+		pi_test.G_s.Set(gs)
 		for j := 1; uint32(j) <= 2*F+1; j++ {
 			pi_test.Pi_contents[j].CR_j.SetCompressedBytes(content.Pi.PiContents[j].CRJ)
 			pi_test.Pi_contents[j].CZ_j.SetCompressedBytes(content.Pi.PiContents[j].CZJ)
@@ -89,7 +95,7 @@ func TestDealer(t *testing.T) {
 			tmp2.PowBig(pi_test.Pi_contents[j].g_Fj, conv.GmpInt2BigInt(lambda[j-1])) // the x value of index j-1 is j
 			tmp.Mul(tmp, tmp2)
 		}
-		if tmp.Equals(gs) {
+		if tmp.Equals(pi_test.G_s) {
 			fmt.Println("g_s == multiply(lambda_i,g_F(i))")
 		}
 		//KZG end

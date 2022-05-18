@@ -5,6 +5,11 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"github.com/DyCAPSTeam/DyCAPS/internal/conv"
+	"github.com/DyCAPSTeam/DyCAPS/internal/ecparam"
+	"github.com/DyCAPSTeam/DyCAPS/internal/polyring"
+	"github.com/Nik-U/pbc"
+	"github.com/ncw/gmp"
 	"sync"
 
 	"github.com/DyCAPSTeam/DyCAPS/pkg/core"
@@ -35,10 +40,12 @@ type HonestParty struct {
 
 	SigPK *share.PubPoly  //tss pk
 	SigSK *share.PriShare //tss sk
+
+	Proof *Pi //pi in DPSS.Share
 }
 
 //NewHonestParty return a new honest party object
-func NewHonestParty(N uint32, F uint32, pid uint32, ipList []string, portList []string, sigPK *share.PubPoly, sigSK *share.PriShare) *HonestParty {
+func NewHonestParty(N uint32, F uint32, pid uint32, ipList []string, portList []string, sigPK *share.PubPoly, sigSK *share.PriShare, Proof *Pi) *HonestParty {
 	p := HonestParty{
 		N:            N,
 		F:            F,
@@ -49,6 +56,8 @@ func NewHonestParty(N uint32, F uint32, pid uint32, ipList []string, portList []
 
 		SigPK: sigPK,
 		SigSK: sigSK,
+
+		Proof: Proof,
 	}
 	return &p
 }
@@ -291,4 +300,189 @@ func (p *HonestParty) RBCReceiver(ID []byte) *protobuf.Message {
 		}
 	}
 	return nil //temp solution
+}
+
+//Receiving Initial Shares
+/*
+func (p *HonestParty) InitShareReceiver(ID []byte) {
+	primitive := ecparam.PBC256.Ngmp
+	var mutex sync.Mutex
+	var ReadySent bool = false // indicate whether this node has sent Echo
+
+	var CR_l = make([]*pbc.Element, p.N+1) //start from 1
+	reducedShare := polyring.NewEmpty()
+	for i := 0; uint32(i) <= p.N; i++ {
+		CR_l[i] = KZG.NewG1()
+	}
+
+	S_full_indexes := make([]int, p.N) // start from 0
+	S_full_polyValue := make([]*gmp.Int, p.N)
+
+	for i := 0; uint32(i) < p.N; i++ {
+		S_full_polyValue[i] = gmp.NewInt(0)
+	}
+
+	//handle VSSSend Message
+	go func() {
+		witnessReceived := make([]*pbc.Element, 2*p.F+2)
+		polyValueReceived := make([]*gmp.Int, 2*p.F+2)
+		for i := 0; uint32(i) <= 2*p.F+1; i++ {
+			witnessReceived[i] = KZG.NewG1()
+			polyValueReceived[i] = gmp.NewInt(0)
+		}
+
+		//decapsulate
+		m := <-p.GetMessage("VSSSend", ID)
+		var payloadMessage protobuf.VSSSend
+		proto.Unmarshal(m.Data, &payloadMessage)
+
+		//use functions instead of methods.
+		mutex.Lock()
+		if !ReadySent {
+			p.Proof.SetFromVSSMessage(payloadMessage.Pi, p.F)
+			for j := 1; uint32(j) <= 2*p.F+1; j++ {
+				witnessReceived[j].SetCompressedBytes(payloadMessage.WRjiList[j])
+				polyValueReceived[j].SetBytes(payloadMessage.RjiList[j])
+			}
+			verifyOK := p.VerifyVSSSendReceived(polyValueReceived, witnessReceived)
+			if !verifyOK {
+				fmt.Println("Node ", p.PID, " Verify VSSSend Failed")
+				p.Proof.Init(p.F)
+				mutex.Unlock()
+				return
+			}
+
+			//interpolate CRl from pi'
+			for j := 1; uint32(j) <= p.N; j++ {
+				witnessReceived[j].SetCompressedBytes(payloadMessage.WRjiList[j])
+				polyValueReceived[j].SetBytes(payloadMessage.RjiList[j])
+			}
+			C_known := make([]*pbc.Element, 2*p.F+2)
+			for j := 0; uint32(j) <= 2*p.F+1; j++ {
+				C_known[j] = KZG.NewG1()
+				C_known[j].Set(p.Proof.Pi_contents[j].CR_j)
+			}
+			for j := 1; uint32(j) <= p.N; j++ {
+				CommitInterpolation(int(2*p.F), j, C_known, CR_l[j])
+			}
+			//interpolate 2t-degree polynomial B*(i,y)
+			x := make([]*gmp.Int, 2*p.F+1) //start from 0
+			y := make([]*gmp.Int, 2*p.F+1)
+			for j := 0; uint32(j) < 2*p.F+1; j++ {
+				x[j].Set(gmp.NewInt(int64(j + 1)))
+				y[j].Set(polyValueReceived[j+1])
+				reducedShare, _ = interpolation.LagrangeInterpolate(int(2*p.F), x, y, primitive)
+				fmt.Print("Node ", p.PID, " interpolate polynomial when receive Send Message:")
+				reducedShare.Print()
+			}
+			//sendEcho
+			EchoData := Encapsulate_VSSEcho(p.Proof, p.N, p.F)
+			EchoMessage := &protobuf.Message{
+				Type:   "Echo",
+				Id:     ID,
+				Sender: p.PID,
+				Data:   EchoData,
+			}
+			p.Broadcast(EchoMessage)
+		}
+		mutex.Unlock()
+	}()
+
+	var N_EchoReceived int = 0
+	var N_ReadyReceived int = 0
+	var mutex_for_EchoMessage sync.Mutex
+	var mutex_for_ReadyMessage sync.Mutex
+
+	var EchoMap = make(map[string]int)
+	var ReadyContent = make(map[string][]polypoint.PolyPoint)
+
+	//handle VSSEcho Message
+	go func() {
+		for {
+			m := <-p.GetMessage("VSSEcho", ID)
+			var payloadMessage protobuf.VSSEcho
+			proto.Unmarshal(m.Data, &payloadMessage)
+			var pi_from_Echo Pi
+			pi_from_Echo.Init(p.F)
+			pi_from_Echo.SetFromVSSMessage(payloadMessage.Pi, p.F)
+			pi_hash := sha256.New()
+			pi_byte, _ := proto.Marshal(payloadMessage.Pi)
+			pi_hash.Write(pi_byte)
+			_, ok := EchoMap[string(pi_hash.Sum(nil))]
+			if ok {
+				EchoMap[string(pi_hash.Sum(nil))] += 1
+			} else {
+				EchoMap[string(pi_hash.Sum(nil))] = 1
+			}
+
+			// remember to add mutex
+			if uint32(EchoMap[string(pi_hash.Sum(nil))]) == 2*p.F+1 {
+
+			}
+
+		}
+	}()
+	//handle VSSReady Message
+	go func() {
+		for {
+			m := <-p.GetMessage("VSSReady", ID)
+
+		}
+	}()
+	//handle VSSDistribute Message
+
+}
+*/
+//Verify pi' and v'ji ,w'ji received
+func (p *HonestParty) VerifyVSSSendReceived(polyValue []*gmp.Int, witness []*pbc.Element) bool {
+	var ans bool = true
+	primitive := ecparam.PBC256.Ngmp
+	//Verify g^s == sigma((g^F_j)^lambda_j)
+	lambda := make([]*gmp.Int, 2*p.F+1)
+	knownIndexes := make([]*gmp.Int, 2*p.F+1)
+	for j := 0; uint32(j) < 2*p.F+1; j++ {
+		lambda[j] = gmp.NewInt(0)
+	}
+	for j := 0; uint32(j) < 2*p.F+1; j++ {
+		knownIndexes[j] = gmp.NewInt(int64(j + 1))
+	}
+	polyring.GetLagrangeCoefficients(int(2*p.F), knownIndexes, primitive, gmp.NewInt(0), lambda)
+	tmp := KZG.NewG1()
+	tmp.Set1()
+	for j := 1; uint32(j) <= 2*p.F+1; j++ {
+		tmp2 := KZG.NewG1()
+		tmp2.Set1()
+		tmp2.PowBig(p.Proof.Pi_contents[j].g_Fj, conv.GmpInt2BigInt(lambda[j-1])) // the x value of index j-1 is j
+		tmp.Mul(tmp, tmp2)
+	}
+	if !tmp.Equals(p.Proof.G_s) {
+		fmt.Println("Node ", p.PID, " VSSSend Verify Failed")
+		ans = false
+	}
+	//Verify KZG.VerifyEval(CZjk,0,0,WZjk0) == 1 && CRjk == CZjk * g^Fj(k) for k in [1,2t+1]
+	for j := 1; uint32(j) <= 2*p.F+1; j++ {
+		verifyEval := KZG.VerifyEval(p.Proof.Pi_contents[j].CZ_j, gmp.NewInt(0), gmp.NewInt(0), p.Proof.Pi_contents[j].WZ_0)
+
+		var verifyRj bool
+		tmp3 := KZG.NewG1()
+		tmp3.Set1()
+		tmp3.Mul(p.Proof.Pi_contents[j].CZ_j, p.Proof.Pi_contents[j].g_Fj)
+		verifyRj = tmp3.Equals(p.Proof.Pi_contents[j].CR_j)
+		if !verifyEval || !verifyRj {
+			fmt.Println("Node ", p.PID, " VSSSend Verify Failed")
+			ans = false
+		}
+	}
+
+	//Verify v'ji,w'ji w.r.t pi'
+	for j := 1; uint32(j) <= 2*p.F+1; j++ {
+		//KZG Verify
+		verifyPoint := KZG.VerifyEval(p.Proof.Pi_contents[j].CR_j, gmp.NewInt(int64((p.PID + 1))), polyValue[j], witness[j])
+		if !verifyPoint {
+			fmt.Println("Node ", p.PID, " VSSSend Verify Failed")
+			ans = false
+		}
+	}
+
+	return ans
 }

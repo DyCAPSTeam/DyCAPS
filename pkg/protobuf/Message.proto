@@ -75,3 +75,22 @@ message VSSSend{
   repeated bytes Rji_list = 2;
   repeated bytes WRji_list = 3;
 }
+
+message VSSEcho{
+  Pi pi = 1;
+}
+
+
+message VSSReady{
+  Pi pi = 1;
+  string ReadyType = 2;
+  bytes B_il = 3;
+  bytes WB_il = 4;
+}
+
+message VSSDistribute{
+  Pi pi = 1;
+  string ReadyType = 2;
+  bytes B_li = 3;
+  bytes WB_li = 4;
+}
