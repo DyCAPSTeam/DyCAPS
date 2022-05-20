@@ -29,7 +29,6 @@ func (pi *Pi) Init(F uint32) {
 }
 
 func (pi *Pi) SetFromVSSMessage(m *protobuf.Pi, F uint32) {
-
 	pi.G_s.SetCompressedBytes(m.Gs)
 	for j := 1; uint32(j) <= 2*F+1; j++ {
 		pi.Pi_contents[j].CR_j.SetCompressedBytes(m.PiContents[j].CRJ)
@@ -39,7 +38,18 @@ func (pi *Pi) SetFromVSSMessage(m *protobuf.Pi, F uint32) {
 	}
 }
 
-func CommitInterpolation(degree int, targetindex int, C_list []*pbc.Element, C *pbc.Element) {
+func (pi *Pi) Set(src *Pi, F uint32) {
+
+	pi.G_s.Set(src.G_s)
+	for j := 1; uint32(j) <= 2*F+1; j++ {
+		pi.Pi_contents[j].CR_j.Set(src.Pi_contents[j].CR_j)
+		pi.Pi_contents[j].CZ_j.Set(src.Pi_contents[j].CZ_j)
+		pi.Pi_contents[j].WZ_0.Set(src.Pi_contents[j].WZ_0)
+		pi.Pi_contents[j].g_Fj.Set(src.Pi_contents[j].g_Fj)
+	}
+}
+
+func CommitOrWitnessInterpolation(degree int, targetindex int, C_list []*pbc.Element, C *pbc.Element) {
 	primitive := ecparam.PBC256.Ngmp
 	lambda := make([]*gmp.Int, degree+1)
 	knownIndexes := make([]*gmp.Int, degree+1)
@@ -48,6 +58,25 @@ func CommitInterpolation(degree int, targetindex int, C_list []*pbc.Element, C *
 	}
 	for j := 0; j < degree+1; j++ {
 		knownIndexes[j] = gmp.NewInt(int64(j + 1))
+	}
+	polyring.GetLagrangeCoefficients(int(degree), knownIndexes, primitive, gmp.NewInt(int64(targetindex)), lambda)
+
+	ans := KZG.NewG1()
+	ans.Set1()
+	for j := 0; j < degree+1; j++ {
+		tmp := KZG.NewG1()
+		tmp.Set1()
+		tmp.PowBig(C_list[j], conv.GmpInt2BigInt(lambda[j]))
+		ans.Mul(ans, tmp)
+	}
+	C.Set(ans)
+}
+
+func CommitOrWitnessInterpolationbyKnownIndexes(degree int, targetindex int, knownIndexes []*gmp.Int, C_list []*pbc.Element, C *pbc.Element) {
+	primitive := ecparam.PBC256.Ngmp
+	lambda := make([]*gmp.Int, degree+1)
+	for j := 0; j < degree+1; j++ {
+		lambda[j] = gmp.NewInt(0)
 	}
 	polyring.GetLagrangeCoefficients(int(degree), knownIndexes, primitive, gmp.NewInt(int64(targetindex)), lambda)
 
@@ -120,6 +149,47 @@ func Encapsulate_VSSEcho(pi *Pi, N uint32, F uint32) []byte {
 			msg.Pi.PiContents[j].G_Fj = pi.Pi_contents[j].g_Fj.CompressedBytes()
 		}
 	}
+	data, _ := proto.Marshal(msg)
+	return data
+}
+
+func Encapsulate_VSSReady(pi *Pi, ReadyType string, B_li *gmp.Int, w_li *pbc.Element, N uint32, F uint32) []byte {
+	var msg = new(protobuf.VSSReady)
+	msg.Pi = new(protobuf.Pi)
+	msg.Pi.Gs = pi.G_s.CompressedBytes()
+	msg.ReadyType = ReadyType // possible bug
+	if msg.ReadyType == "SHARE" {
+		msg.BIl = B_li.Bytes()
+		msg.WBIl = w_li.CompressedBytes()
+	}
+	for j := 0; uint32(j) <= 2*F+1; j++ {
+		if j == 0 {
+
+			msg.Pi.PiContents = make([]*protobuf.PiContent, 2*F+2)
+			for k := 0; uint32(k) <= 2*F+1; k++ {
+				msg.Pi.PiContents[k] = new(protobuf.PiContent)
+			}
+			msg.Pi.PiContents[0].J = 0
+			msg.Pi.PiContents[0].WZ_0 = []byte{}
+			msg.Pi.PiContents[0].CRJ = []byte{}
+			msg.Pi.PiContents[0].CZJ = []byte{}
+			msg.Pi.PiContents[0].G_Fj = []byte{}
+		} else {
+			msg.Pi.PiContents[j].J = int32(j)
+			msg.Pi.PiContents[j].CZJ = pi.Pi_contents[j].CZ_j.CompressedBytes()
+			msg.Pi.PiContents[j].CRJ = pi.Pi_contents[j].CR_j.CompressedBytes()
+			msg.Pi.PiContents[j].WZ_0 = pi.Pi_contents[j].WZ_0.CompressedBytes()
+			msg.Pi.PiContents[j].G_Fj = pi.Pi_contents[j].g_Fj.CompressedBytes()
+		}
+	}
+	data, _ := proto.Marshal(msg)
+	return data
+}
+
+func Encapsulate_VSSDistribute(B_li *gmp.Int, w_li *pbc.Element, N uint32, F uint32) []byte {
+	var msg = new(protobuf.VSSDistribute)
+	msg.BLi = B_li.Bytes()
+	msg.WBLi = w_li.CompressedBytes()
 	data, _ := proto.Marshal(msg)
 	return data
 }

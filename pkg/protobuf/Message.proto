@@ -89,8 +89,6 @@ message VSSReady{
 }
 
 message VSSDistribute{
-  Pi pi = 1;
-  string ReadyType = 2;
-  bytes B_li = 3;
-  bytes WB_li = 4;
+  bytes B_li = 1;
+  bytes WB_li = 2;
 }

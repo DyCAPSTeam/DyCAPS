@@ -8,7 +8,6 @@ import (
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 	"github.com/Nik-U/pbc"
 	"github.com/ncw/gmp"
-	"google.golang.org/protobuf/proto"
 	"math/rand"
 	"time"
 )
@@ -37,8 +36,8 @@ type Pi struct {
 //假设这里KZG的初始化已经完成
 func (client *Client) Share(ID []byte) {
 
-	var pi *Pi = new(Pi)
-	pi.G_s = KZG.NewG1()                              //  is this OK?
+	pi := new(Pi)
+	pi.Init(client.F)                                 //  is this OK?
 	pi.Pi_contents = make([]Pi_Content, 2*client.F+2) // here we do not use pi_contents[0]
 	var p *gmp.Int                                    // the primitive of Zp* (the type is *gmp.Int)
 	p = ecparam.PBC256.Ngmp
@@ -138,38 +137,4 @@ func (client *Client) Share(ID []byte) {
 		}, uint32(i-1)) // pid = i - 1!
 		fmt.Println("client send VSSSend message to ", i)
 	}
-}
-
-func Encapsulate_VSSSend(pi *Pi, Rji_list []*gmp.Int, Wji_list []*pbc.Element, N uint32, F uint32) []byte {
-	var msg = new(protobuf.VSSSend)
-	msg.Pi = new(protobuf.Pi)
-	msg.Pi.Gs = pi.G_s.CompressedBytes()
-
-	for j := 0; uint32(j) <= 2*F+1; j++ {
-		if j == 0 {
-			msg.RjiList = make([][]byte, 2*F+2) // 0 is not used.
-			msg.WRjiList = make([][]byte, 2*F+2)
-			msg.WRjiList[0] = []byte{}
-			msg.RjiList[0] = []byte{}
-			msg.Pi.PiContents = make([]*protobuf.PiContent, 2*F+2)
-			for k := 0; uint32(k) <= 2*F+1; k++ {
-				msg.Pi.PiContents[k] = new(protobuf.PiContent)
-			}
-			msg.Pi.PiContents[0].J = 0
-			msg.Pi.PiContents[0].WZ_0 = []byte{}
-			msg.Pi.PiContents[0].CRJ = []byte{}
-			msg.Pi.PiContents[0].CZJ = []byte{}
-			msg.Pi.PiContents[0].G_Fj = []byte{}
-		} else {
-			msg.WRjiList[j] = Wji_list[j].CompressedBytes()
-			msg.RjiList[j] = Rji_list[j].Bytes()
-			msg.Pi.PiContents[j].J = int32(j)
-			msg.Pi.PiContents[j].CZJ = pi.Pi_contents[j].CZ_j.CompressedBytes()
-			msg.Pi.PiContents[j].CRJ = pi.Pi_contents[j].CR_j.CompressedBytes()
-			msg.Pi.PiContents[j].WZ_0 = pi.Pi_contents[j].WZ_0.CompressedBytes()
-			msg.Pi.PiContents[j].G_Fj = pi.Pi_contents[j].g_Fj.CompressedBytes()
-		}
-	}
-	data, _ := proto.Marshal(msg)
-	return data
 }

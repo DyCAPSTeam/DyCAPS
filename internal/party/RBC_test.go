@@ -10,18 +10,20 @@ import (
 )
 
 func TestRBC(t *testing.T) {
+
 	ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
 	portList := []string{"8880", "8881", "8882", "8883", "8884", "8885", "8886"}
 
 	N := uint32(7)
 	F := uint32(2)
+	KZG.SetupFix(int(2 * F))
 	sk, pk := SigKeyGen(N, 2*F+1)
-
+	pi_init := new(Pi)
+	pi_init.Init(F)
 	var p []*HonestParty = make([]*HonestParty, N)
 	for i := uint32(0); i < N; i++ {
-		p[i] = NewHonestParty(N, F, i, ipList, portList, pk, sk[i])
+		p[i] = NewHonestParty(N, F, i, ipList, portList, pk, sk[i], pi_init)
 	}
-
 	for i := uint32(0); i < N; i++ {
 		p[i].InitReceiveChannel()
 	}
@@ -31,7 +33,6 @@ func TestRBC(t *testing.T) {
 	}
 
 	var wg sync.WaitGroup
-
 	var ID = []byte("abc")
 	wg.Add(int(3*F + 1))
 	for i := uint32(0); i < N; i++ { // there is one malicious node,who doesn't send any Message

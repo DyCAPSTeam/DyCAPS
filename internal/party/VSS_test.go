@@ -9,6 +9,8 @@ import (
 	"github.com/Nik-U/pbc"
 	"github.com/ncw/gmp"
 	"google.golang.org/protobuf/proto"
+	"os"
+	"sync"
 	"testing"
 )
 
@@ -96,7 +98,10 @@ func TestDealer(t *testing.T) {
 			tmp.Mul(tmp, tmp2)
 		}
 		if tmp.Equals(pi_test.G_s) {
-			fmt.Println("g_s == multiply(lambda_i,g_F(i))")
+			fmt.Println("g_s == multiply(lambda_i,g_F(i)),gs = ", gs.String(), "multiply(lambda_i,g_F(i))= ", tmp.String())
+		} else {
+			fmt.Println("g_s != multiply(lambda_i,g_F(i)),gs = ", gs.String(), "multiply(lambda_i,g_F(i))= ", tmp.String())
+			os.Exit(1)
 		}
 		//KZG end
 		for j := 1; uint32(j) <= 2*F+1; j++ {
@@ -111,5 +116,54 @@ func TestDealer(t *testing.T) {
 			fmt.Println("i= ", i+1, " j = ", j, " Rji = ", Rji, "WRji = ", WRji.String())
 		}
 	}
+}
 
+func TestVSS(t *testing.T) {
+
+	ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
+	portList := []string{"8880", "8881", "8882", "8883", "8884", "8885", "8886"}
+
+	N := uint32(7)
+	F := uint32(2)
+	sk, pk := SigKeyGen(N, 2*F+2)
+
+	KZG.SetupFix(int(2 * F))
+
+	pi_init := new(Pi)
+	pi_init.Init(F)
+
+	var p []*HonestParty = make([]*HonestParty, N)
+	for i := uint32(0); i < N; i++ {
+		p[i] = NewHonestParty(N, F, i, ipList, portList, pk, sk[i], pi_init)
+	}
+
+	for i := uint32(0); i < N; i++ {
+		p[i].InitReceiveChannel()
+	}
+
+	for i := uint32(0); i < N; i++ {
+		p[i].InitSendChannel()
+	}
+
+	var client Client
+	client.s = new(gmp.Int)
+	client.s.SetInt64(int64(111111111111111))
+	client.HonestParty = NewHonestParty(N, F, 0x7fffffff, ipList, portList, pk, sk[2*F+1], pi_init)
+	client.InitSendChannel()
+
+	client.Share([]byte("vssshare"))
+
+	var wg sync.WaitGroup
+
+	wg.Add(int(3*F + 1))
+	for i := uint32(0); i < N; i++ {
+		go func(i uint32) {
+			p[i].InitShareReceiver([]byte("vssshare"))
+			wg.Done()
+		}(i)
+	}
+
+	wg.Wait()
+
+	fmt.Println("VSS Finish")
 }

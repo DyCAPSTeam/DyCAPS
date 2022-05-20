@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"github.com/DyCAPSTeam/DyCAPS/internal/conv"
 	"github.com/DyCAPSTeam/DyCAPS/internal/ecparam"
+	"github.com/DyCAPSTeam/DyCAPS/internal/interpolation"
+	"github.com/DyCAPSTeam/DyCAPS/internal/polypoint"
 	"github.com/DyCAPSTeam/DyCAPS/internal/polyring"
 	"github.com/Nik-U/pbc"
 	"github.com/ncw/gmp"
@@ -42,6 +44,8 @@ type HonestParty struct {
 	SigSK *share.PriShare //tss sk
 
 	Proof *Pi //pi in DPSS.Share
+
+	fullShare polyring.Polynomial // B(p.PID+1,y)
 }
 
 //NewHonestParty return a new honest party object
@@ -58,6 +62,8 @@ func NewHonestParty(N uint32, F uint32, pid uint32, ipList []string, portList []
 		SigSK: sigSK,
 
 		Proof: Proof,
+
+		fullShare: polyring.NewEmpty(),
 	}
 	return &p
 }
@@ -303,59 +309,325 @@ func (p *HonestParty) RBCReceiver(ID []byte) *protobuf.Message {
 }
 
 //Receiving Initial Shares
-/*
+
 func (p *HonestParty) InitShareReceiver(ID []byte) {
 	primitive := ecparam.PBC256.Ngmp
-	var mutex sync.Mutex
-	var ReadySent bool = false // indicate whether this node has sent Echo
+	var mutex_for_pi sync.Mutex
+	var PiReset bool = false // indicate whether this node has sent Echo
+	var PiResetChannel chan bool = make(chan bool, 1)
+	var InitShareFinished chan bool = make(chan bool, 1) // indicate the whole process finishes.
 
 	var CR_l = make([]*pbc.Element, p.N+1) //start from 1
-	reducedShare := polyring.NewEmpty()
+	fullShare_from_Send := polyring.NewEmpty()
 	for i := 0; uint32(i) <= p.N; i++ {
 		CR_l[i] = KZG.NewG1()
 	}
 
-	S_full_indexes := make([]int, p.N) // start from 0
-	S_full_polyValue := make([]*gmp.Int, p.N)
+	S_full_indexes := make([]*gmp.Int, 0) // start from 0
+	S_full_polyValue := make([]*gmp.Int, 0)
 
-	for i := 0; uint32(i) < p.N; i++ {
-		S_full_polyValue[i] = gmp.NewInt(0)
+	witnessReceivedinSend := make([]*pbc.Element, 2*p.F+2)
+	polyValueReceivedinSend := make([]*gmp.Int, 2*p.F+2)
+	for i := 0; uint32(i) <= 2*p.F+1; i++ {
+		witnessReceivedinSend[i] = KZG.NewG1()
+		polyValueReceivedinSend[i] = gmp.NewInt(0)
 	}
 
 	//handle VSSSend Message
 	go func() {
-		witnessReceived := make([]*pbc.Element, 2*p.F+2)
-		polyValueReceived := make([]*gmp.Int, 2*p.F+2)
-		for i := 0; uint32(i) <= 2*p.F+1; i++ {
-			witnessReceived[i] = KZG.NewG1()
-			polyValueReceived[i] = gmp.NewInt(0)
-		}
 
 		//decapsulate
 		m := <-p.GetMessage("VSSSend", ID)
+		fmt.Println("Node ", p.PID, " receive VSSSend Message")
 		var payloadMessage protobuf.VSSSend
 		proto.Unmarshal(m.Data, &payloadMessage)
 
-		//use functions instead of methods.
-		mutex.Lock()
-		if !ReadySent {
+		mutex_for_pi.Lock()
+		if !PiReset {
 			p.Proof.SetFromVSSMessage(payloadMessage.Pi, p.F)
 			for j := 1; uint32(j) <= 2*p.F+1; j++ {
-				witnessReceived[j].SetCompressedBytes(payloadMessage.WRjiList[j])
-				polyValueReceived[j].SetBytes(payloadMessage.RjiList[j])
+				witnessReceivedinSend[j].SetCompressedBytes(payloadMessage.WRjiList[j])
+				polyValueReceivedinSend[j].SetBytes(payloadMessage.RjiList[j])
 			}
-			verifyOK := p.VerifyVSSSendReceived(polyValueReceived, witnessReceived)
+			verifyOK := p.VerifyVSSSendReceived(polyValueReceivedinSend, witnessReceivedinSend)
 			if !verifyOK {
 				fmt.Println("Node ", p.PID, " Verify VSSSend Failed")
 				p.Proof.Init(p.F)
-				mutex.Unlock()
+				mutex_for_pi.Unlock()
 				return
 			}
 
 			//interpolate CRl from pi'
+			C_known := make([]*pbc.Element, 2*p.F+2)
+			for j := 0; uint32(j) <= 2*p.F+1; j++ {
+				C_known[j] = KZG.NewG1()
+				C_known[j].Set(p.Proof.Pi_contents[j].CR_j)
+			}
 			for j := 1; uint32(j) <= p.N; j++ {
-				witnessReceived[j].SetCompressedBytes(payloadMessage.WRjiList[j])
-				polyValueReceived[j].SetBytes(payloadMessage.RjiList[j])
+				CommitOrWitnessInterpolation(int(2*p.F), j, C_known[1:], CR_l[j])
+			}
+			//interpolate 2t-degree polynomial B*(i,y)
+			x := make([]*gmp.Int, 2*p.F+1) //start from 0
+			y := make([]*gmp.Int, 2*p.F+1)
+			for j := 0; uint32(j) < 2*p.F+1; j++ {
+				x[j] = gmp.NewInt(0)
+				y[j] = gmp.NewInt(0)
+				x[j].Set(gmp.NewInt(int64(j + 1)))
+				y[j].Set(polyValueReceivedinSend[j+1])
+			}
+			tmp_poly, _ := interpolation.LagrangeInterpolate(int(2*p.F), x, y, primitive)
+			fullShare_from_Send.ResetTo(tmp_poly)
+			fmt.Print("Node ", p.PID, " interpolate polynomial when receive Send Message:")
+			fullShare_from_Send.Print()
+
+			//sendEcho
+			EchoData := Encapsulate_VSSEcho(p.Proof, p.N, p.F)
+			EchoMessage := &protobuf.Message{
+				Type:   "VSSEcho",
+				Id:     ID,
+				Sender: p.PID,
+				Data:   EchoData,
+			}
+			p.Broadcast(EchoMessage)
+			fmt.Println("Node ", p.PID, " broadcast Echo Message")
+		}
+		mutex_for_pi.Unlock()
+	}()
+
+	var ReadySent bool = false
+	var mutex_for_EchoMap sync.Mutex
+	var mutex_for_ReadyMessage sync.Mutex
+
+	var EchoMap = make(map[string]int)
+	var ReadyMap = make(map[string]int)
+	var ReadyContent = make(map[string][]polypoint.PolyPoint)
+
+	//handle VSSEcho Message
+	go func() {
+		for {
+			m := <-p.GetMessage("VSSEcho", ID)
+			fmt.Println("Node ", p.PID, " Receive Echo Message From Node ", m.Sender)
+			var payloadMessage protobuf.VSSEcho
+			proto.Unmarshal(m.Data, &payloadMessage)
+			var pi_from_Echo = new(Pi)
+			pi_from_Echo.Init(p.F)
+			pi_from_Echo.SetFromVSSMessage(payloadMessage.Pi, p.F)
+			pi_hash := sha256.New()
+			pi_byte, _ := proto.Marshal(payloadMessage.Pi)
+			pi_hash.Write(pi_byte)
+
+			mutex_for_EchoMap.Lock()
+			counter, ok := EchoMap[string(pi_hash.Sum(nil))]
+			if ok {
+				EchoMap[string(pi_hash.Sum(nil))] = counter + 1
+			} else {
+				EchoMap[string(pi_hash.Sum(nil))] = 1
+			}
+			if uint32(EchoMap[string(pi_hash.Sum(nil))]) == 2*p.F+1 {
+				mutex_for_ReadyMessage.Lock()
+				if !ReadySent {
+					mutex_for_pi.Lock()
+					if p.Proof.Equals(pi_from_Echo, p.F) {
+						for l := 0; uint32(l) < p.N; l++ {
+							valueAt_l := gmp.NewInt(0) //value at l+1
+							fullShare_from_Send.EvalMod(gmp.NewInt(int64(l+1)), primitive, valueAt_l)
+							witnessAt_l := KZG.NewG1()
+							CommitOrWitnessInterpolation(int(2*p.F), l+1, witnessReceivedinSend[1:], witnessAt_l) // possible bug
+							Readydata := Encapsulate_VSSReady(p.Proof, "SHARE", valueAt_l, witnessAt_l, p.N, p.F)
+							p.Send(&protobuf.Message{Type: "VSSReady", Id: ID, Sender: p.PID, Data: Readydata}, uint32(l))
+							fmt.Println("Node ", p.PID, " send VSSReady to ", l, " the ReadyType is SHARE")
+						}
+						ReadySent = true
+						PiReset = true
+						PiResetChannel <- true
+					} else {
+						p.Proof.Set(pi_from_Echo, p.F)
+						fullShare_from_Send.ResetTo(polyring.NewEmpty())
+						//reset CRl
+						for l := 0; uint32(l) <= p.N; l++ {
+							CR_l[l] = KZG.NewG1()
+						}
+						//multicast Ready
+						for l := 0; uint32(l) < p.N; l++ {
+							Readydata := Encapsulate_VSSReady(p.Proof, "NOSHARE", nil, nil, p.N, p.F)
+							p.Send(&protobuf.Message{Type: "VSSReady", Id: ID, Sender: p.PID, Data: Readydata}, uint32(l))
+							fmt.Println("Node ", p.PID, " send VSSReady to ", l, " the ReadyType is NOSHARE")
+						}
+						ReadySent = true
+						PiReset = true
+						PiResetChannel <- true
+					}
+					mutex_for_pi.Unlock()
+				}
+				mutex_for_ReadyMessage.Unlock()
+			}
+			mutex_for_EchoMap.Unlock()
+
+		}
+	}()
+
+	//handle VSSReady Message
+
+	go func() {
+		for {
+			m := <-p.GetMessage("VSSReady", ID)
+			fmt.Println("Node ", p.PID, " Receive Ready Message From Node ", m.Sender)
+			var payloadMessage protobuf.VSSReady
+			proto.Unmarshal(m.Data, &payloadMessage)
+			var pi_from_Ready = new(Pi)
+			pi_from_Ready.Init(p.F)
+			pi_from_Ready.SetFromVSSMessage(payloadMessage.Pi, p.F)
+			pi_hash := sha256.New()
+			pi_byte, _ := proto.Marshal(payloadMessage.Pi)
+			pi_hash.Write(pi_byte)
+			receiveFrom := m.Sender
+			valueAt_l := gmp.NewInt(0) //  l = senderID + 1
+			if payloadMessage.ReadyType == "SHARE" {
+				valueAt_l.SetBytes(payloadMessage.BIl)
+			}
+			witnessAt_l := KZG.NewG1()
+			if payloadMessage.ReadyType == "SHARE" {
+				witnessAt_l.SetCompressedBytes(payloadMessage.WBIl)
+			}
+			fmt.Println("payloadMessage.Type= ", payloadMessage.ReadyType)
+			mutex_for_ReadyMessage.Lock()
+
+			_, ok := ReadyMap[string(pi_hash.Sum(nil))]
+			if ok {
+				ReadyMap[string(pi_hash.Sum(nil))] = ReadyMap[string(pi_hash.Sum(nil))] + 1
+			} else {
+				ReadyMap[string(pi_hash.Sum(nil))] = 1
+			}
+			//add verification here
+			//interpolate CR_l again  (temp solution)
+			var CR_l_temp = make([]*pbc.Element, p.N+1) //start from 1
+			for i := 0; uint32(i) <= p.N; i++ {
+				CR_l_temp[i] = KZG.NewG1()
+			}
+			C_known := make([]*pbc.Element, 2*p.F+2)
+			for j := 0; uint32(j) <= 2*p.F+1; j++ {
+				C_known[j] = KZG.NewG1()
+				C_known[j].Set(pi_from_Ready.Pi_contents[j].CR_j)
+			}
+			for j := 1; uint32(j) <= p.N; j++ {
+				CommitOrWitnessInterpolation(int(2*p.F), j, C_known[1:], CR_l_temp[j])
+			}
+
+			if KZG.VerifyEval(CR_l_temp[p.PID+1], gmp.NewInt(int64(receiveFrom+1)), valueAt_l, witnessAt_l) {
+				_, ok2 := ReadyContent[string(pi_hash.Sum(nil))]
+				if ok2 {
+					ReadyContent[string(pi_hash.Sum(nil))] = append(ReadyContent[string(pi_hash.Sum(nil))], polypoint.PolyPoint{
+						X:       int32(receiveFrom + 1),
+						Y:       valueAt_l,
+						PolyWit: witnessAt_l,
+					})
+				} else {
+					ReadyContent[string(pi_hash.Sum(nil))] = make([]polypoint.PolyPoint, 0)
+					ReadyContent[string(pi_hash.Sum(nil))] = append(ReadyContent[string(pi_hash.Sum(nil))], polypoint.PolyPoint{
+						X:       int32(receiveFrom + 1),
+						Y:       valueAt_l,
+						PolyWit: witnessAt_l,
+					})
+				}
+			}
+
+			//send Ready Message
+			if uint32(ReadyMap[string(pi_hash.Sum(nil))]) == p.F+1 {
+				if !ReadySent {
+					mutex_for_pi.Lock()
+					if p.Proof.Equals(pi_from_Ready, p.F) {
+						for l := 0; uint32(l) < p.N; l++ {
+							valueAt_l_Send := gmp.NewInt(0) //value at l+1
+							fullShare_from_Send.EvalMod(gmp.NewInt(int64(l+1)), primitive, valueAt_l_Send)
+							witnessAt_l_Send := KZG.NewG1()
+							CommitOrWitnessInterpolation(int(2*p.F), l+1, witnessReceivedinSend[1:], witnessAt_l) // possible bug
+							Readydata := Encapsulate_VSSReady(p.Proof, "SHARE", valueAt_l_Send, witnessAt_l_Send, p.N, p.F)
+							p.Send(&protobuf.Message{Type: "VSSReady", Id: ID, Sender: p.PID, Data: Readydata}, uint32(l))
+							fmt.Println("Node ", p.PID, " send VSSReady to ", l, " the ReadyType is SHARE")
+						}
+						ReadySent = true
+						PiReset = true
+						PiResetChannel <- true
+					} else {
+						p.Proof.Set(pi_from_Ready, p.F)
+						fullShare_from_Send.ResetTo(polyring.NewEmpty())
+						//reset CRl
+						for l := 0; uint32(l) <= p.N; l++ {
+							CR_l[l] = KZG.NewG1()
+						}
+						//multicast Ready
+						for l := 0; uint32(l) < p.N; l++ {
+							Readydata := Encapsulate_VSSReady(p.Proof, "NOSHARE", nil, nil, p.N, p.F)
+							p.Send(&protobuf.Message{Type: "VSSReady", Id: ID, Sender: p.PID, Data: Readydata}, uint32(l))
+							fmt.Println("Node ", p.PID, " send VSSReady to ", l, " the ReadyType is NOSHARE")
+						}
+						ReadySent = true
+						PiReset = true
+						PiResetChannel <- true
+					}
+					mutex_for_pi.Unlock()
+				}
+			}
+
+			//send Distribute Message
+			if uint32(ReadyMap[string(pi_hash.Sum(nil))]) >= 2*p.F+1 {
+				if uint32(len(ReadyContent[string(pi_hash.Sum(nil))])) >= p.F+1 {
+					//interpolate B(x,i)
+					var witnessReceivedinReady []*pbc.Element = make([]*pbc.Element, p.F+1)
+					var reducedShare_x []*gmp.Int = make([]*gmp.Int, p.F+1)
+					var reducedShare_y []*gmp.Int = make([]*gmp.Int, p.F+1)
+					for k := 0; uint32(k) < p.F+1; k++ {
+						reducedShare_x[k] = gmp.NewInt(0)
+						reducedShare_x[k].Set(gmp.NewInt(int64(ReadyContent[string(pi_hash.Sum(nil))][k].X)))
+						reducedShare_y[k] = gmp.NewInt(0)
+						reducedShare_y[k].Set(ReadyContent[string(pi_hash.Sum(nil))][k].Y)
+						witnessReceivedinReady[k] = KZG.NewG1()
+						witnessReceivedinReady[k].Set(ReadyContent[string(pi_hash.Sum(nil))][k].PolyWit)
+					}
+					reducedShare, _ := interpolation.LagrangeInterpolate(int(p.F), reducedShare_x, reducedShare_y, primitive)
+					fmt.Println("node ", p.PID, " reconstruct reducedShare from t+1 Ready messages:")
+					reducedShare.Print()
+					for l := 0; uint32(l) < p.N; l++ {
+						polyValue_dist := gmp.NewInt(0)
+						reducedShare.EvalMod(gmp.NewInt(int64(l+1)), primitive, polyValue_dist)
+						witness_dist := KZG.NewG1()
+						CommitOrWitnessInterpolationbyKnownIndexes(int(p.F), l+1, reducedShare_x, witnessReceivedinReady, witness_dist) //remember:
+						data_dist := Encapsulate_VSSDistribute(polyValue_dist, witness_dist, p.N, p.F)
+						p.Send(&protobuf.Message{
+							Type:   "VSSDistribute",
+							Id:     ID,
+							Sender: p.PID,
+							Data:   data_dist,
+						}, uint32(l))
+						fmt.Println("Node ", p.PID, " send Distribute Message to Node", l)
+					}
+					mutex_for_ReadyMessage.Unlock() //possible bug
+					return
+				}
+			}
+
+			mutex_for_ReadyMessage.Unlock()
+
+		}
+	}()
+	//handle VSSDistribute Message
+	go func() {
+		<-PiResetChannel // waiting for Pi reset
+		for {
+
+			msg := <-p.GetMessage("VSSDistribute", ID)
+			fmt.Println("Node ", p.PID, " receive Distribute Message from ", msg.Sender)
+			var payloadMessage protobuf.VSSDistribute
+			proto.Unmarshal(msg.Data, &payloadMessage)
+
+			valueReceived_dist := gmp.NewInt(0)
+			valueReceived_dist.SetBytes(payloadMessage.BLi)
+			witnessReceived_dist := KZG.NewG1()
+			witnessReceived_dist.SetCompressedBytes(payloadMessage.WBLi)
+			//interpolate target commitment again
+			var CR_l_temp = make([]*pbc.Element, p.N+1) //start from 1
+			for i := 0; uint32(i) <= p.N; i++ {
+				CR_l_temp[i] = KZG.NewG1()
 			}
 			C_known := make([]*pbc.Element, 2*p.F+2)
 			for j := 0; uint32(j) <= 2*p.F+1; j++ {
@@ -363,76 +635,32 @@ func (p *HonestParty) InitShareReceiver(ID []byte) {
 				C_known[j].Set(p.Proof.Pi_contents[j].CR_j)
 			}
 			for j := 1; uint32(j) <= p.N; j++ {
-				CommitInterpolation(int(2*p.F), j, C_known, CR_l[j])
-			}
-			//interpolate 2t-degree polynomial B*(i,y)
-			x := make([]*gmp.Int, 2*p.F+1) //start from 0
-			y := make([]*gmp.Int, 2*p.F+1)
-			for j := 0; uint32(j) < 2*p.F+1; j++ {
-				x[j].Set(gmp.NewInt(int64(j + 1)))
-				y[j].Set(polyValueReceived[j+1])
-				reducedShare, _ = interpolation.LagrangeInterpolate(int(2*p.F), x, y, primitive)
-				fmt.Print("Node ", p.PID, " interpolate polynomial when receive Send Message:")
-				reducedShare.Print()
-			}
-			//sendEcho
-			EchoData := Encapsulate_VSSEcho(p.Proof, p.N, p.F)
-			EchoMessage := &protobuf.Message{
-				Type:   "Echo",
-				Id:     ID,
-				Sender: p.PID,
-				Data:   EchoData,
-			}
-			p.Broadcast(EchoMessage)
-		}
-		mutex.Unlock()
-	}()
-
-	var N_EchoReceived int = 0
-	var N_ReadyReceived int = 0
-	var mutex_for_EchoMessage sync.Mutex
-	var mutex_for_ReadyMessage sync.Mutex
-
-	var EchoMap = make(map[string]int)
-	var ReadyContent = make(map[string][]polypoint.PolyPoint)
-
-	//handle VSSEcho Message
-	go func() {
-		for {
-			m := <-p.GetMessage("VSSEcho", ID)
-			var payloadMessage protobuf.VSSEcho
-			proto.Unmarshal(m.Data, &payloadMessage)
-			var pi_from_Echo Pi
-			pi_from_Echo.Init(p.F)
-			pi_from_Echo.SetFromVSSMessage(payloadMessage.Pi, p.F)
-			pi_hash := sha256.New()
-			pi_byte, _ := proto.Marshal(payloadMessage.Pi)
-			pi_hash.Write(pi_byte)
-			_, ok := EchoMap[string(pi_hash.Sum(nil))]
-			if ok {
-				EchoMap[string(pi_hash.Sum(nil))] += 1
-			} else {
-				EchoMap[string(pi_hash.Sum(nil))] = 1
+				CommitOrWitnessInterpolation(int(2*p.F), j, C_known[1:], CR_l_temp[j])
 			}
 
-			// remember to add mutex
-			if uint32(EchoMap[string(pi_hash.Sum(nil))]) == 2*p.F+1 {
-
+			if KZG.VerifyEval(CR_l_temp[msg.Sender+1], gmp.NewInt(int64(p.PID+1)), valueReceived_dist, witnessReceived_dist) {
+				fmt.Println("node ", p.PID, " verify Distribute message from ", msg.Sender, " ok")
+				S_full_polyValue = append(S_full_polyValue, gmp.NewInt(0))
+				S_full_indexes = append(S_full_indexes, gmp.NewInt(0))
+				length := len(S_full_polyValue)
+				S_full_polyValue[length-1].Set(valueReceived_dist)
+				S_full_indexes[length-1].Set(gmp.NewInt(int64(msg.Sender + 1)))
+			}
+			if uint32(len(S_full_indexes)) == 2*p.F+1 {
+				fullShare, _ := interpolation.LagrangeInterpolate(int(2*p.F), S_full_indexes, S_full_polyValue, primitive)
+				p.fullShare.ResetTo(fullShare)
+				fmt.Println("node ", p.PID, " get its full share B(i,y):")
+				p.fullShare.Print()
+				InitShareFinished <- true
 			}
 
 		}
 	}()
-	//handle VSSReady Message
-	go func() {
-		for {
-			m := <-p.GetMessage("VSSReady", ID)
-
-		}
-	}()
-	//handle VSSDistribute Message
-
+	//set the final reduceShare and return
+	<-InitShareFinished
+	return
 }
-*/
+
 //Verify pi' and v'ji ,w'ji received
 func (p *HonestParty) VerifyVSSSendReceived(polyValue []*gmp.Int, witness []*pbc.Element) bool {
 	var ans bool = true
@@ -453,10 +681,11 @@ func (p *HonestParty) VerifyVSSSendReceived(polyValue []*gmp.Int, witness []*pbc
 		tmp2 := KZG.NewG1()
 		tmp2.Set1()
 		tmp2.PowBig(p.Proof.Pi_contents[j].g_Fj, conv.GmpInt2BigInt(lambda[j-1])) // the x value of index j-1 is j
-		tmp.Mul(tmp, tmp2)
+		//tmp.Mul(tmp, tmp2)
+		tmp.ThenMul(tmp2)
 	}
 	if !tmp.Equals(p.Proof.G_s) {
-		fmt.Println("Node ", p.PID, " VSSSend Verify Failed")
+		fmt.Println("Node ", p.PID, " VSSSend Verify Failed, the g_s is", p.Proof.G_s.String(), " but sigma(g^F(j)) is ", tmp.String())
 		ans = false
 	}
 	//Verify KZG.VerifyEval(CZjk,0,0,WZjk0) == 1 && CRjk == CZjk * g^Fj(k) for k in [1,2t+1]
@@ -469,7 +698,7 @@ func (p *HonestParty) VerifyVSSSendReceived(polyValue []*gmp.Int, witness []*pbc
 		tmp3.Mul(p.Proof.Pi_contents[j].CZ_j, p.Proof.Pi_contents[j].g_Fj)
 		verifyRj = tmp3.Equals(p.Proof.Pi_contents[j].CR_j)
 		if !verifyEval || !verifyRj {
-			fmt.Println("Node ", p.PID, " VSSSend Verify Failed")
+			fmt.Println("Node ", p.PID, " VSSSend Verify Failed,CRjk = ", p.Proof.Pi_contents[j].CR_j, "CZjk*g*Fj(k) = ", tmp3.String())
 			ans = false
 		}
 	}
@@ -479,7 +708,7 @@ func (p *HonestParty) VerifyVSSSendReceived(polyValue []*gmp.Int, witness []*pbc
 		//KZG Verify
 		verifyPoint := KZG.VerifyEval(p.Proof.Pi_contents[j].CR_j, gmp.NewInt(int64((p.PID + 1))), polyValue[j], witness[j])
 		if !verifyPoint {
-			fmt.Println("Node ", p.PID, " VSSSend Verify Failed")
+			fmt.Println("Node ", p.PID, " VSSSend Verify Failed when verify v'ji and w'ji, j = ", j, " i = ", p.PID+1)
 			ans = false
 		}
 	}
