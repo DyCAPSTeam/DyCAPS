@@ -832,44 +832,44 @@ func (p *HonestParty) ShareReduceReceiver(ID []byte) {
 			w_j.SetCompressedBytes(ShareReduceData.W)
 			v_j.SetBytes(ShareReduceData.V)
 			mutex_ShareReduceMap.Lock()
-			fmt.Println("Node", p.PID, KZG.VerifyEval(C, gmp.NewInt(int64(m.Sender+1)), v_j, w_j))
-			if KZG.VerifyEval(C, gmp.NewInt(int64(m.Sender+1)), v_j, w_j) {
-				_, ok2 := ShareReduce_map[string(ShareReduceData.C)]
-				if ok2 {
-					ShareReduce_map[string(ShareReduceData.C)] = append(ShareReduce_map[string(ShareReduceData.C)], polypoint.PolyPoint{
-						X:       0,
-						Y:       gmp.NewInt(0),
-						PolyWit: KZG.NewG1(),
-					})
-					count := ShareReduce_C_count[string(ShareReduceData.C)]
-					fmt.Println(count)
-					ShareReduce_map[string(ShareReduceData.C)][count].X = int32(m.Sender + 1)
-					ShareReduce_map[string(ShareReduceData.C)][count].Y.Set(v_j)
-					ShareReduce_map[string(ShareReduceData.C)][count].PolyWit.Set(w_j)
-					ShareReduce_C_count[string(ShareReduceData.C)] += 1
-				} else {
-					ShareReduce_map[string(ShareReduceData.C)] = make([]polypoint.PolyPoint, 0)
-					ShareReduce_map[string(ShareReduceData.C)] = append(ShareReduce_map[string(ShareReduceData.C)], polypoint.PolyPoint{
-						X:       0,
-						Y:       gmp.NewInt(0),
-						PolyWit: KZG.NewG1(),
-					})
-					ShareReduce_map[string(ShareReduceData.C)][0].X = int32(m.Sender + 1)
-					ShareReduce_map[string(ShareReduceData.C)][0].Y.Set(v_j)
-					ShareReduce_map[string(ShareReduceData.C)][0].PolyWit.Set(w_j)
-					ShareReduce_C_count[string(ShareReduceData.C)] = 1
-				}
+			//fmt.Println("Node", p.PID, KZG.VerifyEval(C, gmp.NewInt(int64(m.Sender+1)), v_j, w_j))
+			//if KZG.VerifyEval(C, gmp.NewInt(int64(m.Sender+1)), v_j, w_j) {
+			_, ok2 := ShareReduce_map[string(ShareReduceData.C)]
+			if ok2 {
+				ShareReduce_map[string(ShareReduceData.C)] = append(ShareReduce_map[string(ShareReduceData.C)], polypoint.PolyPoint{
+					X:       0,
+					Y:       gmp.NewInt(0),
+					PolyWit: KZG.NewG1(),
+				})
+				count := ShareReduce_C_count[string(ShareReduceData.C)]
+				fmt.Println(count)
+				ShareReduce_map[string(ShareReduceData.C)][count].X = int32(m.Sender + 1)
+				ShareReduce_map[string(ShareReduceData.C)][count].Y.Set(v_j)
+				ShareReduce_map[string(ShareReduceData.C)][count].PolyWit.Set(w_j)
+				ShareReduce_C_count[string(ShareReduceData.C)] += 1
+			} else {
+				ShareReduce_map[string(ShareReduceData.C)] = make([]polypoint.PolyPoint, 0)
+				ShareReduce_map[string(ShareReduceData.C)] = append(ShareReduce_map[string(ShareReduceData.C)], polypoint.PolyPoint{
+					X:       0,
+					Y:       gmp.NewInt(0),
+					PolyWit: KZG.NewG1(),
+				})
+				ShareReduce_map[string(ShareReduceData.C)][0].X = int32(m.Sender + 1)
+				ShareReduce_map[string(ShareReduceData.C)][0].Y.Set(v_j)
+				ShareReduce_map[string(ShareReduceData.C)][0].PolyWit.Set(w_j)
+				ShareReduce_C_count[string(ShareReduceData.C)] = 1
 			}
+			//}
 			if uint32(ShareReduce_C_count[string(ShareReduceData.C)]) >= p.F+1 {
 				Most_Counted_C = string(ShareReduceData.C)
 				ShareReduce_wg.Done()
+				mutex_ShareReduceMap.Unlock()
 				return
 			}
 			mutex_ShareReduceMap.Unlock()
 		}
 	}()
 	ShareReduce_wg.Wait()
-
 	mutex_ShareReduceMap.Lock()
 	poly_x = make([]*gmp.Int, p.F+1)
 	poly_y = make([]*gmp.Int, p.F+1)
@@ -881,7 +881,8 @@ func (p *HonestParty) ShareReduceReceiver(ID []byte) {
 		poly_y[deg].Set(ShareReduce_map[Most_Counted_C][i].Y)
 		deg++
 	}
-
+	fmt.Println(poly_x)
+	fmt.Println(poly_y)
 	mutex_ShareReduceMap.Unlock()
 	HalfShare, _ := interpolation.LagrangeInterpolate(int(p.F), poly_x, poly_y, ecparam.PBC256.Ngmp)
 	HalfShare.Print()
