@@ -805,3 +805,84 @@ func (p *HonestParty) ShareReduceSend(ID []byte) {
 		}, uint32(j))
 	}
 }
+
+func (p *HonestParty) ShareReduceReceiver(ID []byte) {
+	var ShareReduce_wg sync.WaitGroup
+	var ShareReduce_map = make(map[string][]polypoint.PolyPoint)
+	var ShareReduce_C_count = make(map[string]uint32)
+	var mutex_ShareReduceMap sync.Mutex
+	var Most_Counted_C string
+
+	var v_j *gmp.Int
+	var C, w_j *pbc.Element
+	var deg = 0
+	var poly_x, poly_y []*gmp.Int
+	v_j = gmp.NewInt(0)
+	C = KZG.NewG1()
+	w_j = KZG.NewG1()
+
+	ShareReduce_wg.Add(1)
+	go func() {
+		for {
+			m := <-p.GetMessage("ShareReduce", ID)
+			fmt.Println(p.PID, " receive ShareReduce Message from ", m.Sender)
+			var ShareReduceData protobuf.ShareReduce
+			proto.Unmarshal(m.Data, &ShareReduceData)
+			C.SetCompressedBytes(ShareReduceData.C)
+			w_j.SetCompressedBytes(ShareReduceData.W)
+			v_j.SetBytes(ShareReduceData.V)
+			mutex_ShareReduceMap.Lock()
+			fmt.Println("Node", p.PID, KZG.VerifyEval(C, gmp.NewInt(int64(m.Sender+1)), v_j, w_j))
+			if KZG.VerifyEval(C, gmp.NewInt(int64(m.Sender+1)), v_j, w_j) {
+				_, ok2 := ShareReduce_map[string(ShareReduceData.C)]
+				if ok2 {
+					ShareReduce_map[string(ShareReduceData.C)] = append(ShareReduce_map[string(ShareReduceData.C)], polypoint.PolyPoint{
+						X:       0,
+						Y:       gmp.NewInt(0),
+						PolyWit: KZG.NewG1(),
+					})
+					count := ShareReduce_C_count[string(ShareReduceData.C)]
+					fmt.Println(count)
+					ShareReduce_map[string(ShareReduceData.C)][count].X = int32(m.Sender + 1)
+					ShareReduce_map[string(ShareReduceData.C)][count].Y.Set(v_j)
+					ShareReduce_map[string(ShareReduceData.C)][count].PolyWit.Set(w_j)
+					ShareReduce_C_count[string(ShareReduceData.C)] += 1
+				} else {
+					ShareReduce_map[string(ShareReduceData.C)] = make([]polypoint.PolyPoint, 0)
+					ShareReduce_map[string(ShareReduceData.C)] = append(ShareReduce_map[string(ShareReduceData.C)], polypoint.PolyPoint{
+						X:       0,
+						Y:       gmp.NewInt(0),
+						PolyWit: KZG.NewG1(),
+					})
+					ShareReduce_map[string(ShareReduceData.C)][0].X = int32(m.Sender + 1)
+					ShareReduce_map[string(ShareReduceData.C)][0].Y.Set(v_j)
+					ShareReduce_map[string(ShareReduceData.C)][0].PolyWit.Set(w_j)
+					ShareReduce_C_count[string(ShareReduceData.C)] = 1
+				}
+			}
+			if uint32(ShareReduce_C_count[string(ShareReduceData.C)]) >= p.F+1 {
+				Most_Counted_C = string(ShareReduceData.C)
+				ShareReduce_wg.Done()
+				return
+			}
+			mutex_ShareReduceMap.Unlock()
+		}
+	}()
+	ShareReduce_wg.Wait()
+
+	mutex_ShareReduceMap.Lock()
+	poly_x = make([]*gmp.Int, p.F+1)
+	poly_y = make([]*gmp.Int, p.F+1)
+	for i := uint32(0); i <= p.F; i++ {
+
+		poly_x[deg] = gmp.NewInt(0)
+		poly_x[deg].Set(gmp.NewInt(int64(ShareReduce_map[Most_Counted_C][i].X)))
+		poly_y[deg] = gmp.NewInt(0)
+		poly_y[deg].Set(ShareReduce_map[Most_Counted_C][i].Y)
+		deg++
+	}
+
+	mutex_ShareReduceMap.Unlock()
+	HalfShare, _ := interpolation.LagrangeInterpolate(int(p.F), poly_x, poly_y, ecparam.PBC256.Ngmp)
+	HalfShare.Print()
+}

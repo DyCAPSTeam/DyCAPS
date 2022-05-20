@@ -74,7 +74,6 @@ func TestShareReduce(t *testing.T) {
 	for i := uint32(0); i < N; i++ {
 		go func(i uint32) {
 			p[i].ShareReduceSend([]byte("shareReduce"))
-			wg.Done()
 		}(i)
 	}
 	wg.Wait()
