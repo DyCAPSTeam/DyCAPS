@@ -32,13 +32,16 @@ type Party interface {
 
 //HonestParty is a struct of honest consensus parties
 type HonestParty struct {
-	N                 uint32
-	F                 uint32
-	PID               uint32
-	ipList            []string
-	portList          []string
-	sendChannels      []chan *protobuf.Message
-	dispatcheChannels *sync.Map
+	N                  uint32
+	F                  uint32
+	PID                uint32
+	ipList             []string
+	portList           []string
+	ipList_next        []string
+	portList_next      []string
+	sendChannels       []chan *protobuf.Message
+	sendtoNextChannels []chan *protobuf.Message
+	dispatcheChannels  *sync.Map
 
 	SigPK *share.PubPoly  //tss pk
 	SigSK *share.PriShare //tss sk
@@ -46,24 +49,33 @@ type HonestParty struct {
 	Proof *Pi //pi in DPSS.Share
 
 	fullShare polyring.Polynomial // B(p.PID+1,y)
+
+	witness_init         []*pbc.Element
+	witness_init_indexes []*gmp.Int //change this name later. witness_init_indexes[j] means the witness of Rj+1(p.PID+1)
 }
 
 //NewHonestParty return a new honest party object
-func NewHonestParty(N uint32, F uint32, pid uint32, ipList []string, portList []string, sigPK *share.PubPoly, sigSK *share.PriShare, Proof *Pi) *HonestParty {
+//here witness_init : witness_init may bring the problem of null pointers.
+func NewHonestParty(N uint32, F uint32, pid uint32, ipList []string, portList []string, ipList_next []string, portList_next []string, sigPK *share.PubPoly, sigSK *share.PriShare, Proof *Pi, witness []*pbc.Element, witness_indexes []*gmp.Int) *HonestParty {
 	p := HonestParty{
-		N:            N,
-		F:            F,
-		PID:          pid,
-		ipList:       ipList,
-		portList:     portList,
-		sendChannels: make([]chan *protobuf.Message, N),
+		N:                  N,
+		F:                  F,
+		PID:                pid,
+		ipList:             ipList,
+		portList:           portList,
+		ipList_next:        ipList_next,
+		portList_next:      portList_next,
+		sendChannels:       make([]chan *protobuf.Message, N),
+		sendtoNextChannels: make([]chan *protobuf.Message, N),
 
 		SigPK: sigPK,
 		SigSK: sigSK,
 
 		Proof: Proof,
 
-		fullShare: polyring.NewEmpty(),
+		fullShare:            polyring.NewEmpty(),
+		witness_init:         witness,
+		witness_init_indexes: witness_indexes,
 	}
 	return &p
 }
@@ -83,6 +95,14 @@ func (p *HonestParty) InitSendChannel() error {
 	return nil
 }
 
+func (p *HonestParty) InitSendtoNextChannel() error {
+	for i := uint32(0); i < p.N; i++ {
+		p.sendtoNextChannels[i] = core.MakeSendChannel(p.ipList_next[i], p.portList_next[i])
+	}
+	// fmt.Println(p.sendChannels, "====")
+	return nil
+}
+
 //Send a message to party des
 func (p *HonestParty) Send(m *protobuf.Message, des uint32) error {
 	if !p.checkInit() {
@@ -90,6 +110,17 @@ func (p *HonestParty) Send(m *protobuf.Message, des uint32) error {
 	}
 	if des < p.N {
 		p.sendChannels[des] <- m
+		return nil
+	}
+	return errors.New("Destination id is too large")
+}
+
+func (p *HonestParty) SendtoNext(m *protobuf.Message, des uint32) error {
+	if !p.checkInitNext() {
+		return errors.New("This party hasn't been initialized")
+	}
+	if des < p.N {
+		p.sendtoNextChannels[des] <- m
 		return nil
 	}
 	return errors.New("Destination id is too large")
@@ -109,6 +140,19 @@ func (p *HonestParty) Broadcast(m *protobuf.Message) error {
 	return nil
 }
 
+func (p *HonestParty) BroadcasttoNext(m *protobuf.Message) error {
+	if !p.checkInitNext() {
+		return errors.New("This party hasn't been initialized")
+	}
+	for i := uint32(0); i < p.N; i++ {
+		err := p.SendtoNext(m, i)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 //GetMessage Try to get a message according to messageType, ID
 func (p *HonestParty) GetMessage(messageType string, ID []byte) chan *protobuf.Message {
 	value1, _ := p.dispatcheChannels.LoadOrStore(messageType, new(sync.Map))
@@ -120,6 +164,13 @@ func (p *HonestParty) GetMessage(messageType string, ID []byte) chan *protobuf.M
 
 func (p *HonestParty) checkInit() bool {
 	if p.sendChannels == nil {
+		return false
+	}
+	return true
+}
+
+func (p *HonestParty) checkInitNext() bool {
+	if p.sendtoNextChannels == nil {
 		return false
 	}
 	return true
@@ -645,18 +696,22 @@ func (p *HonestParty) InitShareReceiver(ID []byte) {
 				length := len(S_full_polyValue)
 				S_full_polyValue[length-1].Set(valueReceived_dist)
 				S_full_indexes[length-1].Set(gmp.NewInt(int64(msg.Sender + 1)))
+				p.witness_init[length-1].Set(witnessReceived_dist)
+				p.witness_init_indexes[length-1].Set(gmp.NewInt(int64(msg.Sender + 1))) //change this name later.
 			}
 			if uint32(len(S_full_indexes)) == 2*p.F+1 {
 				fullShare, _ := interpolation.LagrangeInterpolate(int(2*p.F), S_full_indexes, S_full_polyValue, primitive)
+
+				//set the final reduceShare,witnesses and return
 				p.fullShare.ResetTo(fullShare)
 				fmt.Println("node ", p.PID, " get its full share B(i,y):")
 				p.fullShare.Print()
 				InitShareFinished <- true
+				return
 			}
 
 		}
 	}()
-	//set the final reduceShare and return
 	<-InitShareFinished
 	return
 }
@@ -714,4 +769,39 @@ func (p *HonestParty) VerifyVSSSendReceived(polyValue []*gmp.Int, witness []*pbc
 	}
 
 	return ans
+}
+
+func (p *HonestParty) ShareReduceSend(ID []byte) {
+	//interpolate  N commitments by p.Proof
+	var CB_temp = make([]*pbc.Element, p.N+1) //start from 1
+	var WB_temp = make([]*pbc.Element, p.N+1) //start from 1
+	for i := 0; uint32(i) <= p.N; i++ {
+		CB_temp[i] = KZG.NewG1()
+		WB_temp[i] = KZG.NewG1()
+	}
+	C_known := make([]*pbc.Element, 2*p.F+2)
+	for j := 0; uint32(j) <= 2*p.F+1; j++ {
+		C_known[j] = KZG.NewG1()
+		C_known[j].Set(p.Proof.Pi_contents[j].CR_j)
+	}
+	for j := 1; uint32(j) <= p.N; j++ {
+		CommitOrWitnessInterpolation(int(2*p.F), j, C_known[1:], CB_temp[j])
+		CommitOrWitnessInterpolationbyKnownIndexes(int(2*p.F), j, p.witness_init_indexes, p.witness_init, WB_temp[j])
+	}
+	for j := 0; uint32(j) < p.N; j++ {
+		polyValue := gmp.NewInt(0)
+		p.fullShare.EvalMod(gmp.NewInt(int64(j+1)), ecparam.PBC256.Ngmp, polyValue)
+		ShareReduceMessage := protobuf.ShareReduce{
+			C: CB_temp[j+1].CompressedBytes(),
+			V: polyValue.Bytes(),
+			W: WB_temp[j+1].CompressedBytes(),
+		}
+		data, _ := proto.Marshal(&ShareReduceMessage)
+		p.SendtoNext(&protobuf.Message{
+			Type:   "ShareReduce",
+			Id:     ID,
+			Sender: p.PID,
+			Data:   data,
+		}, uint32(j))
+	}
 }

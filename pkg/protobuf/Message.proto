@@ -92,3 +92,9 @@ message VSSDistribute{
   bytes B_li = 1;
   bytes WB_li = 2;
 }
+
+message ShareReduce{
+  bytes C = 1;
+  bytes v = 2;
+  bytes W = 3;
+}
