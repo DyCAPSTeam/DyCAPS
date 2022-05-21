@@ -5,6 +5,10 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"math/rand"
+	"sync"
+	"time"
+
 	"github.com/DyCAPSTeam/DyCAPS/internal/conv"
 	"github.com/DyCAPSTeam/DyCAPS/internal/ecparam"
 	"github.com/DyCAPSTeam/DyCAPS/internal/interpolation"
@@ -12,7 +16,6 @@ import (
 	"github.com/DyCAPSTeam/DyCAPS/internal/polyring"
 	"github.com/Nik-U/pbc"
 	"github.com/ncw/gmp"
-	"sync"
 
 	"github.com/DyCAPSTeam/DyCAPS/pkg/core"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
@@ -49,6 +52,7 @@ type HonestParty struct {
 	Proof *Pi //pi in DPSS.Share
 
 	fullShare polyring.Polynomial // B(p.PID+1,y)
+	HalfShare polyring.Polynomial // B(x,i)
 
 	witness_init         []*pbc.Element
 	witness_init_indexes []*gmp.Int //change this name later. witness_init_indexes[j] means the witness of Rj+1(p.PID+1)
@@ -74,6 +78,7 @@ func NewHonestParty(N uint32, F uint32, pid uint32, ipList []string, portList []
 		Proof: Proof,
 
 		fullShare:            polyring.NewEmpty(),
+		HalfShare:            polyring.NewEmpty(),
 		witness_init:         witness,
 		witness_init_indexes: witness_indexes,
 	}
@@ -884,6 +889,150 @@ func (p *HonestParty) ShareReduceReceiver(ID []byte) {
 	fmt.Println(poly_x)
 	fmt.Println(poly_y)
 	mutex_ShareReduceMap.Unlock()
-	HalfShare, _ := interpolation.LagrangeInterpolate(int(p.F), poly_x, poly_y, ecparam.PBC256.Ngmp)
-	HalfShare.Print()
+	p.HalfShare, _ = interpolation.LagrangeInterpolate(int(p.F), poly_x, poly_y, ecparam.PBC256.Ngmp)
+	p.HalfShare.Print()
+}
+func (p *HonestParty) Proactivization(ID []byte) {
+	// Init
+	var flg_C = make([]uint32, p.N+1)
+	var flg_Rec = make([]uint32, p.N+1)
+	var sig []Pi_Content
+
+	for i := 0; i <= int(p.N); i++ {
+		flg_C[i] = 0
+		flg_Rec[i] = 0
+	}
+	var rnd = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
+	var poly_F, _ = polyring.NewRand(int(2*p.F), rnd, ecparam.PBC256.Ngmp)
+	poly_F.SetCoefficientBig(0, gmp.NewInt(0))
+	var R = make([]polyring.Polynomial, 2*p.F+2)
+	for j := 1; j <= int(2*p.F+1); j++ {
+		rnd = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
+		R[j], _ = polyring.NewRand(int(p.F), rnd, ecparam.PBC256.Ngmp)
+	}
+	//Commit
+	var Z = make([]polyring.Polynomial, p.N+1)
+	var Fj = gmp.NewInt(0)
+	var Fj_C = KZG.NewG1()
+	var CR = make([][]*pbc.Element, p.N+1)
+	var CZ = make([]*pbc.Element, p.N+1)
+	var wz = make([]*pbc.Element, p.N+1)
+	for j := 0; j <= int(p.N+1); j++ {
+		Z[j] = polyring.NewEmpty()
+		CR[j] = make([]*pbc.Element, p.N+1)
+		for k := 0; k <= int(p.N+1); k++ {
+			CR[j][k] = KZG.NewG1()
+		}
+		CZ[j] = KZG.NewG1()
+		wz[j] = KZG.NewG1()
+	}
+	for j := 1; j <= int(2*p.F+1); j++ {
+		poly_F.EvalMod(gmp.NewInt(int64(j)), ecparam.PBC256.Ngmp, Fj)
+		var tmp_poly = polyring.NewEmpty()
+		tmp_poly.SetCoefficientBig(0, Fj)
+		KZG.Commit(Fj_C, tmp_poly) // g^F_i(j)
+		Z[j].Sub(R[j], tmp_poly)
+		KZG.Commit(CR[p.PID+1][j], R[j])
+		KZG.Commit(CZ[j], Z[j])
+		KZG.CreateWitness(wz[j], Z[j], gmp.NewInt(0))
+		// pi_i
+		sig = append(sig, Pi_Content{j, CR[p.PID+1][j], CZ[j], wz[j], Fj_C})
+	}
+	var Commit_Message = new(protobuf.Commit)
+	for j := 0; j < int(2*p.F+1); j++ {
+		Commit_Message.Sig[j].J = int32(sig[j].j)
+		Commit_Message.Sig[j].CRJ = sig[j].CR_j.CompressedBytes()
+		Commit_Message.Sig[j].CZJ = sig[j].CZ_j.CompressedBytes()
+		Commit_Message.Sig[j].G_Fj = sig[j].g_Fj.CompressedBytes()
+	}
+	Commit_Message_data, _ := proto.Marshal(Commit_Message)
+	p.RBCSender(&protobuf.Message{Type: "Commit", Sender: p.PID, Id: ID, Data: Commit_Message_data}, ID)
+
+	//Verify
+	go func() {
+		for {
+			for j := 1; j <= int(p.N); j++ {
+				m := p.RBCReceiver(ID) // temp
+				var Received_Data protobuf.Commit
+				proto.Unmarshal(m.Data, &Received_Data)
+				var Verify_Flag = KZG.NewG1()
+				Verify_Flag = Verify_Flag.Set1()
+				lambda := make([]*gmp.Int, 2*p.F+1)
+				knownIndexes := make([]*gmp.Int, 2*p.F+1)
+				for k := 0; uint32(k) < 2*p.F+1; k++ {
+					lambda[k] = gmp.NewInt(int64(k + 1))
+				}
+				for k := 0; uint32(k) < 2*p.F+1; k++ {
+					knownIndexes[k] = gmp.NewInt(int64(k + 1))
+				}
+				polyring.GetLagrangeCoefficients(int(2*p.F), knownIndexes, ecparam.PBC256.Ngmp, gmp.NewInt(0), lambda)
+				var tmp = KZG.NewG1()
+				var tmp2 = KZG.NewG1()
+				var tmp3 = KZG.NewG1()
+				var copy_tmp3 = KZG.NewG1()
+				var tmp4 = KZG.NewG1()
+				tmp3.Set1()
+				tmp4.Set1()
+				for k := 0; k < int(2*p.F+1); k++ {
+					tmp = tmp.SetCompressedBytes(Received_Data.Sig[k].G_Fj)
+					tmp2.PowBig(tmp, conv.GmpInt2BigInt(lambda[k]))
+					copy_tmp3.Set(tmp3)
+					tmp3.Mul(copy_tmp3, tmp2)
+				}
+				if !tmp3.Equals(tmp4) {
+					continue
+				}
+				var revert_flag = false
+				for k := 0; uint32(k) < 2*p.F+1; k++ {
+					CR_k := KZG.NewG1()
+					CZ_k := KZG.NewG1()
+					wz_k := KZG.NewG1()
+					Gj_k := KZG.NewG1()
+					CR_k.SetCompressedBytes(Received_Data.Sig[k].CRJ)
+					CZ_k.SetCompressedBytes(Received_Data.Sig[k].CZJ)
+					wz_k.SetCompressedBytes(Received_Data.Sig[k].WZ_0)
+					Gj_k.SetCompressedBytes(Received_Data.Sig[k].G_Fj)
+					mul_res := KZG.NewG1()
+					mul_res.Mul(CZ_k, Gj_k)
+					if KZG.VerifyEval(CZ_k, gmp.NewInt(0), gmp.NewInt(0), wz_k) == false || CR_k.Equals(mul_res) == false {
+						revert_flag = true
+						break
+					}
+				}
+				if revert_flag == true {
+					continue
+				}
+				for l := 2*p.F + 2; l <= p.N; l++ {
+					polyring.GetLagrangeCoefficients(int(2*p.F), knownIndexes, ecparam.PBC256.Ngmp, gmp.NewInt(int64(l)), lambda)
+					CR[j][l].Set1()
+					pow_res := KZG.NewG1()
+					copy_CR := KZG.NewG1()
+					for k := 1; uint32(k) <= 2*p.F+1; k++ {
+						pow_res.PowBig(CR[j][k], conv.GmpInt2BigInt(lambda[k]))
+						copy_CR.Set(CR[j][l])
+						CR[j][l].Mul(copy_CR, pow_res)
+					}
+				}
+				flg_C[j] = 1
+			}
+		}
+	}()
+	//Reshare
+	var wf = make([][]*pbc.Element, p.N+1)
+	for k := 1; k <= int(p.N); k++ {
+		var reshare_message protobuf.Reshare
+		wf[k] = make([]*pbc.Element, p.N+1)
+		for j := 1; j <= int(2*p.F+1); j++ {
+			wf[k][j] = KZG.NewG1()
+			KZG.CreateWitness(wf[k][j], R[j], gmp.NewInt(int64(k)))
+			var Fkj = gmp.NewInt(0)
+			R[j].EvalMod(gmp.NewInt(int64(k)), ecparam.PBC256.Ngmp, Fkj)
+			reshare_message.Wk[j-1] = wf[k][j].CompressedBytes()
+			reshare_message.Fk[j-1] = Fkj.Bytes()
+		}
+		reshare_data, _ := proto.Marshal(reshare_message)
+		p.Send(&protobuf.Message{Type: "Reshare", Id: ID, Sender: p.PID, Data: reshare_data}, uint32(k-1))
+	}
+	//Vote
+	//
 }

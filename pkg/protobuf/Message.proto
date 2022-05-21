@@ -98,3 +98,10 @@ message ShareReduce{
   bytes v = 2;
   bytes W = 3;
 }
+message Commit{
+  repeated Pi_content Sig = 1;
+}
+message Reshare{
+  repeated bytes Fk = 1;
+  repeated bytes wk = 2;
+}
