@@ -105,3 +105,9 @@ message Reshare{
   repeated bytes Fk = 1;
   repeated bytes wk = 2;
 }
+message Recover{
+  int32 j = 1;
+  bytes v = 2;
+  bytes w = 3;
+  bytes sig = 4;
+}

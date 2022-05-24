@@ -2,14 +2,16 @@ package party
 
 import (
 	"fmt"
+	"math/rand"
+	"time"
+
+	"github.com/DyCAPSTeam/DyCAPS/internal/bls"
 	"github.com/DyCAPSTeam/DyCAPS/internal/commitment"
 	"github.com/DyCAPSTeam/DyCAPS/internal/ecparam"
 	"github.com/DyCAPSTeam/DyCAPS/internal/polyring"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 	"github.com/Nik-U/pbc"
 	"github.com/ncw/gmp"
-	"math/rand"
-	"time"
 )
 
 type Client struct {
@@ -18,6 +20,7 @@ type Client struct {
 }
 
 var KZG = new(commitment.DLPolyCommit)
+var Sys = new(bls.System)
 
 type Pi_Content struct {
 	j    int
