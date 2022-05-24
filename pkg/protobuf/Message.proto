@@ -111,3 +111,13 @@ message Recover{
   bytes w = 3;
   bytes sig = 4;
 }
+message NewCommit{
+  bytes CB = 1;
+}
+message ShareDist{
+  bytes B = 1;
+  bytes wB = 2;
+}
+message Success{
+  bytes nothing = 1;
+}
