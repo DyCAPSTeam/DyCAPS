@@ -121,3 +121,8 @@ message ShareDist{
 message Success{
   bytes nothing = 1;
 }
+
+message MVBA_IN{
+  repeated bytes sig= 1;
+  repeated int32 j = 2;
+}

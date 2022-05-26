@@ -5,13 +5,13 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/DyCAPSTeam/DyCAPS/internal/bls"
 	"github.com/DyCAPSTeam/DyCAPS/internal/commitment"
 	"github.com/DyCAPSTeam/DyCAPS/internal/ecparam"
 	"github.com/DyCAPSTeam/DyCAPS/internal/polyring"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 	"github.com/Nik-U/pbc"
 	"github.com/ncw/gmp"
+	"go.dedis.ch/kyber/v3/pairing"
 )
 
 type Client struct {
@@ -20,7 +20,7 @@ type Client struct {
 }
 
 var KZG = new(commitment.DLPolyCommit)
-var Sys = new(bls.System)
+var Sys_Suite = pairing.NewSuiteBn256()
 
 type Pi_Content struct {
 	j    int

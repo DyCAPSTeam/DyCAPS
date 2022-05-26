@@ -6,8 +6,8 @@ import (
 	"github.com/DyCAPSTeam/DyCAPS/internal/polyring"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 	"github.com/Nik-U/pbc"
+	"github.com/golang/protobuf/proto"
 	"github.com/ncw/gmp"
-	"google.golang.org/protobuf/proto"
 )
 
 //indexes of polyValue[] start from 1!
