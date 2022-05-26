@@ -1,4 +1,4 @@
-package smvba
+package party
 
 /*
 forked from https://github.com/xygdys/Buada_BFT
@@ -9,7 +9,6 @@ import (
 	"context"
 	"sync"
 
-	"github.com/DyCAPSTeam/DyCAPS/internal/party"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/core"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/utils"
@@ -20,7 +19,7 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-func messageHandler(ctx context.Context, p *party.HonestParty, IDr []byte, IDrj [][]byte, Fr *sync.Map,
+func messageHandler(ctx context.Context, p *HonestParty, IDr []byte, IDrj [][]byte, Fr *sync.Map,
 	doneFlagChannel chan bool,
 	preVoteFlagChannel chan bool, preVoteYesChannel chan []byte, preVoteNoChannel chan []byte,
 	voteFlagChannel chan byte, voteYesChannel chan []byte, voteNoChannel chan []byte, voteOtherChannel chan []byte,

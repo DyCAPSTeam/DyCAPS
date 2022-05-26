@@ -1,11 +1,10 @@
-package pb //provable broadcast
+package party //provable broadcast
 
 import (
 	"bytes"
 	"context"
 	"log"
 
-	"github.com/DyCAPSTeam/DyCAPS/internal/party"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/core"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 
@@ -15,7 +14,7 @@ import (
 )
 
 //Sender is run by the sender of a instance of provable broadcast
-func Sender(ctx context.Context, p *party.HonestParty, ID []byte, value []byte, validation []byte) ([]byte, bool) {
+func Sender(ctx context.Context, p *HonestParty, ID []byte, value []byte, validation []byte) ([]byte, bool) {
 	valueMessage := core.Encapsulation("Value", ID, p.PID, &protobuf.Value{
 		Value:      value,
 		Validation: validation,
@@ -53,7 +52,7 @@ func Sender(ctx context.Context, p *party.HonestParty, ID []byte, value []byte, 
 }
 
 //Receiver is run by the receiver of a instance of provable broadcast
-func Receiver(ctx context.Context, p *party.HonestParty, sender uint32, ID []byte, validator func(*party.HonestParty, []byte, uint32, []byte, []byte) error) ([]byte, []byte, bool) {
+func Receiver(ctx context.Context, p *HonestParty, sender uint32, ID []byte, validator func(*HonestParty, []byte, uint32, []byte, []byte) error) ([]byte, []byte, bool) {
 	select {
 	case <-ctx.Done():
 		return nil, nil, false

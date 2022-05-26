@@ -1,4 +1,4 @@
-package smvba
+package party
 
 /*
 forked from https://github.com/xygdys/Buada_BFT
@@ -9,7 +9,6 @@ import (
 	"context"
 	"sync"
 
-	"github.com/DyCAPSTeam/DyCAPS/internal/party"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/core"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/utils"
@@ -19,7 +18,7 @@ import (
 )
 
 //MainProcess is the main process of smvba instances
-func MainProcess(p *party.HonestParty, ID []byte, value []byte, validation []byte) []byte {
+func MainProcess(p *HonestParty, ID []byte, value []byte, validation []byte) []byte {
 	haltChannel := make(chan []byte, 1) //control all round
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -153,7 +152,7 @@ func MainProcess(p *party.HonestParty, ID []byte, value []byte, validation []byt
 	}
 }
 
-func election(ctx context.Context, p *party.HonestParty, IDr []byte, doneFlageChannel chan bool) {
+func election(ctx context.Context, p *HonestParty, IDr []byte, doneFlageChannel chan bool) {
 	select {
 	case <-ctx.Done():
 		return
@@ -173,7 +172,7 @@ func election(ctx context.Context, p *party.HonestParty, IDr []byte, doneFlageCh
 	}
 }
 
-func preVote(ctx context.Context, p *party.HonestParty, IDr []byte, l uint32, Lr *sync.Map) {
+func preVote(ctx context.Context, p *HonestParty, IDr []byte, l uint32, Lr *sync.Map) {
 	value2, ok2 := Lr.Load(l)
 	if ok2 {
 		lock := value2.(*protobuf.Lock)
@@ -198,7 +197,7 @@ func preVote(ctx context.Context, p *party.HonestParty, IDr []byte, l uint32, Lr
 	}
 }
 
-func vote(ctx context.Context, p *party.HonestParty, IDr []byte, l uint32, preVoteFlagChannel chan bool, preVoteYesChannel chan []byte, preVoteNoChannel chan []byte, r uint32) {
+func vote(ctx context.Context, p *HonestParty, IDr []byte, l uint32, preVoteFlagChannel chan bool, preVoteYesChannel chan []byte, preVoteNoChannel chan []byte, r uint32) {
 	select {
 	case <-ctx.Done():
 		return

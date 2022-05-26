@@ -1,4 +1,4 @@
-package smvba //strong provable broadcPBt
+package party
 
 /*
 forked from https://github.com/xygdys/Buada_BFT
@@ -8,16 +8,13 @@ import (
 	"bytes"
 	"context"
 
-	"github.com/DyCAPSTeam/DyCAPS/internal/party"
-	"github.com/DyCAPSTeam/DyCAPS/internal/pb"
-
 	"go.dedis.ch/kyber/v3/pairing"
 	"go.dedis.ch/kyber/v3/sign/bls"
 	"golang.org/x/crypto/sha3"
 )
 
 //SPBSender is run by the sender of a instance of strong provable broadcast
-func SPBSender(ctx context.Context, p *party.HonestParty, ID []byte, value []byte, validation []byte) ([]byte, []byte, bool) {
+func SPBSender(ctx context.Context, p *HonestParty, ID []byte, value []byte, validation []byte) ([]byte, []byte, bool) {
 	var buf1, buf2 bytes.Buffer
 	buf1.Write(ID)
 	buf1.WriteByte(1)
@@ -26,9 +23,9 @@ func SPBSender(ctx context.Context, p *party.HonestParty, ID []byte, value []byt
 	ID1 := buf1.Bytes()
 	ID2 := buf2.Bytes()
 
-	sig1, ok1 := pb.Sender(ctx, p, ID1, value, validation)
+	sig1, ok1 := Sender(ctx, p, ID1, value, validation)
 	if ok1 {
-		sig2, ok2 := pb.Sender(ctx, p, ID2, value, sig1)
+		sig2, ok2 := Sender(ctx, p, ID2, value, sig1)
 		if ok2 {
 			return value, sig2, true //FINISH
 		}
@@ -39,7 +36,7 @@ func SPBSender(ctx context.Context, p *party.HonestParty, ID []byte, value []byt
 }
 
 //SPBReceiver is run by the receiver of a instance of strong provable broadcast
-func SPBReceiver(ctx context.Context, p *party.HonestParty, sender uint32, ID []byte) ([]byte, []byte, bool) {
+func SPBReceiver(ctx context.Context, p *HonestParty, sender uint32, ID []byte) ([]byte, []byte, bool) {
 	var buf1, buf2 bytes.Buffer
 	buf1.Write(ID)
 	buf1.WriteByte(1)
@@ -48,8 +45,8 @@ func SPBReceiver(ctx context.Context, p *party.HonestParty, sender uint32, ID []
 	ID1 := buf1.Bytes()
 	ID2 := buf2.Bytes()
 
-	pb.Receiver(ctx, p, sender, ID1, nil)
-	value, sig, ok := pb.Receiver(ctx, p, sender, ID2, validator)
+	Receiver(ctx, p, sender, ID1, nil)
+	value, sig, ok := Receiver(ctx, p, sender, ID2, validator)
 	if !ok {
 		return nil, nil, false
 	}
@@ -57,7 +54,7 @@ func SPBReceiver(ctx context.Context, p *party.HonestParty, sender uint32, ID []
 	return value, sig, true //LOCK
 }
 
-func validator(p *party.HonestParty, ID []byte, sender uint32, value []byte, validation []byte) error {
+func validator(p *HonestParty, ID []byte, sender uint32, value []byte, validation []byte) error {
 	h := sha3.Sum512(value)
 	var buf bytes.Buffer
 	buf.Write([]byte("Echo"))

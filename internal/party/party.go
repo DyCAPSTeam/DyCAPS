@@ -5,9 +5,9 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"github.com/DyCAPSTeam/DyCAPS/internal/smvba"
 	"go.dedis.ch/kyber/v3/sign/tbls"
 	"math/rand"
+	"strconv"
 	"sync"
 	"time"
 
@@ -947,22 +947,22 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	var wz = make([]*pbc.Element, p.N+1)
 	var F_val = make([][][]*gmp.Int, p.N+1)
 	var w_F_val = make([][][]*pbc.Element, p.N+1)
-	for i := 0; i <= int(p.N+1); i++ {
+	for i := 0; i <= int(p.N); i++ {
 		F_val[i] = make([][]*gmp.Int, p.N+1)
 		w_F_val[i] = make([][]*pbc.Element, p.N+1)
-		for j := 0; j <= int(p.N+1); j++ {
+		for j := 0; j <= int(p.N); j++ {
 			F_val[i][j] = make([]*gmp.Int, p.N+1)
 			w_F_val[i][j] = make([]*pbc.Element, p.N+1)
-			for k := 0; k <= int(p.N+1); k++ {
+			for k := 0; k <= int(p.N); k++ {
 				F_val[i][j][k] = gmp.NewInt(0)
 				w_F_val[i][j][k] = KZG.NewG1()
 			}
 		}
 	}
-	for j := 0; j <= int(p.N+1); j++ {
+	for j := 0; j <= int(p.N); j++ {
 		Z[j] = polyring.NewEmpty()
 		CR[j] = make([]*pbc.Element, p.N+1)
-		for k := 0; k <= int(p.N+1); k++ {
+		for k := 0; k <= int(p.N); k++ {
 			CR[j][k] = KZG.NewG1()
 		}
 		CZ[j] = KZG.NewG1()
@@ -984,20 +984,22 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	var Commit_Message = new(protobuf.Commit)
 	Commit_Message.Sig = make([]*protobuf.PiContent, 2*p.F+1)
 	for j := 0; j < int(2*p.F+1); j++ {
+		Commit_Message.Sig[j] = new(protobuf.PiContent)
 		Commit_Message.Sig[j].J = int32(sig[j].j)
 		Commit_Message.Sig[j].CRJ = sig[j].CR_j.CompressedBytes()
 		Commit_Message.Sig[j].CZJ = sig[j].CZ_j.CompressedBytes()
 		Commit_Message.Sig[j].G_Fj = sig[j].g_Fj.CompressedBytes()
 	}
 	Commit_Message_data, _ := proto.Marshal(Commit_Message)
-	p.RBCSender(&protobuf.Message{Type: "Commit", Sender: p.PID, Id: ID, Data: Commit_Message_data}, []byte("CommitRBC"+string(int(p.PID+1)))) // ID has been changed
+	p.RBCSender(&protobuf.Message{Type: "Commit", Sender: p.PID, Id: ID, Data: Commit_Message_data}, []byte("CommitRBC"+strconv.Itoa(int(p.PID+1)))) // ID has been changed
 
 	//Verify
 	go func() {
 		for {
 			for j := 1; j <= int(p.N); j++ {
-				m := p.RBCReceiver([]byte("CommitRBC" + string(j))) // ID has been changed.
+				m := p.RBCReceiver([]byte("CommitRBC" + strconv.Itoa(j))) // ID has been changed.
 				var Received_Data protobuf.Commit
+				fmt.Println(m)
 				proto.Unmarshal(m.Data, &Received_Data)
 				var Verify_Flag = KZG.NewG1()
 				Verify_Flag = Verify_Flag.Set1()
@@ -1129,7 +1131,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 					}
 					//Sig_hash := sha256.Sum256([]byte(string(j)))
 					//Sig[j][int(p.PID+1)] = bls.Sign(Sig_hash, p.SigSK)
-					Sig[j][int(p.PID+1)], _ = tbls.Sign(Sys_Suite, p.SigSK, []byte((string(j))))
+					Sig[j][int(p.PID+1)], _ = tbls.Sign(Sys_Suite, p.SigSK, []byte((strconv.Itoa(j))))
 					lambda := make([]*gmp.Int, 2*p.F+1)
 					knownIndexes := make([]*gmp.Int, 2*p.F+1)
 					for k := 0; uint32(k) < 2*p.F+1; k++ {
@@ -1190,7 +1192,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	var Interpolate_poly_y = make([]*gmp.Int, p.N+1)
 	var Combined_Sig = make([][]byte, p.N+1) // start from 1
 	var Combined_flag = make([]bool, p.N+1)  //start from 1
-	var MVBA_In *protobuf.MVBA_IN
+	var MVBA_In *protobuf.MVBA_IN = new(protobuf.MVBA_IN)
 	MVBA_In.J = make([]int32, 0)
 	MVBA_In.Sig = make([][]byte, 0)
 	var MVBA_In_Mutex sync.Mutex
@@ -1233,7 +1235,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 
 						Received_Sig := now_Recover_Data.Sig
 						//Check_Sig_Hash := sha256.Sum256([]byte(string(j)))
-						if KZG.VerifyEval(CR[k][p.PID+1], gmp.NewInt(int64(j)), v_k_i_j, w_k_i_j) == false || (tbls.Verify(Sys_Suite, p.SigPK, []byte(string(k)), Received_Sig) != nil) {
+						if KZG.VerifyEval(CR[k][p.PID+1], gmp.NewInt(int64(j)), v_k_i_j, w_k_i_j) == false || (tbls.Verify(Sys_Suite, p.SigPK, []byte(strconv.Itoa(k)), Received_Sig) != nil) {
 							delete(Recover_Data_Map[k], j) // discard this message
 							continue                       // ch change break to continue.
 						}
@@ -1252,14 +1254,14 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 							for t := 0; t < len(S_sig); t++ {
 								tmp_Sig[t] = S_sig[k][t].Sig
 							}
-							Combined_Sig[k], _ = tbls.Recover(Sys_Suite, p.SigPK, []byte(string(k)), tmp_Sig, int(2*p.F), int(p.N))
+							Combined_Sig[k], _ = tbls.Recover(Sys_Suite, p.SigPK, []byte(strconv.Itoa(k)), tmp_Sig, int(2*p.F), int(p.N))
 							Combined_flag[k] = true
 							MVBA_In_Mutex.Lock()
 							MVBA_In.J = append(MVBA_In.J, int32(k))
 							MVBA_In.Sig = append(MVBA_In.Sig, Combined_Sig[k])
 							if len(MVBA_In.J) >= int(p.N-p.F) && MVBA_Sent == false {
 								MVBA_In_data, _ := proto.Marshal(MVBA_In)
-								MVBA_res_chan <- smvba.MainProcess(p, ID, MVBA_In_data, []byte{}) //temporary solution
+								MVBA_res_chan <- MainProcess(p, ID, MVBA_In_data, []byte{}) //temporary solution (MainProcess means smvba.MainProcess)
 								MVBA_Sent = true
 							}
 							MVBA_In_Mutex.Unlock()
@@ -1318,7 +1320,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	var NewCommit_Message protobuf.NewCommit
 	NewCommit_Message.CB = C_B[p.PID+1].CompressedBytes()
 	NewCommit_Message_Data, _ := proto.Marshal(&NewCommit_Message)
-	p.RBCSender(&protobuf.Message{Type: "NewCommit", Id: ID, Sender: p.PID, Data: NewCommit_Message_Data}, []byte("NewCommitRBC"+string(int(p.PID+1)))) // this ID is not correct
+	p.RBCSender(&protobuf.Message{Type: "NewCommit", Id: ID, Sender: p.PID, Data: NewCommit_Message_Data}, []byte("NewCommitRBC"+strconv.Itoa(int(p.PID+1)))) // this ID is not correct
 
 	//Distribute
 	var w_B_i_j *pbc.Element
@@ -1337,7 +1339,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	//Verify
 	for j := 1; j <= int(p.N); j++ {
 		go func(j int) {
-			m := p.RBCReceiver([]byte("NewCommitRBC" + string(j))) // this ID is not correct
+			m := p.RBCReceiver([]byte("NewCommitRBC" + strconv.Itoa(j))) // this ID is not correct
 			NewCommit_Data := m.Data
 			var Received_CB *pbc.Element
 			Received_CB = KZG.NewG1()
@@ -1400,6 +1402,8 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 								Dist_y[t].Set(S_B[t].v)
 							}
 							p.fullShare, _ = interpolation.LagrangeInterpolate(int(2*p.F), Dist_x, Dist_y, ecparam.PBC256.Ngmp)
+							fmt.Println("Node ", p.PID, "recover full Share:")
+							p.fullShare.Print()
 							var Success_Message protobuf.Success
 							Success_Message.Nothing = []byte("123") // doesn't matter. Send whatever you want
 							Success_Data, _ := proto.Marshal(&Success_Message)
@@ -1435,6 +1439,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 			}
 			if Success_Count >= int(2*p.F+1) {
 				Success_Map_Mutex.Unlock()
+				fmt.Println("Node ", p.PID, "Enter the normal state")
 				break // Enter normal state
 			}
 			Success_Map_Mutex.Unlock()
