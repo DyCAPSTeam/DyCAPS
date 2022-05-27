@@ -911,6 +911,7 @@ func (p *HonestParty) ShareReduceReceiver(ID []byte) {
 	fmt.Println(poly_y)
 	mutex_ShareReduceMap.Unlock()
 	p.HalfShare, _ = interpolation.LagrangeInterpolate(int(p.F), poly_x, poly_y, ecparam.PBC256.Ngmp)
+	fmt.Println("Node ", p.PID, " recover its halfShare:")
 	p.HalfShare.Print()
 }
 
@@ -927,6 +928,8 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	var rnd = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	var poly_F, _ = polyring.NewRand(int(2*p.F), rnd, ecparam.PBC256.Ngmp)
 	poly_F.SetCoefficientBig(0, gmp.NewInt(0))
+	//fmt.Println("Node ", p.PID, " generate poly_F:")
+	//poly_F.Print()
 	var R = make([][]polyring.Polynomial, p.N+1)
 	for j := 0; j <= int(p.N); j++ {
 		R[j] = make([]polyring.Polynomial, p.N+1)
@@ -937,6 +940,8 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	for j := 1; j <= int(2*p.F+1); j++ {
 		rnd = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 		R[p.PID+1][j], _ = polyring.NewRand(int(p.F), rnd, ecparam.PBC256.Ngmp)
+		//fmt.Println("Node ", p.PID, " generate R", p.PID+1, j, "(x)")
+		//R[p.PID+1][j].Print()
 	}
 	//Commit
 	var Z = make([]polyring.Polynomial, p.N+1)
@@ -974,32 +979,49 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 		var tmp_poly = polyring.NewEmpty()
 		tmp_poly.SetCoefficientBig(0, Fj)
 		KZG.Commit(Fj_C, tmp_poly) // g^F_i(j)
+		//fmt.Println("Node ", p.PID, " commit Fj_C:", Fj_C.String())
 		Z[j].Sub(R[p.PID+1][j], tmp_poly)
 		KZG.Commit(CR[p.PID+1][j], R[p.PID+1][j])
 		KZG.Commit(CZ[j], Z[j])
 		KZG.CreateWitness(wz[j], Z[j], gmp.NewInt(0))
 		// pi_i
-		sig = append(sig, Pi_Content{j, CR[p.PID+1][j], CZ[j], wz[j], Fj_C})
+		sig = append(sig, Pi_Content{j, KZG.NewG1(), KZG.NewG1(), KZG.NewG1(), KZG.NewG1()})
+		sig[j-1].WZ_0.Set(wz[j])
+		sig[j-1].CZ_j.Set(CZ[j])
+		sig[j-1].CR_j.Set(CR[p.PID+1][j])
+		sig[j-1].g_Fj.Set(Fj_C)
 	}
+	if p.PID == uint32(3) {
+		fmt.Println("In init phase, the CR_list is:")
+		for l := 1; uint32(l) <= 2*p.F+1; l++ {
+			fmt.Println("CR", p.PID+1, l, "=", CR[p.PID+1][l])
+		}
+	}
+	flg_C[p.PID+1] = 1
+	//for j := 0; uint32(j) < 2*p.F+1; j++ {
+	//	fmt.Println("node ", p.PID, " g_F^j j = ", j, " in sig is:", sig[j].g_Fj)
+	//	fmt.Println("node ", p.PID, " j = ", sig[j].j)
+	//}
 	var Commit_Message = new(protobuf.Commit)
 	Commit_Message.Sig = make([]*protobuf.PiContent, 2*p.F+1)
 	for j := 0; j < int(2*p.F+1); j++ {
 		Commit_Message.Sig[j] = new(protobuf.PiContent)
 		Commit_Message.Sig[j].J = int32(sig[j].j)
+		Commit_Message.Sig[j].WZ_0 = sig[j].WZ_0.CompressedBytes()
 		Commit_Message.Sig[j].CRJ = sig[j].CR_j.CompressedBytes()
 		Commit_Message.Sig[j].CZJ = sig[j].CZ_j.CompressedBytes()
 		Commit_Message.Sig[j].G_Fj = sig[j].g_Fj.CompressedBytes()
 	}
+	//fmt.Println("Node ", p.PID, "Commit Message is", Commit_Message)
 	Commit_Message_data, _ := proto.Marshal(Commit_Message)
-	p.RBCSender(&protobuf.Message{Type: "Commit", Sender: p.PID, Id: ID, Data: Commit_Message_data}, []byte("CommitRBC"+strconv.Itoa(int(p.PID+1)))) // ID has been changed
+	p.Broadcast(&protobuf.Message{Type: "Commit", Sender: p.PID, Id: ID, Data: Commit_Message_data}) // ID has been changed
 
 	//Verify
 	go func() {
 		for {
 			for j := 1; j <= int(p.N); j++ {
-				m := p.RBCReceiver([]byte("CommitRBC" + strconv.Itoa(j))) // ID has been changed.
+				m := <-p.GetMessage("Commit", ID) // ID has been changed.
 				var Received_Data protobuf.Commit
-				fmt.Println(m)
 				proto.Unmarshal(m.Data, &Received_Data)
 				var Verify_Flag = KZG.NewG1()
 				Verify_Flag = Verify_Flag.Set1()
@@ -1028,6 +1050,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				if !tmp3.Equals(tmp4) {
 					continue
 				}
+
 				var revert_flag = false
 				for k := 0; uint32(k) < 2*p.F+1; k++ {
 					CR_k := KZG.NewG1()
@@ -1035,6 +1058,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 					wz_k := KZG.NewG1()
 					Gj_k := KZG.NewG1()
 					CR_k.SetCompressedBytes(Received_Data.Sig[k].CRJ)
+					CR[j][k+1].Set(CR_k) //added by ch
 					CZ_k.SetCompressedBytes(Received_Data.Sig[k].CZJ)
 					wz_k.SetCompressedBytes(Received_Data.Sig[k].WZ_0)
 					Gj_k.SetCompressedBytes(Received_Data.Sig[k].G_Fj)
@@ -1048,7 +1072,8 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				if revert_flag == true {
 					continue
 				}
-				for l := uint32(1); l <= p.N; l++ {
+
+				for l := 2*p.F + 2; l <= p.N; l++ {
 					polyring.GetLagrangeCoefficients(int(2*p.F), knownIndexes, ecparam.PBC256.Ngmp, gmp.NewInt(int64(l)), lambda)
 					CR[j][l].Set1()
 					pow_res := KZG.NewG1()
@@ -1060,6 +1085,14 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 					}
 				}
 				flg_C[j] = 1
+				if p.PID == uint32(3) {
+					if j == int(p.PID+1) {
+						fmt.Println("In verify phase, the CR_list is:")
+						for l := 1; uint32(l) <= 2*p.F+1; l++ {
+							fmt.Println("CR", j, l, "=", CR[j][l])
+						}
+					}
+				}
 			}
 		}
 	}()
@@ -1070,21 +1103,53 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 		reshare_message.Wk = make([][]byte, 2*p.F+1) //added
 		reshare_message.Fk = make([][]byte, 2*p.F+1) //added
 		wf[k] = make([]*pbc.Element, p.N+1)
+
 		for j := 1; j <= int(2*p.F+1); j++ {
 
 			wf[k][j] = KZG.NewG1()
+			if p.PID == uint32(3) {
+				fmt.Println("In Sending phase, the CR_list before commit is:")
+				for l := 1; uint32(l) <= 2*p.F+1; l++ {
+					fmt.Println("CR", p.PID+1, l, "=", CR[p.PID+1][l])
+				}
+			}
+			KZG.Commit(CR[p.PID+1][j], R[p.PID+1][j]) //temp
+			if p.PID == uint32(3) {
+				fmt.Println("In Sending phase, the CR_list after commit is:")
+				for l := 1; uint32(l) <= 2*p.F+1; l++ {
+					fmt.Println("CR", p.PID+1, l, "=", CR[p.PID+1][l])
+				}
+			}
 			KZG.CreateWitness(wf[k][j], R[p.PID+1][j], gmp.NewInt(int64(k))) // changed.
 			var Fkj = gmp.NewInt(0)
 			//Denote Ri,j(k) as [Fi(j)]k
 			R[p.PID+1][j].EvalMod(gmp.NewInt(int64(k)), ecparam.PBC256.Ngmp, Fkj)
+			if flg_C[p.PID+1] == 1 {
+				fmt.Println("node", p.PID, "j = ", j, "CRij = ", "send to ", k, "CRij = ", CR[p.PID+1][j].String())
+				fmt.Println("node", p.PID, "verfify", j, "send to", k, "result=", KZG.VerifyEval(CR[p.PID+1][j], gmp.NewInt(int64(k)), Fkj, wf[k][j]))
+			}
 			F_val[p.PID+1][j][k].Set(Fkj)
 			w_F_val[p.PID+1][j][k].Set(wf[k][j])
 			reshare_message.Wk[j-1] = wf[k][j].CompressedBytes()
 			reshare_message.Fk[j-1] = Fkj.Bytes()
 		}
+
+		fmt.Println("Node", p.PID, "reshare_message.Fk  = ", reshare_message.Fk)
 		reshare_data, _ := proto.Marshal(&reshare_message)
 		p.Send(&protobuf.Message{Type: "Reshare", Id: ID, Sender: p.PID, Data: reshare_data}, uint32(k-1))
+		//fmt.Println("Node", p.PID, "send reshare message to", k-1, "the content is", reshare_message.Wk)
+		//fmt.Println("Node ", p.PID, "send Reshare message to", k-1, "the content is", reshare_message)
 	}
+	/*
+		if p.PID == uint32(2) {
+			fmt.Println("In verify phase, the wf_list is:")
+			for i := 1; uint32(i) <= p.N; i++ {
+				for j := 1; uint32(j) <= 2*p.F+1; j++ {
+					fmt.Println("wf", i, j, "=", wf[i][j].String())
+				}
+			}
+		}*/
+
 	//Vote
 	var Reshare_Data_Map = make(map[int]protobuf.Reshare)
 	var Reshare_Data_Map_Mutex sync.Mutex
@@ -1097,6 +1162,8 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 			m := <-p.GetMessage("Reshare", ID) // this ID is not correct
 			var Received_Reshare_Data protobuf.Reshare
 			proto.Unmarshal(m.Data, &Received_Reshare_Data)
+
+			//fmt.Println("Node", p.PID, "receive Reshare message from", m.Sender, "the content is", Received_Reshare_Data.Wk)
 			Reshare_Data_Map_Mutex.Lock()
 			_, ok := Reshare_Data_Map[int(m.Sender+1)]
 			if !ok {
@@ -1117,9 +1184,26 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 					w_j_k = KZG.NewG1()
 					now_Data := Reshare_Data_Map[j]
 					var Vote_Revert_Flag = false
+					/*
+						if p.PID == uint32(3) {
+							fmt.Println("In vote phase,the CR_list is:")
+							for k := 1; uint32(k) <= p.N; k++ {
+								fmt.Println("CR", j, k, "=", CR[j][k].String())
+							}
+						}
+					*/
 					for k := 1; k <= int(2*p.F+1); k++ {
 						v_j_k_i.SetBytes(now_Data.Fk[k-1])
 						w_j_k.SetCompressedBytes(now_Data.Wk[k-1])
+
+						if j == 3 {
+							fmt.Println("Node", p.PID, "receive w", p.PID+1, k, "=", w_j_k.String(), "from Node", j-1)
+						}
+						//fmt.Println("Node", p.PID, v_j_k_i, w_j_k.String())
+						//fmt.Println("Node ", p.PID, "can enter here")
+						//if j == 3 {
+						//	fmt.Println(KZG.VerifyEval(CR[j][k], gmp.NewInt(int64(p.PID+1)), v_j_k_i, w_j_k))
+						//}
 						if KZG.VerifyEval(CR[j][k], gmp.NewInt(int64(p.PID+1)), v_j_k_i, w_j_k) == false {
 							Vote_Revert_Flag = true
 							break
@@ -1168,6 +1252,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 						Recover_Message.Sig = Sig[j][int(p.PID+1)]
 						Recover_Message_data, _ := proto.Marshal(&Recover_Message)
 						p.Send(&protobuf.Message{Type: "Recover", Id: ID, Sender: p.PID, Data: Recover_Message_data}, uint32(l-1))
+						//fmt.Println("Node", p.PID, "send recover message to", l-1)
 					}
 					delete(Reshare_Data_Map, j) //added
 				}
@@ -1240,8 +1325,8 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 							continue                       // ch change break to continue.
 						}
 						S_rec[k] = append(S_rec[k], S_rec_Element{j, v_k_i_j})
-						if len(S_rec) >= int(p.F+1) && flg_Rec[k] == 0 {
-							for t := 0; t < len(S_rec); t++ {
+						if len(S_rec[k]) >= int(p.F+1) && flg_Rec[k] == 0 {
+							for t := 0; t < len(S_rec[k]); t++ {
 								Interpolate_poly_x[t] = gmp.NewInt(int64(S_rec[k][t].j))
 								Interpolate_poly_y[t] = S_rec[k][t].v
 							}
@@ -1249,9 +1334,9 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 							flg_Rec[k] = 1
 						}
 						S_sig[k] = append(S_sig[k], S_sig_Element{j, Received_Sig})
-						if len(S_sig) >= int(2*p.F+1) && Combined_flag[k] == false {
+						if len(S_sig[k]) >= int(2*p.F+1) && Combined_flag[k] == false {
 							var tmp_Sig = make([][]byte, len(S_sig))
-							for t := 0; t < len(S_sig); t++ {
+							for t := 0; t < len(S_sig[k]); t++ {
 								tmp_Sig[t] = S_sig[k][t].Sig
 							}
 							Combined_Sig[k], _ = tbls.Recover(Sys_Suite, p.SigPK, []byte(strconv.Itoa(k)), tmp_Sig, int(2*p.F), int(p.N))
@@ -1320,7 +1405,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	var NewCommit_Message protobuf.NewCommit
 	NewCommit_Message.CB = C_B[p.PID+1].CompressedBytes()
 	NewCommit_Message_Data, _ := proto.Marshal(&NewCommit_Message)
-	p.RBCSender(&protobuf.Message{Type: "NewCommit", Id: ID, Sender: p.PID, Data: NewCommit_Message_Data}, []byte("NewCommitRBC"+strconv.Itoa(int(p.PID+1)))) // this ID is not correct
+	p.Broadcast(&protobuf.Message{Type: "NewCommit", Id: ID, Sender: p.PID, Data: NewCommit_Message_Data}) // this ID is not correct
 
 	//Distribute
 	var w_B_i_j *pbc.Element
@@ -1339,7 +1424,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	//Verify
 	for j := 1; j <= int(p.N); j++ {
 		go func(j int) {
-			m := p.RBCReceiver([]byte("NewCommitRBC" + strconv.Itoa(j))) // this ID is not correct
+			m := <-p.GetMessage("ShareDist", ID) // this ID is not correct
 			NewCommit_Data := m.Data
 			var Received_CB *pbc.Element
 			Received_CB = KZG.NewG1()

@@ -46,17 +46,15 @@ func TestRBC(t *testing.T) {
 	var ID = []byte("abc")
 	wg.Add(int(3*F + 1))
 	for i := uint32(0); i < N; i++ { // there is one malicious node,who doesn't send any Message
-		if i != 1 && i != 2 {
-			go func(i uint32) {
-				m := p[i].RBCReceiver(ID)
-				fmt.Println(i, " output RBC message: ", m)
-				wg.Done()
-			}(i)
-		}
+		go func(i uint32) {
+			m := p[i].RBCReceiver(ID)
+			fmt.Println(i, " output RBC message: ", m)
+			wg.Done()
+		}(i)
 	}
 
 	go func() {
-		p[0].RBCSender(&protobuf.Message{Type: "Test", Sender: uint32(0), Id: ID, Data: []byte("hello")}, ID)
+		p[0].RBCSender(&protobuf.Message{Type: "Test", Sender: uint32(0), Id: ID, Data: []byte("hellofromEarthhellofromEarthhellofromEarthhellofromEarthhellofromEarthhellofromEarthhellofromEarthhellofromEarthhellofromEarthhellofromEarthhellofromEarthhellofromEarthhellofromEarthhellofromEarth")}, ID)
 	}()
 
 	wg.Wait()

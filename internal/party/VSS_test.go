@@ -16,12 +16,12 @@ import (
 
 func TestDealer(t *testing.T) {
 
-	ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
-	portList := []string{"8880", "8881", "8882", "8883", "8884", "8885", "8886"}
-	ipList_next := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
-	portList_next := []string{"8887", "8888", "8889", "8890", "8891", "8892", "8893"}
-	N := uint32(7)
-	F := uint32(2)
+	ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
+	portList := []string{"8880", "8881", "8882", "8883", "8884", "8885", "8886", "8887", "8888", "8889"}
+	ipList_next := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
+	portList_next := []string{"8890", "8891", "8892", "8893", "8894", "8895", "8896", "8897", "8898", "8899"}
+	N := uint32(10)
+	F := uint32(3)
 	sk, pk := SigKeyGen(N, 2*F+2) // wrong usage, but it doesn't matter here
 
 	KZG.SetupFix(int(2 * F))
@@ -49,7 +49,7 @@ func TestDealer(t *testing.T) {
 
 	var client Client
 	client.s = new(gmp.Int)
-	client.s.SetInt64(int64(111111111111111))
+	client.s.SetInt64(int64(1111111111111112222))
 	client.HonestParty = NewHonestParty(N, F, 0x7fffffff, ipList, portList, ipList_next, portList_next, pk, sk[2*F+1], pi_init, witness_init, witness_init_indexes)
 	client.InitSendChannel()
 
@@ -126,12 +126,12 @@ func TestDealer(t *testing.T) {
 
 func TestVSS(t *testing.T) {
 
-	ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
-	portList := []string{"8880", "8881", "8882", "8883", "8884", "8885", "8886"}
-	ipList_next := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
-	portList_next := []string{"8887", "8888", "8889", "8890", "8891", "8892", "8893"}
-	N := uint32(7)
-	F := uint32(2)
+	ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
+	portList := []string{"8880", "8881", "8882", "8883", "8884", "8885", "8886", "8887", "8888", "8889"}
+	ipList_next := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
+	portList_next := []string{"8890", "8891", "8892", "8893", "8894", "8895", "8896", "8897", "8898", "8899"}
+	N := uint32(10)
+	F := uint32(3)
 	sk, pk := SigKeyGen(N, 2*F+2) // wrong usage, but it doesn't matter here
 
 	KZG.SetupFix(int(2 * F))
@@ -159,18 +159,18 @@ func TestVSS(t *testing.T) {
 
 	var client Client
 	client.s = new(gmp.Int)
-	client.s.SetInt64(int64(111111111111111))
+	client.s.SetBytes([]byte("555555555555555555555555555555555555555111111111111111111111111111111111111111111111111122222222222222222222222222222"))
 	client.HonestParty = NewHonestParty(N, F, 0x7fffffff, ipList, portList, ipList_next, portList_next, pk, sk[2*F+1], pi_init, witness_init, witness_init_indexes)
 	client.InitSendChannel()
 
-	client.Share([]byte("vssshare"))
+	client.Share([]byte("ANJHZ_Share"))
 
 	var wg sync.WaitGroup
 
 	wg.Add(int(3*F + 1))
 	for i := uint32(0); i < N; i++ {
 		go func(i uint32) {
-			p[i].InitShareReceiver([]byte("vssshare"))
+			p[i].InitShareReceiver([]byte("ANJHZ_Share"))
 			wg.Done()
 		}(i)
 	}
