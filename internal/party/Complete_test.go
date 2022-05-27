@@ -83,12 +83,42 @@ func TestCompleteProcess(t *testing.T) {
 	wg.Add(int(3*F + 1))
 	for i := uint32(0); i < N; i++ {
 		go func(i uint32) {
-			p[i].ProactivizeAndShareDist([]byte("ProactivizeAndShareReduce"))
+			p_next[i].ProactivizeAndShareDist([]byte("ProactivizeAndShareReduce"))
 			wg.Done()
 		}(i)
 	}
 	wg.Wait()
+	/*
+		var fullShare_at_zero = make([]*gmp.Int, F+1)
+		var knownIndexes = make([]*gmp.Int, F+1)
 
+		for i := 0; uint32(i) < F+1; i++ {
+			fullShare_at_zero[i] = gmp.NewInt(0)
+			knownIndexes[i] = gmp.NewInt(int64(i + 1))
+			p_next[i].fullShare.EvalMod(gmp.NewInt(0), ecparam.PBC256.Ngmp, fullShare_at_zero[i])
+		}
+		s_poly, _ := interpolation.LagrangeInterpolate(int(F), knownIndexes, fullShare_at_zero, ecparam.PBC256.Ngmp)
+		s_poly.Print()
+		s_recovered := gmp.NewInt(0)
+		s_poly.EvalMod(gmp.NewInt(0), ecparam.PBC256.Ngmp, s_recovered)
+		fmt.Println("finally recover secret:", s_recovered)
+	*/
+	//s_recovered != s_init,555
+	/*
+		var halfShare_at_zero = make([]*gmp.Int, 2*F+1)
+		var knownIndexes = make([]*gmp.Int, 2*F+1)
+
+		for i := 0; uint32(i) < 2*F+1; i++ {
+			halfShare_at_zero[i] = gmp.NewInt(0)
+			knownIndexes[i] = gmp.NewInt(int64(i + 1))
+			p_next[i].HalfShare.EvalMod(gmp.NewInt(0), ecparam.PBC256.Ngmp, halfShare_at_zero[i])
+		}
+		s_poly, _ := interpolation.LagrangeInterpolate(int(2*F), knownIndexes, halfShare_at_zero, ecparam.PBC256.Ngmp)
+		s_poly.Print()
+		s_recovered := gmp.NewInt(0)
+		s_poly.EvalMod(gmp.NewInt(0), ecparam.PBC256.Ngmp, s_recovered)
+		fmt.Println("finally recover secret:", s_recovered)
+	*/
 }
 
 func TestProactivizeAndShareDist(t *testing.T) {

@@ -1394,6 +1394,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 			//fmt.Println("Node ", p.PID, "R[MVBA_res.J[i]][p.PID+1] =")
 			//R[MVBA_res.J[i]][p.PID+1].Print()
 			Q.Add(copyed_Q, R[MVBA_res.J[i]][p.PID+1])
+			Q.Mod(ecparam.PBC256.Ngmp)
 		}
 		// add CQ later!!
 		fmt.Println("Node", p.PID, "recover Q:")

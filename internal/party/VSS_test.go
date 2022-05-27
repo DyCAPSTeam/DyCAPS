@@ -159,18 +159,18 @@ func TestVSS(t *testing.T) {
 
 	var client Client
 	client.s = new(gmp.Int)
-	client.s.SetBytes([]byte("555555555555555555555555555555555555555111111111111111111111111111111111111111111111111122222222222222222222222222222"))
+	client.s.SetBytes([]byte("1111111111111111111111111"))
 	client.HonestParty = NewHonestParty(N, F, 0x7fffffff, ipList, portList, ipList_next, portList_next, pk, sk[2*F+1], pi_init, witness_init, witness_init_indexes)
 	client.InitSendChannel()
 
-	client.Share([]byte("ANJHZ_Share"))
+	client.Share([]byte("InitShare"))
 
 	var wg sync.WaitGroup
 
 	wg.Add(int(3*F + 1))
 	for i := uint32(0); i < N; i++ {
 		go func(i uint32) {
-			p[i].InitShareReceiver([]byte("ANJHZ_Share"))
+			p[i].InitShareReceiver([]byte("InitShare"))
 			wg.Done()
 		}(i)
 	}
