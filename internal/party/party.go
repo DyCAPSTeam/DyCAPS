@@ -1157,6 +1157,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	for i := 1; i <= int(p.N); i++ {
 		Sig[i] = make(map[int][]byte)
 	}
+
 	go func() {
 		for {
 			m := <-p.GetMessage("Reshare", ID) // this ID is not correct
