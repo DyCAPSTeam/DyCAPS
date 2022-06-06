@@ -47,3 +47,7 @@ func DeleteZero(src []byte) []byte {
 	}
 	return src
 }
+
+func DeleteZero_tempSolution(src []byte, len int) []byte {
+	return src[0:len]
+}

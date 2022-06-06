@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"github.com/DyCAPSTeam/DyCAPS/pkg/utils"
 	"go.dedis.ch/kyber/v3/sign/tbls"
 	"math/rand"
 	"strconv"
@@ -21,7 +22,6 @@ import (
 
 	"github.com/DyCAPSTeam/DyCAPS/pkg/core"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
-	"github.com/DyCAPSTeam/DyCAPS/pkg/utils"
 	"github.com/golang/protobuf/proto"
 
 	"github.com/klauspost/reedsolomon"
@@ -205,33 +205,38 @@ func (p *HonestParty) checkInitNext() bool {
 func (p *HonestParty) RBCSender(m *protobuf.Message, ID []byte) {
 	//encapsulation?
 	data, _ := proto.Marshal(m)
+	//if p.PID == uint32(0) {
 	p.Broadcast(&protobuf.Message{Type: "Propose", Sender: p.PID, Id: ID, Data: data})
+	fmt.Println(p.PID, "broadcast RBCPropose Message")
+	//}
 }
 
 func (p *HonestParty) RBCReceiver(ID []byte) *protobuf.Message {
 	//Denote Th, M', h
 	h_local := sha256.New()
 	var M1 = make([][]byte, p.N) //  M' in RBC paper. Must assign length(or copy will fail)
-
+	var mlen_init int            //temp solution
 	//here we ignore P(.)
 
 	//handle "Propose" message
 	go func() {
 		m := <-p.GetMessage("Propose", ID)
+		fmt.Println(p.PID, "receive Propose message from node ", m.Sender)
 		M_i := m.Data
-		fmt.Println(p.PID, " m_initial: ", M_i)
+		mlen_init = len(M_i) // temp solution
+		fmt.Println(p.PID, " m_initial from", m.Sender, ": ", M_i, "the length is", len(M_i))
 		h_local.Write(M_i)
 		RSEncoder, _ := reedsolomon.New(int(p.N-(p.F+1)), int(p.F+1))
 		shards, _ := RSEncoder.Split(M_i)
-		fmt.Println("shards = ", shards)
+		//fmt.Println("shards = ", shards)
 		RSEncoder.Encode(shards)
-		fmt.Println("encoded shards = ", shards)
+		//fmt.Println("encoded shards  = ", shards)
 		copy(M1, shards) //avoid this: "shards" is released when this go routine end, and M1 becomes nullPointer as a result.
 		for j := uint32(0); j < p.N; j++ {
 			//encapsulate
 			EchoData, _ := proto.Marshal(&protobuf.RBCEcho{Hash: h_local.Sum(nil), M: M1[j]})
 			p.Send(&protobuf.Message{Type: "RBCEcho", Sender: p.PID, Id: ID, Data: EchoData}, j)
-			fmt.Println(p.PID, " broadcast Echo")
+			fmt.Println(p.PID, " send Echo to ", j, " in RBC called by", m.Sender)
 		}
 	}()
 
@@ -255,7 +260,7 @@ func (p *HonestParty) RBCReceiver(ID []byte) *protobuf.Message {
 	go func() {
 		for {
 			m := <-p.GetMessage("RBCEcho", ID)
-			fmt.Println(p.PID, " receive Echo from ", m.Sender)
+			fmt.Println(p.PID, " receive Echo from ", m.Sender, " in RBC called by", string(ID))
 			var payloadMessage protobuf.RBCEcho
 			proto.Unmarshal(m.Data, &payloadMessage)
 			mutex_EchoMap.Lock()
@@ -295,12 +300,12 @@ func (p *HonestParty) RBCReceiver(ID []byte) *protobuf.Message {
 	go func() {
 		for {
 			m := <-p.GetMessage("RBCReady", ID)
-			fmt.Println(p.PID, " receive Ready from ", m.Sender)
+			fmt.Println(p.PID, " receive Ready from ", m.Sender, " in RBC called by", string(ID))
 			var payloadMessage protobuf.RBCReady
 			proto.Unmarshal(m.Data, &payloadMessage)
 			hash := payloadMessage.Hash
 			m_j := payloadMessage.M
-			fmt.Println(p.PID, " receive m_j: ", m_j, " from ", m.Sender)
+			fmt.Println(p.PID, "in RBC called by", string(ID), " receive m_j: ", m_j, " from ", m.Sender)
 			j := m.Sender
 			mutex_ReadyMap.Lock()
 
@@ -344,14 +349,14 @@ func (p *HonestParty) RBCReceiver(ID []byte) *protobuf.Message {
 	}()
 
 	<-RSDecOk // this method is not so good
-	fmt.Println(p.PID, " has received RSDecOK")
+	fmt.Println(p.PID, " has received RSDecOK in RBC called by", string(ID))
 	for r := uint32(0); r <= p.F; r++ {
 		for {
 			if uint32(MaxReadyNumber) >= 2*p.F+r+1 {
 				break
 			}
 		}
-		fmt.Println(p.PID, " running r = ", r)
+		fmt.Println(p.PID, "in RBC called by ", string(ID), " running r = ", r)
 		var m_received_temp = make([]m_received, 2*p.F+r+1)
 		mutex_ReadyMap.Lock()
 		copy(m_received_temp, T[string(MaxReadyHash)])
@@ -367,16 +372,20 @@ func (p *HonestParty) RBCReceiver(ID []byte) *protobuf.Message {
 		if !ok {
 			RSEncoder.Reconstruct(M)
 		}
-		fmt.Println(p.PID, " Reconstructed M = ", M)
+		fmt.Println(p.PID, "in RBC called by ", string(ID), " Reconstructed M = ", M)
 		var m_reconstructed = make([]byte, 0)
 		for i := uint32(0); i < p.N-(p.F+1); i++ {
 			m_reconstructed = append(m_reconstructed, M[i]...)
 		}
-		m_reconstructed = utils.DeleteZero(m_reconstructed) // assume there is no 0 at the end originally.
-		fmt.Println(p.PID, " m_reconstructed: ", m_reconstructed)
+		m_reconstructed = utils.DeleteZero_tempSolution(m_reconstructed, mlen_init)
+		// temp solution(we do not know the number of zero at the end originally, so we use len = len(m_initial).But this
+		// trick can be used only in the all-honest situation.)
+		fmt.Println(p.PID, "int RBC called by", string(ID), " m_reconstructed: ", m_reconstructed, "length=", len(m_reconstructed))
 		h_new := sha256.New()
 		h_new.Write(m_reconstructed)
+		fmt.Println(p.PID, "in RBC called by", string(ID), ": h'=", MaxReadyHash, "h=", h_local.Sum(nil), "when r = ", r)
 		if bytes.Compare(h_new.Sum(nil), MaxReadyHash) == 0 {
+			fmt.Println(p.PID, "in RBC called by ", string(ID), "verify h == h' when r = ", r)
 			var replyMessage protobuf.Message
 			proto.Unmarshal(m_reconstructed, &replyMessage)
 			return &replyMessage //possible bug
@@ -930,7 +939,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	poly_F.SetCoefficientBig(0, gmp.NewInt(0))
 	//fmt.Println("Node ", p.PID, " generate poly_F:")
 	//poly_F.Print()
-	var R = make([][]polyring.Polynomial, p.N+1)
+	var R = make([][]polyring.Polynomial, p.N+1) // i and j in R[][] start from 1
 	for j := 0; j <= int(p.N); j++ {
 		R[j] = make([]polyring.Polynomial, p.N+1)
 		for k := 0; k <= int(p.N); k++ {
@@ -1015,13 +1024,14 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	}
 	//fmt.Println("Node ", p.PID, "Commit Message is", Commit_Message)
 	Commit_Message_data, _ := proto.Marshal(Commit_Message)
-	p.Broadcast(&protobuf.Message{Type: "Commit", Sender: p.PID, Id: ID, Data: Commit_Message_data}) // ID has been changed
+	p.RBCSender(&protobuf.Message{Type: "Commit", Sender: p.PID, Id: ID, Data: Commit_Message_data}, []byte(string(ID)+strconv.Itoa(int(p.PID+1)))) // ID has been changed
 
 	//Verify
 	go func() {
-		for {
-			for j := 1; j <= int(p.N); j++ {
-				m := <-p.GetMessage("Commit", ID) // ID has been changed.
+		for j := 1; j <= int(p.N); j++ {
+			go func(j int) {
+				m := p.RBCReceiver([]byte(string(ID) + strconv.Itoa(j))) // ID has been changed.
+				fmt.Println("Node", p.PID, "receive RBC message from", m.Sender)
 				var Received_Data protobuf.Commit
 				proto.Unmarshal(m.Data, &Received_Data)
 				var Verify_Flag = KZG.NewG1()
@@ -1049,7 +1059,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 					tmp3.Mul(copy_tmp3, tmp2)
 				}
 				if !tmp3.Equals(tmp4) {
-					continue
+					return //possible bug
 				}
 
 				var revert_flag = false
@@ -1071,7 +1081,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 					}
 				}
 				if revert_flag == true {
-					continue
+					return //possible bug
 				}
 
 				for l := 2*p.F + 2; l <= p.N; l++ {
@@ -1095,8 +1105,9 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 							}
 						}
 					}*/
-			}
+			}(j)
 		}
+
 	}()
 	//Reshare
 	var wf = make([][]*pbc.Element, p.N+1)
