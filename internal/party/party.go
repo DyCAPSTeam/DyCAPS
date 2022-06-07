@@ -870,6 +870,7 @@ func (p *HonestParty) ShareReduceReceiver(ID []byte) {
 			mutex_ShareReduceMap.Lock()
 			//fmt.Println("Node", p.PID, KZG.VerifyEval(C, gmp.NewInt(int64(m.Sender+1)), v_j, w_j))
 			//if KZG.VerifyEval(C, gmp.NewInt(int64(m.Sender+1)), v_j, w_j) {
+			//TODO:Add KZG verification here
 			_, ok2 := ShareReduce_map[string(ShareReduceData.C)]
 			if ok2 {
 				ShareReduce_map[string(ShareReduceData.C)] = append(ShareReduce_map[string(ShareReduceData.C)], polypoint.PolyPoint{
@@ -1174,7 +1175,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 
 	go func() {
 		for {
-			m := <-p.GetMessage("Reshare", ID) // this ID is not correct
+			m := <-p.GetMessage("Reshare", ID) // this ID is not correct //ch thinks it is correct
 			var Received_Reshare_Data protobuf.Reshare
 			proto.Unmarshal(m.Data, &Received_Reshare_Data)
 
@@ -1188,7 +1189,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 		}
 	}()
 	go func() {
-		for { //change busy waiting to block waiting later.
+		for { //TODO: change busy waiting to block waiting later.
 			Reshare_Data_Map_Mutex.Lock()
 			for j := 1; j <= int(p.N); j++ {
 				_, ok := Reshare_Data_Map[j]
@@ -1379,7 +1380,8 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 			Recover_Data_Map_Mutex.Unlock()
 		}
 	}()
-	//MVBA
+	//MVBA (MVBA verification hasn't been implemented)
+	//TODO:implement MVBA's verification
 	MVBA_res_data := <-MVBA_res_chan //question: do we need waitGroup to synchronize the MVBA instances?
 	var MVBA_res protobuf.MVBA_IN
 	proto.Unmarshal(MVBA_res_data, &MVBA_res)
@@ -1467,6 +1469,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				CB: KZG.NewG1(),
 			}
 			S_com[int(m.Sender+1)].CB.Set(Received_CB) //here add it without Verifying temporarily  //ch change j to m.sender+1
+			//TODO: Add Verification here (CB'(x,j) == CB(x,j)CQ(x,j) ?)
 			S_com_Mutex.Unlock()
 		}(j)
 	}
@@ -1516,6 +1519,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 								continue
 							}*/
 						// debug for KZG Verification later.
+						// TODO: complete the KZG verification here.
 						S_B = append(S_B, S_B_Element{
 							j:  0,
 							CB: KZG.NewG1(),
@@ -1564,7 +1568,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	<-Success_Sent_chan //added by ch
 	go func() {
 		for {
-			m := <-p.GetMessage("Success", ID) // this ID is not correct
+			m := <-p.GetMessage("Success", ID) // this ID is not correct //ch thinks it is correct
 			proto.Unmarshal(m.Data, &Received_Success_Data)
 			Success_Map_Mutex.Lock()
 			_, ok := Success_Map[int(m.Sender+1)]
