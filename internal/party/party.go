@@ -207,7 +207,7 @@ func (p *HonestParty) RBCSender(m *protobuf.Message, ID []byte) {
 	data, _ := proto.Marshal(m)
 	//if p.PID == uint32(0) {
 	p.Broadcast(&protobuf.Message{Type: "Propose", Sender: p.PID, Id: ID, Data: data})
-	fmt.Println(p.PID, "broadcast RBCPropose Message")
+	fmt.Println(p.PID, "broadcast RBC's Propose Message, the ID is", string(ID))
 	//}
 }
 
@@ -221,10 +221,10 @@ func (p *HonestParty) RBCReceiver(ID []byte) *protobuf.Message {
 	//handle "Propose" message
 	go func() {
 		m := <-p.GetMessage("Propose", ID)
-		fmt.Println(p.PID, "receive Propose message from node ", m.Sender)
+		//fmt.Println(p.PID, "receive Propose message from node ", m.Sender,"the ID is",string(ID))
 		M_i := m.Data
 		mlen_init = len(M_i) // temp solution
-		fmt.Println(p.PID, " m_initial from", m.Sender, ": ", M_i, "the length is", len(M_i))
+		//fmt.Println(p.PID, " m_initial from", m.Sender, ": ", M_i, "the length is", len(M_i))
 		h_local.Write(M_i)
 		RSEncoder, _ := reedsolomon.New(int(p.N-(p.F+1)), int(p.F+1))
 		shards, _ := RSEncoder.Split(M_i)
@@ -234,9 +234,10 @@ func (p *HonestParty) RBCReceiver(ID []byte) *protobuf.Message {
 		copy(M1, shards) //avoid this: "shards" is released when this go routine end, and M1 becomes nullPointer as a result.
 		for j := uint32(0); j < p.N; j++ {
 			//encapsulate
-			EchoData, _ := proto.Marshal(&protobuf.RBCEcho{Hash: h_local.Sum(nil), M: M1[j]})
+			EchoData, _ := proto.Marshal(&protobuf.RBCEcho{Hash: append(h_local.Sum(nil), utils.IntToBytes(mlen_init)...), M: M1[j]})
+			//here add length at the end of hash
 			p.Send(&protobuf.Message{Type: "RBCEcho", Sender: p.PID, Id: ID, Data: EchoData}, j)
-			fmt.Println(p.PID, " send Echo to ", j, " in RBC called by", m.Sender)
+			//fmt.Println(p.PID, " send Echo to ", j, " in RBC called by", m.Sender)
 		}
 	}()
 
@@ -260,7 +261,7 @@ func (p *HonestParty) RBCReceiver(ID []byte) *protobuf.Message {
 	go func() {
 		for {
 			m := <-p.GetMessage("RBCEcho", ID)
-			fmt.Println(p.PID, " receive Echo from ", m.Sender, " in RBC called by", string(ID))
+			//fmt.Println(p.PID, " receive Echo from ", m.Sender, " in RBC called by", string(ID))
 			var payloadMessage protobuf.RBCEcho
 			proto.Unmarshal(m.Data, &payloadMessage)
 			mutex_EchoMap.Lock()
@@ -300,12 +301,12 @@ func (p *HonestParty) RBCReceiver(ID []byte) *protobuf.Message {
 	go func() {
 		for {
 			m := <-p.GetMessage("RBCReady", ID)
-			fmt.Println(p.PID, " receive Ready from ", m.Sender, " in RBC called by", string(ID))
+			//fmt.Println(p.PID, " receive Ready from ", m.Sender, " in RBC called by", string(ID))
 			var payloadMessage protobuf.RBCReady
 			proto.Unmarshal(m.Data, &payloadMessage)
 			hash := payloadMessage.Hash
 			m_j := payloadMessage.M
-			fmt.Println(p.PID, "in RBC called by", string(ID), " receive m_j: ", m_j, " from ", m.Sender)
+			//fmt.Println(p.PID, "in RBC called by", string(ID), " receive m_j: ", m_j, " from ", m.Sender)
 			j := m.Sender
 			mutex_ReadyMap.Lock()
 
@@ -341,7 +342,7 @@ func (p *HonestParty) RBCReceiver(ID []byte) *protobuf.Message {
 
 			if uint32(len(T[string(hash)])) == 2*p.F+1 {
 				RSDecOk <- true
-				fmt.Println(p.PID, "has sent RSDecOk")
+				//fmt.Println(p.PID, "has sent RSDecOk")
 			}
 			mutex_ReadyMap.Unlock()
 		}
@@ -349,14 +350,14 @@ func (p *HonestParty) RBCReceiver(ID []byte) *protobuf.Message {
 	}()
 
 	<-RSDecOk // this method is not so good
-	fmt.Println(p.PID, " has received RSDecOK in RBC called by", string(ID))
+	//fmt.Println(p.PID, " has received RSDecOK in RBC called by", string(ID))
 	for r := uint32(0); r <= p.F; r++ {
 		for {
 			if uint32(MaxReadyNumber) >= 2*p.F+r+1 {
 				break
 			}
 		}
-		fmt.Println(p.PID, "in RBC called by ", string(ID), " running r = ", r)
+		//fmt.Println(p.PID, "in RBC called by ", string(ID), " running r = ", r)
 		var m_received_temp = make([]m_received, 2*p.F+r+1)
 		mutex_ReadyMap.Lock()
 		copy(m_received_temp, T[string(MaxReadyHash)])
@@ -372,20 +373,20 @@ func (p *HonestParty) RBCReceiver(ID []byte) *protobuf.Message {
 		if !ok {
 			RSEncoder.Reconstruct(M)
 		}
-		fmt.Println(p.PID, "in RBC called by ", string(ID), " Reconstructed M = ", M)
+		//fmt.Println(p.PID, "in RBC called by ", string(ID), " Reconstructed M = ", M)
 		var m_reconstructed = make([]byte, 0)
 		for i := uint32(0); i < p.N-(p.F+1); i++ {
 			m_reconstructed = append(m_reconstructed, M[i]...)
 		}
-		m_reconstructed = utils.DeleteZero_tempSolution(m_reconstructed, mlen_init)
-		// temp solution(we do not know the number of zero at the end originally, so we use len = len(m_initial).But this
-		// trick can be used only in the all-honest situation.)
-		fmt.Println(p.PID, "int RBC called by", string(ID), " m_reconstructed: ", m_reconstructed, "length=", len(m_reconstructed))
+		mlen_new := utils.BytesToInt(MaxReadyHash[256/8:])
+		MaxReadyHash = MaxReadyHash[:256/8]
+		m_reconstructed = utils.DeleteZero_tempSolution(m_reconstructed, mlen_new)
+		//fmt.Println(p.PID, "int RBC called by", string(ID), " m_reconstructed: ", m_reconstructed, "length=", len(m_reconstructed))
 		h_new := sha256.New()
 		h_new.Write(m_reconstructed)
-		fmt.Println(p.PID, "in RBC called by", string(ID), ": h'=", MaxReadyHash, "h=", h_local.Sum(nil), "when r = ", r)
+		//fmt.Println(p.PID, "in RBC called by", string(ID), ": h'=", MaxReadyHash, "h=", h_local.Sum(nil), "when r = ", r)
 		if bytes.Compare(h_new.Sum(nil), MaxReadyHash) == 0 {
-			fmt.Println(p.PID, "in RBC called by ", string(ID), "verify h == h' when r = ", r)
+			//fmt.Println(p.PID, "in RBC called by ", string(ID), "verify h == h' when r = ", r)
 			var replyMessage protobuf.Message
 			proto.Unmarshal(m_reconstructed, &replyMessage)
 			return &replyMessage //possible bug
@@ -492,7 +493,7 @@ func (p *HonestParty) InitShareReceiver(ID []byte) {
 	go func() {
 		for {
 			m := <-p.GetMessage("VSSEcho", ID)
-			fmt.Println("Node ", p.PID, " Receive Echo Message From Node ", m.Sender)
+			fmt.Println("Node ", p.PID, " Receive VSS's Echo Message From Node ", m.Sender)
 			var payloadMessage protobuf.VSSEcho
 			proto.Unmarshal(m.Data, &payloadMessage)
 			var pi_from_Echo = new(Pi)
@@ -575,7 +576,7 @@ func (p *HonestParty) InitShareReceiver(ID []byte) {
 			if payloadMessage.ReadyType == "SHARE" {
 				witnessAt_l.SetCompressedBytes(payloadMessage.WBIl)
 			}
-			fmt.Println("payloadMessage.Type= ", payloadMessage.ReadyType)
+			//fmt.Println("payloadMessage.Type= ", payloadMessage.ReadyType)
 			mutex_for_ReadyMessage.Lock()
 
 			_, ok := ReadyMap[string(pi_hash.Sum(nil))]
@@ -877,7 +878,7 @@ func (p *HonestParty) ShareReduceReceiver(ID []byte) {
 					PolyWit: KZG.NewG1(),
 				})
 				count := ShareReduce_C_count[string(ShareReduceData.C)]
-				fmt.Println(count)
+				//fmt.Println(count)
 				ShareReduce_map[string(ShareReduceData.C)][count].X = int32(m.Sender + 1)
 				ShareReduce_map[string(ShareReduceData.C)][count].Y.Set(v_j)
 				ShareReduce_map[string(ShareReduceData.C)][count].PolyWit.Set(w_j)
@@ -916,8 +917,8 @@ func (p *HonestParty) ShareReduceReceiver(ID []byte) {
 		poly_y[deg].Set(ShareReduce_map[Most_Counted_C][i].Y)
 		deg++
 	}
-	fmt.Println(poly_x)
-	fmt.Println(poly_y)
+	//fmt.Println(poly_x)
+	//fmt.Println(poly_y)
 	mutex_ShareReduceMap.Unlock()
 	p.HalfShare, _ = interpolation.LagrangeInterpolate(int(p.F), poly_x, poly_y, ecparam.PBC256.Ngmp)
 	fmt.Println("Node ", p.PID, " recover its halfShare:")
@@ -1025,13 +1026,12 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	//fmt.Println("Node ", p.PID, "Commit Message is", Commit_Message)
 	Commit_Message_data, _ := proto.Marshal(Commit_Message)
 	p.RBCSender(&protobuf.Message{Type: "Commit", Sender: p.PID, Id: ID, Data: Commit_Message_data}, []byte(string(ID)+strconv.Itoa(int(p.PID+1)))) // ID has been changed
-
 	//Verify
 	go func() {
 		for j := 1; j <= int(p.N); j++ {
 			go func(j int) {
 				m := p.RBCReceiver([]byte(string(ID) + strconv.Itoa(j))) // ID has been changed.
-				fmt.Println("Node", p.PID, "receive RBC message from", m.Sender)
+				fmt.Println("Node", p.PID, "receive RBC message from", m.Sender, "in ShareDist Phase,the ID is", string(ID))
 				var Received_Data protobuf.Commit
 				proto.Unmarshal(m.Data, &Received_Data)
 				var Verify_Flag = KZG.NewG1()
@@ -1193,9 +1193,9 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 			for j := 1; j <= int(p.N); j++ {
 				_, ok := Reshare_Data_Map[j]
 				if ok == true && flg_C[j] == 1 {
-					if p.PID == uint32(5) && j == 7 {
-						fmt.Println("enter 2")
-					}
+					//if p.PID == uint32(5) && j == 7 {
+					//	fmt.Println("enter 2")
+					//}
 					var w_j_k *pbc.Element
 					var v_j_k_i *gmp.Int
 					v_j_k_i = gmp.NewInt(0)
@@ -1383,7 +1383,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	MVBA_res_data := <-MVBA_res_chan //question: do we need waitGroup to synchronize the MVBA instances?
 	var MVBA_res protobuf.MVBA_IN
 	proto.Unmarshal(MVBA_res_data, &MVBA_res)
-	//fmt.Println("Node", p.PID, " output MBVA output", MVBA_res.J)
+	fmt.Println("Node", p.PID, " output MBVA result:", MVBA_res.J)
 
 	//Refresh
 	var CQ = make([]*pbc.Element, p.N+1)
@@ -1436,7 +1436,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	var NewCommit_Message protobuf.NewCommit
 	NewCommit_Message.CB = C_B[p.PID+1].CompressedBytes()
 	NewCommit_Message_Data, _ := proto.Marshal(&NewCommit_Message)
-	p.Broadcast(&protobuf.Message{Type: "NewCommit", Id: ID, Sender: p.PID, Data: NewCommit_Message_Data}) // this ID is not correct
+	p.RBCSender(&protobuf.Message{Type: "NewCommit", Id: ID, Sender: p.PID, Data: NewCommit_Message_Data}, []byte(string(ID)+"Distribute"+strconv.Itoa(int(p.PID+1)))) // this ID is not correct
 
 	//Distribute
 	var w_B_i_j *pbc.Element
@@ -1455,7 +1455,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	//Verify
 	for j := 1; j <= int(p.N); j++ {
 		go func(j int) {
-			m := <-p.GetMessage("NewCommit", ID) // this ID is not correct
+			m := p.RBCReceiver([]byte(string(ID) + "Distribute" + strconv.Itoa(j)))
 			NewCommit_Data := m.Data
 			var Received_CB *pbc.Element
 			Received_CB = KZG.NewG1()
@@ -1466,7 +1466,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				j:  int(m.Sender + 1),
 				CB: KZG.NewG1(),
 			}
-			S_com[int(m.Sender+1)].CB.Set(Received_CB) //HAHA,add it without Verifying!!  //ch change j to m.sender+1
+			S_com[int(m.Sender+1)].CB.Set(Received_CB) //here add it without Verifying temporarily  //ch change j to m.sender+1
 			S_com_Mutex.Unlock()
 		}(j)
 	}
