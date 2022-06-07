@@ -226,6 +226,8 @@ func (p *HonestParty) RBCReceiver(ID []byte) *protobuf.Message {
 		mlen_init = len(M_i) // temp solution
 		//fmt.Println(p.PID, " m_initial from", m.Sender, ": ", M_i, "the length is", len(M_i))
 		h_local.Write(M_i)
+
+		//TODO:Check if the usage of RS code is correct
 		RSEncoder, _ := reedsolomon.New(int(p.N-(p.F+1)), int(p.F+1))
 		shards, _ := RSEncoder.Split(M_i)
 		//fmt.Println("shards = ", shards)
@@ -926,6 +928,7 @@ func (p *HonestParty) ShareReduceReceiver(ID []byte) {
 	p.HalfShare.Print()
 }
 
+//TODO:find out why the secret after the Proactivize phase is not correct.
 func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	// Init
 	var flg_C = make([]uint32, p.N+1)
@@ -1409,7 +1412,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 			Q.Add(copyed_Q, R[MVBA_res.J[i]][p.PID+1])
 			Q.Mod(ecparam.PBC256.Ngmp)
 		}
-		// add CQ later!!
+		//TODO: add CQ here later!!
 		fmt.Println("Node", p.PID, "recover Q:")
 		Q.Print()
 		fmt.Println("Node", p.PID, "previous halfShare:")
