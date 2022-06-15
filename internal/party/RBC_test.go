@@ -2,14 +2,15 @@ package party
 
 import (
 	"fmt"
-	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
-	_ "github.com/DyCAPSTeam/DyCAPS/pkg/utils"
-	"github.com/Nik-U/pbc"
-	"github.com/ncw/gmp"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
+	_ "github.com/DyCAPSTeam/DyCAPS/pkg/utils"
+	"github.com/Nik-U/pbc"
+	"github.com/ncw/gmp"
 )
 
 func TestRBC(t *testing.T) {
@@ -46,7 +47,7 @@ func TestRBC(t *testing.T) {
 	var wg sync.WaitGroup
 	var ID = []byte("abc")
 	wg.Add(int(3*F + 1))
-	for i := uint32(0); i < N; i++ { // there is one malicious node,who doesn't send any Message
+	for i := uint32(0); i < N; i++ { // there is one malicious node, who doesn't send any Message
 		go func(i uint32) {
 			m := p[i].RBCReceiver(ID)
 			fmt.Println(i, " output RBC message: ", m)
