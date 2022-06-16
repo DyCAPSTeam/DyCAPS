@@ -184,6 +184,22 @@ func (p *HonestParty) Broadcast(m *protobuf.Message) error {
 	return nil
 }
 
+//Broadcast a message to all parties except pid, used for RBC_test
+func (p *HonestParty) BroadcastExclude(m *protobuf.Message, pid uint32) error {
+	if !p.checkSendChannelsInit() {
+		return errors.New("This party's send channels are not initialized yet")
+	}
+	for i := uint32(0); i < p.N; i++ {
+		if i != pid {
+			err := p.Send(m, i)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 //TODO: change this name to BroadcasttoNewCommittee later
 //Broadcast a message to all parties in the new committee
 func (p *HonestParty) BroadcasttoNext(m *protobuf.Message) error {
@@ -223,16 +239,21 @@ func (p *HonestParty) checkInitSendChannelstoNext() bool {
 }
 
 //RBC propose
-func (p *HonestParty) RBCSender(m *protobuf.Message, ID []byte) {
+func (p *HonestParty) RBCSend(M *protobuf.Message, ID []byte) {
 	//encapsulate
-	data, _ := proto.Marshal(m)
-	//if p.PID == uint32(0) {
+	data, _ := proto.Marshal(M)
 	p.Broadcast(&protobuf.Message{Type: "RBCPropose", Sender: p.PID, Id: ID, Data: data})
 	fmt.Println("party", p.PID, "broadcasts RBC's Propose Message, instance ID: ", string(ID))
-	//}
 }
 
-func (p *HonestParty) RBCReceiver(ID []byte) *protobuf.Message {
+func (p *HonestParty) RBCSendExclude(M *protobuf.Message, ID []byte, pid uint32) {
+	//encapsulate
+	data, _ := proto.Marshal(M)
+	p.BroadcastExclude(&protobuf.Message{Type: "RBCPropose", Sender: p.PID, Id: ID, Data: data}, pid)
+	fmt.Println("party", p.PID, "broadcasts RBC's Propose Message (excluding party", pid, "), instance ID: ", string(ID))
+}
+
+func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 	h_local := sha256.New()
 	var M1 = make([][]byte, p.N) //  M' in the RBC paper (line 9, Algo 4). Must assign length (or copy will fail)
 	var mlen int                 // the length of M_i
@@ -241,45 +262,59 @@ func (p *HonestParty) RBCReceiver(ID []byte) *protobuf.Message {
 	//handle RBCPropose message
 	go func() {
 		m := <-p.GetMessage("RBCPropose", ID)
-		M_i := m.Data
-		mlen = len(M_i) // the length of M_i is used to remove the padding zeros after RS decoding
-		h_local.Write(M_i)
+		M := m.Data
+		mlen = len(M) // the length of M is used to remove the padding zeros after RS decoding
+		h_local.Write(M)
 
 		//TODO: Check if the usage of RS code is correct
+		//encode
 		RSEncoder, _ := reedsolomon.New(int(p.N-(p.F+1)), int(p.F+1))
-		shards, _ := RSEncoder.Split(M_i)
+		shards, _ := RSEncoder.Split(M)
 		RSEncoder.Encode(shards)
 		//copy, avoid "M1" becoming nullPointer when "shards" is released at the end of this goroutine
 		copy(M1, shards)
 		for j := uint32(0); j < p.N; j++ {
-			//encapsulate, append the length of M_i at the end of hash
-			EchoData, _ := proto.Marshal(&protobuf.RBCEcho{Hash: append(h_local.Sum(nil), utils.IntToBytes(mlen)...), M: M1[j]})
-			//ECHO
+			//encapsulate, append the length of M at the end of hash
+			EchoData, _ := proto.Marshal(&protobuf.RBCEcho{Hash: append(h_local.Sum(nil), utils.IntToBytes(mlen)...), M: shards[j]})
 			p.Send(&protobuf.Message{Type: "RBCEcho", Sender: p.PID, Id: ID, Data: EchoData}, j)
-			//fmt.Println(p.PID, " send Echo to ", j, " in RBC called by", m.Sender)
+
+			/*
+				// This block is used for RBC_test when a party does not receive 2t+1 ECHO messages
+				// In this case, the algorithm sends RBCReady message through line 15 upon receiving
+				// t+1 RBCReady messages and t+1 matching RBCEcho messages
+
+				if p.PID == 0 || p.PID == 1 {
+					if j != uint32(2) {
+						p.Send(&protobuf.Message{Type: "RBCEcho", Sender: p.PID, Id: ID, Data: EchoData}, j)
+					}
+				} else {
+					p.Send(&protobuf.Message{Type: "RBCEcho", Sender: p.PID, Id: ID, Data: EchoData}, j)
+				}
+			*/
 		}
+
 	}()
 
-	//key value doesn't support []byte, so we transform it to string type.
-	//map (hash,M) to counter
+	//map (hash,M) to counter. Key value doesn't support []byte, so we transform it to string type.
 	var EchoMessageMap = make(map[string]map[string]int)
-	// var MaxEchoNumber = int(0)
 
-	//Th in RBC paper line 16, Algo 4 in RBC paper. T maps the hash to m_received = (j,mj)
+	//T_h in RBC paper line 16, Algo 4 in RBC paper. T maps the hash to []m_received = {(j,mj), ...}
 	var T = make(map[string][]m_received)
 	var MaxReadyNumber = int(0)
 	var MaxReadyHash []byte
 
-	var readyIsSent = false
-	var mutex sync.Mutex // sendReadyOK and readyIsSent will be written by two goroutines.
+	var isReadySent = false
+	var mutex sync.Mutex // isReadySent will be written by two goroutines. (line 11 and 13, Algo 4)
 	var mutex_EchoMap sync.Mutex
 	var mutex_ReadyMap sync.Mutex
+
+	var RSDecStart = make(chan bool, 1)
+	// var RecDone = make(chan bool)
 
 	//handle Echo Message, line 11-12, Algo 4 in RBC paper
 	go func() {
 		for {
 			m := <-p.GetMessage("RBCEcho", ID)
-			//fmt.Println(p.PID, " receive Echo from ", m.Sender, " in RBC called by", string(ID))
 			var payloadMessage protobuf.RBCEcho
 			proto.Unmarshal(m.Data, &payloadMessage)
 			hash := string(payloadMessage.Hash)
@@ -287,10 +322,10 @@ func (p *HonestParty) RBCReceiver(ID []byte) *protobuf.Message {
 			mutex_EchoMap.Lock()
 			_, ok1 := EchoMessageMap[hash]
 			if ok1 {
-				//if the map of hash exists
+				//ok1 denotes that the map of hash exists
 				counter, ok2 := EchoMessageMap[hash][mi]
 				if ok2 {
-					//if the map of (hash,M) exists, increase the counter
+					//ok2 denotes that the map of (hash,M) exists, then increase the counter
 					EchoMessageMap[hash][mi] = counter + 1
 				} else {
 					//else establish the map of (hash,M) and set it as 1
@@ -302,26 +337,23 @@ func (p *HonestParty) RBCReceiver(ID []byte) *protobuf.Message {
 				EchoMessageMap[hash][mi] = 1
 			}
 
-			// // change MaxEchoNumber
-			// if EchoMessageMap[string(payloadMessage.Hash)][string(payloadMessage.M)] > MaxEchoNumber {
-			// 	MaxEchoNumber = EchoMessageMap[string(payloadMessage.Hash)][string(payloadMessage.M)]
-			// }
-
-			//send RBCReady messages
-			if uint32(EchoMessageMap[hash][mi]) == 2*p.F+1 {
-				mutex.Lock()
-				if !readyIsSent {
-					readyIsSent = true
-					ready_data, _ := proto.Marshal(&protobuf.RBCReady{Hash: []byte(hash), M: []byte(mi)})
-					p.Broadcast(&protobuf.Message{Type: "RBCReady", Sender: p.PID, Id: ID, Data: ready_data})
-				}
-				mutex.Unlock()
+			//send RBCReady, upon receiving 2t+1 matching RBCEcho messages and not having sent RBCReady (line 11-12, Algo 4)
+			mutex.Lock()
+			if uint32(EchoMessageMap[hash][mi]) >= 2*p.F+1 && !isReadySent {
+				isReadySent = true
+				ready_data, _ := proto.Marshal(&protobuf.RBCReady{Hash: []byte(hash), M: []byte(mi)})
+				p.Broadcast(&protobuf.Message{Type: "RBCReady", Sender: p.PID, Id: ID, Data: ready_data})
 			}
+			mutex.Unlock()
 			mutex_EchoMap.Unlock()
+
+			//finish this goroutine when RBCReady is sent
+			if isReadySent {
+				break
+			}
 		}
 	}()
 
-	var RSDecOk = make(chan bool, 1)
 	//handle RBCReady messages
 	go func() {
 		for {
@@ -347,35 +379,43 @@ func (p *HonestParty) RBCReceiver(ID []byte) *protobuf.Message {
 				MaxReadyHash = hash
 			}
 
-			//send RBCReady messages, line 12, Algo 4 in RBC paper
-			if uint32(len(T[hash_string])) == p.F+1 {
-				mutex.Lock()
-				if !readyIsSent {
+			//send RBCReady messages, line 13-15, Algo 4 in RBC paper
+			mutex.Lock()
+			if uint32(len(T[hash_string])) >= p.F+1 && !isReadySent {
+				for {
 					mutex_EchoMap.Lock()
 					for m_i, count := range EchoMessageMap[hash_string] {
-						//FIXME: if no t+1 echo message at this time? maybe use channal or for {} loop
 						if uint32(count) >= p.F+1 {
-							readyIsSent = true
+							isReadySent = true
 							ready_data, _ := proto.Marshal(&protobuf.RBCReady{Hash: hash, M: []byte(m_i)})
 							p.Broadcast(&protobuf.Message{Type: "RBCReady", Sender: p.PID, Id: ID, Data: ready_data})
+							fmt.Printf("%v has broadcast RBCReady\n", p.PID)
 							break
 						}
 					}
 					mutex_EchoMap.Unlock()
+					if isReadySent {
+						break
+					}
 				}
-				mutex.Unlock()
 			}
+			mutex.Unlock()
 
 			if uint32(len(T[string(hash)])) == 2*p.F+1 {
-				RSDecOk <- true
+				RSDecStart <- true
 			}
 			mutex_ReadyMap.Unlock()
-		}
 
+			//FIXME: kill this for loop when the RBC message is reconstructed
+			// isRec := <-RecDone
+			// if isRec {
+			// 	break
+			// }
+		}
 	}()
 
-	// wait for RSDec done
-	<-RSDecOk
+	// wait for at least 2t+1 RS shards in T_h, i.e., T[string(hash)]
+	<-RSDecStart
 	for r := uint32(0); r <= p.F; r++ {
 		for {
 			if uint32(MaxReadyNumber) >= 2*p.F+r+1 {
@@ -420,7 +460,7 @@ func (p *HonestParty) RBCReceiver(ID []byte) *protobuf.Message {
 			return &replyMessage
 		}
 	}
-	return nil //temp solution
+	return nil
 }
 
 //Receiving Initial Shares
@@ -1054,12 +1094,12 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	}
 	//fmt.Println("Node ", p.PID, "Commit Message is", Commit_Message)
 	Commit_Message_data, _ := proto.Marshal(Commit_Message)
-	p.RBCSender(&protobuf.Message{Type: "Commit", Sender: p.PID, Id: ID, Data: Commit_Message_data}, []byte(string(ID)+strconv.Itoa(int(p.PID+1)))) // ID has been changed
+	p.RBCSend(&protobuf.Message{Type: "Commit", Sender: p.PID, Id: ID, Data: Commit_Message_data}, []byte(string(ID)+strconv.Itoa(int(p.PID+1)))) // ID has been changed
 	//Verify
 	go func() {
 		for j := 1; j <= int(p.N); j++ {
 			go func(j int) {
-				m := p.RBCReceiver([]byte(string(ID) + strconv.Itoa(j))) // ID has been changed.
+				m := p.RBCReceive([]byte(string(ID) + strconv.Itoa(j))) // ID has been changed.
 				fmt.Println("Node", p.PID, "receive RBC message from", m.Sender, "in ShareDist Phase,the ID is", string(ID))
 				var Received_Data protobuf.Commit
 				proto.Unmarshal(m.Data, &Received_Data)
@@ -1466,7 +1506,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	var NewCommit_Message protobuf.NewCommit
 	NewCommit_Message.CB = C_B[p.PID+1].CompressedBytes()
 	NewCommit_Message_Data, _ := proto.Marshal(&NewCommit_Message)
-	p.RBCSender(&protobuf.Message{Type: "NewCommit", Id: ID, Sender: p.PID, Data: NewCommit_Message_Data}, []byte(string(ID)+"Distribute"+strconv.Itoa(int(p.PID+1)))) // this ID is not correct
+	p.RBCSend(&protobuf.Message{Type: "NewCommit", Id: ID, Sender: p.PID, Data: NewCommit_Message_Data}, []byte(string(ID)+"Distribute"+strconv.Itoa(int(p.PID+1)))) // this ID is not correct
 
 	//Distribute
 	var w_B_i_j *pbc.Element
@@ -1485,7 +1525,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	//Verify
 	for j := 1; j <= int(p.N); j++ {
 		go func(j int) {
-			m := p.RBCReceiver([]byte(string(ID) + "Distribute" + strconv.Itoa(j)))
+			m := p.RBCReceive([]byte(string(ID) + "Distribute" + strconv.Itoa(j)))
 			NewCommit_Data := m.Data
 			var Received_CB *pbc.Element
 			Received_CB = KZG.NewG1()
