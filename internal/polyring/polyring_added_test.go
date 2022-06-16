@@ -2,8 +2,9 @@ package polyring
 
 import (
 	"fmt"
-	"github.com/ncw/gmp"
 	"testing"
+
+	"github.com/ncw/gmp"
 )
 
 func TestGetLagrangeCoefficients(t *testing.T) {

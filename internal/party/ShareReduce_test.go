@@ -2,12 +2,13 @@ package party
 
 import (
 	"fmt"
+	"sync"
+	"testing"
+
 	"github.com/DyCAPSTeam/DyCAPS/internal/ecparam"
 	"github.com/DyCAPSTeam/DyCAPS/internal/interpolation"
 	"github.com/Nik-U/pbc"
 	"github.com/ncw/gmp"
-	"sync"
-	"testing"
 )
 
 func TestShareReduce(t *testing.T) {
@@ -86,7 +87,7 @@ func TestShareReduce(t *testing.T) {
 	for i := 0; uint32(i) < 2*F+1; i++ {
 		halfShare_at_zero[i] = gmp.NewInt(0)
 		knownIndexes[i] = gmp.NewInt(int64(i + 1))
-		p_next[i].HalfShare.EvalMod(gmp.NewInt(0), ecparam.PBC256.Ngmp, halfShare_at_zero[i])
+		p_next[i].halfShare.EvalMod(gmp.NewInt(0), ecparam.PBC256.Ngmp, halfShare_at_zero[i])
 	}
 	s_poly, _ := interpolation.LagrangeInterpolate(int(2*F), knownIndexes, halfShare_at_zero, ecparam.PBC256.Ngmp)
 	s_poly.Print()

@@ -1,14 +1,15 @@
 package party
 
 import (
-	"github.com/DyCAPSTeam/DyCAPS/internal/ecparam"
-	"github.com/DyCAPSTeam/DyCAPS/internal/polyring"
-	"github.com/Nik-U/pbc"
-	"github.com/ncw/gmp"
 	"math/rand"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/DyCAPSTeam/DyCAPS/internal/ecparam"
+	"github.com/DyCAPSTeam/DyCAPS/internal/polyring"
+	"github.com/Nik-U/pbc"
+	"github.com/ncw/gmp"
 )
 
 func TestCompleteProcess(t *testing.T) {
@@ -111,7 +112,7 @@ func TestCompleteProcess(t *testing.T) {
 		for i := 0; uint32(i) < 2*F+1; i++ {
 			halfShare_at_zero[i] = gmp.NewInt(0)
 			knownIndexes[i] = gmp.NewInt(int64(i + 1))
-			p_next[i].HalfShare.EvalMod(gmp.NewInt(0), ecparam.PBC256.Ngmp, halfShare_at_zero[i])
+			p_next[i].halfShare.EvalMod(gmp.NewInt(0), ecparam.PBC256.Ngmp, halfShare_at_zero[i])
 		}
 		s_poly, _ := interpolation.LagrangeInterpolate(int(2*F), knownIndexes, halfShare_at_zero, ecparam.PBC256.Ngmp)
 		s_poly.Print()
@@ -153,7 +154,7 @@ func TestProactivizeAndShareDist(t *testing.T) {
 	for i := uint32(0); i < N; i++ {
 		var rnd = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 		newPoly, _ := polyring.NewRand(int(F), rnd, ecparam.PBC256.Ngmp)
-		p[i].HalfShare.ResetTo(newPoly)
+		p[i].halfShare.ResetTo(newPoly)
 	}
 
 	var wg sync.WaitGroup

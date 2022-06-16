@@ -43,8 +43,10 @@ func quicksort(hashes [][sha256.Size]byte, l int, r int) {
 		pivot := hashes[(l+r)/2]
 		var i, j int
 		for i, j = l, r; i <= j; i, j = i+1, j-1 {
-			for ; compare(hashes[i], pivot) == -1; i++ {}
-			for ; compare(hashes[j], pivot) == 1; j-- {}
+			for ; compare(hashes[i], pivot) == -1; i++ {
+			}
+			for ; compare(hashes[j], pivot) == 1; j-- {
+			}
 			if i < j {
 				hashes[i], hashes[j] = hashes[j], hashes[i]
 			} else if i != j {
