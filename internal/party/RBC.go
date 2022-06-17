@@ -117,9 +117,9 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 				EchoMessageMap[hash][mi] = 1
 			}
 
-			//send RBCReady, upon receiving 2t+1 matching RBCEcho messages and not having sent RBCReady (line 11-12, Algo 4)
+			//send RBCReady, upon receiving n-t=2f+1 matching RBCEcho messages and not having sent RBCReady (line 11-12, Algo 4)
 			mutex.Lock()
-			if uint32(EchoMessageMap[hash][mi]) >= 2*p.F+1 && !isReadySent {
+			if uint32(EchoMessageMap[hash][mi]) >= p.N-p.F && !isReadySent {
 				isReadySent = true
 				ready_data, _ := proto.Marshal(&protobuf.RBCReady{Hash: []byte(hash), M: []byte(mi)})
 				p.Broadcast(&protobuf.Message{Type: "RBCReady", Sender: p.PID, Id: ID, Data: ready_data})
@@ -181,7 +181,8 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 			}
 			mutex.Unlock()
 
-			if uint32(len(T[string(hash)])) == 2*p.F+1 {
+			// upon receiving |T| >= 2t+1 = n-t
+			if uint32(len(T[string(hash)])) == p.N-p.F {
 				RSDecStart <- true
 			}
 			mutex_ReadyMap.Unlock()
@@ -194,22 +195,22 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 		}
 	}()
 
-	// wait for at least 2t+1 RS shards in T_h, i.e., T[string(hash)]
+	// wait for at least 2t+1 = n-t RS shards in T_h, i.e., T[string(hash)]
 	<-RSDecStart
 	for r := uint32(0); r <= p.F; r++ {
 		for {
-			if uint32(MaxReadyNumber) >= 2*p.F+r+1 {
+			if uint32(MaxReadyNumber) >= p.N-p.F+r {
 				break
 			}
 		}
 
-		var m_received_temp = make([]m_received, 2*p.F+r+1)
+		var m_received_temp = make([]m_received, p.N-p.F+r)
 		mutex_ReadyMap.Lock()
 		copy(m_received_temp, T[string(MaxReadyHash)])
 		mutex_ReadyMap.Unlock()
 
 		var M = make([][]byte, p.N)
-		for i := uint32(0); i < 2*p.F+r+1; i++ {
+		for i := uint32(0); i < p.N-p.F+r; i++ {
 			M[m_received_temp[i].j] = m_received_temp[i].mj
 		}
 

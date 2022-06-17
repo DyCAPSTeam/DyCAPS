@@ -22,12 +22,12 @@ func TestRBC(t *testing.T) {
 	N := uint32(7)
 	F := uint32(2)
 	KZG.SetupFix(int(2 * F))
-	sk, pk := SigKeyGen(N, 2*F+1)
+	sk, pk := SigKeyGen(N, N-F)
 	pi_init := new(Pi)
 	pi_init.Init(F)
-	witness_init := make([]*pbc.Element, 2*F+1)
-	witness_init_indexes := make([]*gmp.Int, 2*F+1)
-	for i := 0; uint32(i) < 2*F+1; i++ {
+	witness_init := make([]*pbc.Element, N-F)
+	witness_init_indexes := make([]*gmp.Int, N-F)
+	for i := 0; uint32(i) < N-F; i++ {
 		witness_init[i] = KZG.NewG1()
 		witness_init_indexes[i] = gmp.NewInt(0)
 	}
@@ -46,7 +46,7 @@ func TestRBC(t *testing.T) {
 
 	var wg sync.WaitGroup
 	var ID = []byte("abc")
-	wg.Add(int(3*F + 1))
+	wg.Add(int(N))
 	for i := uint32(0); i < N; i++ { // there is one malicious node, who doesn't send any Message
 		go func(i uint32) {
 			m := p[i].RBCReceive(ID)
@@ -70,14 +70,14 @@ func TestRBCExlude(t *testing.T) {
 	ipList_next := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
 	portList_next := []string{"8887", "8888", "8889", "8890", "8891", "8892", "8893"}
 	N := uint32(7)
-	F := uint32(2)
+	F := uint32(1)
 	KZG.SetupFix(int(2 * F))
-	sk, pk := SigKeyGen(N, 2*F+1)
+	sk, pk := SigKeyGen(N, N-F)
 	pi_init := new(Pi)
 	pi_init.Init(F)
-	witness_init := make([]*pbc.Element, 2*F+1)
-	witness_init_indexes := make([]*gmp.Int, 2*F+1)
-	for i := 0; uint32(i) < 2*F+1; i++ {
+	witness_init := make([]*pbc.Element, N-F)
+	witness_init_indexes := make([]*gmp.Int, N-F)
+	for i := 0; uint32(i) < N-F; i++ {
 		witness_init[i] = KZG.NewG1()
 		witness_init_indexes[i] = gmp.NewInt(0)
 	}
@@ -96,7 +96,7 @@ func TestRBCExlude(t *testing.T) {
 
 	var wg sync.WaitGroup
 	var ID = []byte("abc")
-	wg.Add(int(3*F + 1))
+	wg.Add(int(N))
 	for i := uint32(0); i < N; i++ { // there is one malicious node, who doesn't send any Message
 		go func(i uint32) {
 			m := p[i].RBCReceive(ID)
