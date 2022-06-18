@@ -62,7 +62,7 @@ func TestShareReduce(t *testing.T) {
 	wg.Add(int(3*F + 1))
 	for i := uint32(0); i < N; i++ {
 		go func(i uint32) {
-			p[i].InitShareReceiver([]byte("vssshare"))
+			p[i].VSSshareReceiver([]byte("vssshare"))
 			wg.Done()
 		}(i)
 	}

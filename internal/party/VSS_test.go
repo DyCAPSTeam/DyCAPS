@@ -81,7 +81,7 @@ func TestDealer(t *testing.T) {
 
 		// j starts from 1 here
 		for j := 1; uint32(j) <= 2*F+1; j++ {
-			pi_test.Pi_contents[j].CR_j.SetCompressedBytes(content.Pi.PiContents[j].CRJ) //FIXME: change to CRj later
+			pi_test.Pi_contents[j].CR_j.SetCompressedBytes(content.Pi.PiContents[j].CRJ)
 			pi_test.Pi_contents[j].CZ_j.SetCompressedBytes(content.Pi.PiContents[j].CZJ)
 			pi_test.Pi_contents[j].WZ_0.SetCompressedBytes(content.Pi.PiContents[j].WZ_0)
 			pi_test.Pi_contents[j].g_Fj.SetCompressedBytes(content.Pi.PiContents[j].G_Fj)
@@ -169,19 +169,18 @@ func TestVSS(t *testing.T) {
 
 	var client Client
 	client.s = new(gmp.Int).SetBytes([]byte("1111111111111111111111111"))
-	// client.s.SetBytes([]byte("1111111111111111111111111"))
 	clientID := uint32(0x7fffffff)
 	client.HonestParty = NewHonestParty(N, F, clientID, ipList, portList, ipList_next, portList_next, pk, sk[2*F+1], pi_init, witness_init, witness_init_indexes)
 	client.InitSendChannel()
 
-	client.Share([]byte("InitShare"))
+	client.Share([]byte("VSSshare"))
 
 	var wg sync.WaitGroup
 
 	wg.Add(int(3*F + 1))
 	for i := uint32(0); i < N; i++ {
 		go func(i uint32) {
-			p[i].InitShareReceiver([]byte("InitShare"))
+			p[i].VSSshareReceiver([]byte("VSSshare"))
 			wg.Done()
 		}(i)
 	}
