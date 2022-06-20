@@ -135,13 +135,13 @@ func TestDealer(t *testing.T) {
 }
 
 func TestVSS(t *testing.T) {
-
+	//TODO: this test only passes when F=1
 	ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
 	portList := []string{"8880", "8881", "8882", "8883", "8884", "8885", "8886", "8887", "8888", "8889"}
 	ipList_next := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
 	portList_next := []string{"8890", "8891", "8892", "8893", "8894", "8895", "8896", "8897", "8898", "8899"}
-	N := uint32(10)
-	F := uint32(3)
+	N := uint32(7)
+	F := uint32(2)
 	sk, pk := SigKeyGen(N, 2*F+2) // FIXME: wrong usage, but it doesn't matter here
 
 	KZG.SetupFix(2 * int(F))
@@ -177,7 +177,7 @@ func TestVSS(t *testing.T) {
 
 	var wg sync.WaitGroup
 
-	wg.Add(int(3*F + 1))
+	wg.Add(int(N))
 	for i := uint32(0); i < N; i++ {
 		go func(i uint32) {
 			p[i].VSSshareReceiver([]byte("VSSshare"))
