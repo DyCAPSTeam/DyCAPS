@@ -169,46 +169,46 @@ func (pi *Pi) Set(src *Pi, F uint32) {
 	}
 }
 
-func CommitOrWitnessInterpolation(degree int, targetindex int, C_list []*pbc.Element, C *pbc.Element) {
+func InterpolateComOrWit(degree uint32, targetindex uint32, C_list []*pbc.Element) *pbc.Element {
 	ecparamN := ecparam.PBC256.Ngmp
 	lambda := make([]*gmp.Int, degree+1)
 	knownIndexes := make([]*gmp.Int, degree+1)
-	for j := 0; j < degree+1; j++ {
+	for j := uint32(0); j < degree+1; j++ {
 		lambda[j] = gmp.NewInt(0)
 	}
-	for j := 0; j < degree+1; j++ {
+	for j := uint32(0); j < degree+1; j++ {
 		knownIndexes[j] = gmp.NewInt(int64(j + 1))
 	}
 	polyring.GetLagrangeCoefficients(int(degree), knownIndexes, ecparamN, gmp.NewInt(int64(targetindex)), lambda)
 
 	ans := KZG.NewG1()
 	ans.Set1()
-	for j := 0; j < degree+1; j++ {
+	for j := uint32(0); j < degree+1; j++ {
 		tmp := KZG.NewG1()
 		tmp.Set1()
 		tmp.PowBig(C_list[j], conv.GmpInt2BigInt(lambda[j]))
 		ans.Mul(ans, tmp)
 	}
-	C.Set(ans)
+	return ans
 }
 
-func CommitOrWitnessInterpolationbyKnownIndexes(degree int, targetindex int, knownIndexes []*gmp.Int, C_list []*pbc.Element, C *pbc.Element) {
+func InterpolateComOrWitbyKnownIndexes(degree uint32, targetindex uint32, knownIndexes []*gmp.Int, C_list []*pbc.Element) *pbc.Element {
 	ecparamN := ecparam.PBC256.Ngmp
 	lambda := make([]*gmp.Int, degree+1)
-	for j := 0; j < degree+1; j++ {
+	for j := uint32(0); j < degree+1; j++ {
 		lambda[j] = gmp.NewInt(0)
 	}
 	polyring.GetLagrangeCoefficients(int(degree), knownIndexes, ecparamN, gmp.NewInt(int64(targetindex)), lambda)
 
 	ans := KZG.NewG1()
 	ans.Set1()
-	for j := 0; j < degree+1; j++ {
+	for j := uint32(0); j < degree+1; j++ {
 		tmp := KZG.NewG1()
 		tmp.Set1()
 		tmp.PowBig(C_list[j], conv.GmpInt2BigInt(lambda[j]))
 		ans.Mul(ans, tmp)
 	}
-	C.Set(ans)
+	return ans
 }
 
 func Encapsulate_VSSSend(pi *Pi, Rji_list []*gmp.Int, Wji_list []*pbc.Element, N uint32, F uint32) []byte {

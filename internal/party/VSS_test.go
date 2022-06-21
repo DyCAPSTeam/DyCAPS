@@ -137,11 +137,11 @@ func TestDealer(t *testing.T) {
 func TestVSS(t *testing.T) {
 	//TODO: this test only passes when F=1
 	ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
-	portList := []string{"8880", "8881", "8882", "8883", "8884", "8885", "8886", "8887", "8888", "8889"}
+	portList := []string{"10080", "10081", "10082", "10083", "10084", "10085", "10086", "10087", "10088", "10089"}
 	ipList_next := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
-	portList_next := []string{"8890", "8891", "8892", "8893", "8894", "8895", "8896", "8897", "8898", "8899"}
-	N := uint32(7)
-	F := uint32(2)
+	portList_next := []string{"10090", "10091", "10092", "10093", "10094", "10095", "10096", "10097", "10098", "10099"}
+	N := uint32(10)
+	F := uint32(3)
 	sk, pk := SigKeyGen(N, 2*F+2) // FIXME: wrong usage, but it doesn't matter here
 
 	KZG.SetupFix(2 * int(F))
@@ -188,4 +188,20 @@ func TestVSS(t *testing.T) {
 	wg.Wait()
 
 	fmt.Println("VSS Finish")
+}
+
+func TestF(t *testing.T) {
+	KZG.SetupFix(2)
+	a := KZG.NewG1()
+	b := KZG.NewG1()
+	// a.Set0()
+	// b.Set0()
+	fmt.Println("start compare")
+	if a.Equals(b) {
+		fmt.Println("equal")
+	} else {
+		fmt.Println("not equal")
+
+	}
+
 }
