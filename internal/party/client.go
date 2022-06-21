@@ -97,7 +97,7 @@ func (client *Client) Share(ID []byte) {
 		KZG.Commit(C_Z_list[i], Z_list[i])
 		//create witness of (Zj(x),0)
 		KZG.CreateWitness(W_Z0_list[i], Z_list[i], gmp.NewInt(0))
-		// fmt.Println("WZ0_i = ", W_Z0_list[i].CompressedBytes())
+
 		//add to pi
 		var FjCommit *pbc.Element = KZG.NewG1()
 		KZG.Commit(FjCommit, temp)
@@ -108,11 +108,6 @@ func (client *Client) Share(ID []byte) {
 	W_Rji := make([][]*pbc.Element, client.N+1) // the first index is in range[1,N],and the second [1,2F+1]. start from 1
 	Rji_list := make([][]*gmp.Int, client.N+1)
 
-	// fmt.Println("the gs in pi is: ", pi.G_s.String())
-
-	// for i := 1; uint32(i) <= 2*client.F+1; i++ {
-	// 	fmt.Println("j= ", i, "; CRj= ", pi.Pi_contents[i].CR_j.String(), "; CZj= ", pi.Pi_contents[i].CZ_j.String(), "; WZj_0= ", pi.Pi_contents[i].WZ_0.String(), "; g_Fj= ", pi.Pi_contents[i].g_Fj.String())
-	// }
 	for i := 1; uint32(i) <= client.N; i++ {
 		W_Rji[i] = make([]*pbc.Element, 2*client.F+2) // start from 1
 		Rji_list[i] = make([]*gmp.Int, 2*client.F+2)  // start from 1

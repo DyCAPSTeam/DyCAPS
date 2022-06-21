@@ -174,7 +174,7 @@ func InterpolateComOrWit(degree uint32, targetindex uint32, C_list []*pbc.Elemen
 	lambda := make([]*gmp.Int, degree+1)
 	knownIndexes := make([]*gmp.Int, degree+1)
 	for j := uint32(0); j < degree+1; j++ {
-		lambda[j] = gmp.NewInt(0)
+		lambda[j] = gmp.NewInt(int64(j + 1))
 	}
 	for j := uint32(0); j < degree+1; j++ {
 		knownIndexes[j] = gmp.NewInt(int64(j + 1))
@@ -185,9 +185,9 @@ func InterpolateComOrWit(degree uint32, targetindex uint32, C_list []*pbc.Elemen
 	ans.Set1()
 	for j := uint32(0); j < degree+1; j++ {
 		tmp := KZG.NewG1()
-		tmp.Set1()
+		// tmp.Set1()
 		tmp.PowBig(C_list[j], conv.GmpInt2BigInt(lambda[j]))
-		ans.Mul(ans, tmp)
+		ans.ThenMul(tmp)
 	}
 	return ans
 }
@@ -196,7 +196,7 @@ func InterpolateComOrWitbyKnownIndexes(degree uint32, targetindex uint32, knownI
 	ecparamN := ecparam.PBC256.Ngmp
 	lambda := make([]*gmp.Int, degree+1)
 	for j := uint32(0); j < degree+1; j++ {
-		lambda[j] = gmp.NewInt(0)
+		lambda[j] = gmp.NewInt(int64(j))
 	}
 	polyring.GetLagrangeCoefficients(int(degree), knownIndexes, ecparamN, gmp.NewInt(int64(targetindex)), lambda)
 
@@ -206,7 +206,7 @@ func InterpolateComOrWitbyKnownIndexes(degree uint32, targetindex uint32, knownI
 		tmp := KZG.NewG1()
 		tmp.Set1()
 		tmp.PowBig(C_list[j], conv.GmpInt2BigInt(lambda[j]))
-		ans.Mul(ans, tmp)
+		ans.ThenMul(tmp)
 	}
 	return ans
 }
