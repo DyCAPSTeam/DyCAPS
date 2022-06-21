@@ -2,6 +2,7 @@ package party
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/DyCAPSTeam/DyCAPS/internal/conv"
@@ -175,19 +176,22 @@ func InterpolateComOrWit(degree uint32, targetindex uint32, C_list []*pbc.Elemen
 	knownIndexes := make([]*gmp.Int, degree+1)
 	for j := uint32(0); j < degree+1; j++ {
 		lambda[j] = gmp.NewInt(int64(j + 1))
-	}
-	for j := uint32(0); j < degree+1; j++ {
 		knownIndexes[j] = gmp.NewInt(int64(j + 1))
 	}
+
 	polyring.GetLagrangeCoefficients(int(degree), knownIndexes, ecparamN, gmp.NewInt(int64(targetindex)), lambda)
+	//TODO: sometimes get lambda[j]=0
 
 	ans := KZG.NewG1()
-	ans.Set1()
+	ans.Set0()
 	for j := uint32(0); j < degree+1; j++ {
 		tmp := KZG.NewG1()
 		// tmp.Set1()
-		tmp.PowBig(C_list[j], conv.GmpInt2BigInt(lambda[j]))
-		ans.ThenMul(tmp)
+		fmt.Printf("j: %v, C_list[j]: %v, lambda[j]: %v\n", j, C_list[j], conv.GmpInt2BigInt(lambda[j]))
+		tmp.MulBig(C_list[j], conv.GmpInt2BigInt(lambda[j]))
+		// tmp.PowBig(C_list[j], conv.GmpInt2BigInt(lambda[j]))
+		ans.ThenAdd(tmp)
+		// ans.ThenMul(tmp)
 	}
 	return ans
 }
@@ -201,12 +205,14 @@ func InterpolateComOrWitbyKnownIndexes(degree uint32, targetindex uint32, knownI
 	polyring.GetLagrangeCoefficients(int(degree), knownIndexes, ecparamN, gmp.NewInt(int64(targetindex)), lambda)
 
 	ans := KZG.NewG1()
-	ans.Set1()
+	ans.Set0()
 	for j := uint32(0); j < degree+1; j++ {
 		tmp := KZG.NewG1()
-		tmp.Set1()
-		tmp.PowBig(C_list[j], conv.GmpInt2BigInt(lambda[j]))
-		ans.ThenMul(tmp)
+		// tmp.Set1()
+		tmp.MulBig(C_list[j], conv.GmpInt2BigInt(lambda[j-1]))
+		// tmp.PowBig(C_list[j], conv.GmpInt2BigInt(lambda[j]))
+		ans.ThenAdd(tmp)
+		// ans.ThenMul(tmp)
 	}
 	return ans
 }

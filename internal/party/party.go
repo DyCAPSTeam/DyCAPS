@@ -581,12 +581,14 @@ func (p *HonestParty) VerifyVSSSendReceived(polyValue []*gmp.Int, witness []*pbc
 	}
 	polyring.GetLagrangeCoefficients(int(2*p.F), knownIndexes, ecparamN, gmp.NewInt(0), lambda)
 	tmp := KZG.NewG1()
-	tmp.Set1()
+	tmp.Set0()
 	for j := 1; uint32(j) <= 2*p.F+1; j++ {
 		tmp2 := KZG.NewG1()
-		tmp2.Set1()
-		tmp2.PowBig(p.Proof.Pi_contents[j].g_Fj, conv.GmpInt2BigInt(lambda[j-1])) // the x value of index j-1 is j
-		tmp.ThenMul(tmp2)
+		// tmp2.Set1()
+		tmp2.MulBig(p.Proof.Pi_contents[j].g_Fj, conv.GmpInt2BigInt(lambda[j-1])) // the x value of index j-1 is j
+		// tmp2.PowBig(p.Proof.Pi_contents[j].g_Fj, conv.GmpInt2BigInt(lambda[j-1])) // the x value of index j-1 is j
+		tmp.ThenAdd(tmp2)
+		// tmp.ThenMul(tmp2)
 	}
 	if !tmp.Equals(p.Proof.G_s) {
 		fmt.Printf("Party %v VSSSend Verify Failed, g_s=%v, but prod(g^F(j))=%v \n", p.PID, p.Proof.G_s.String(), tmp.String())
@@ -598,8 +600,8 @@ func (p *HonestParty) VerifyVSSSendReceived(polyValue []*gmp.Int, witness []*pbc
 
 		var verifyRj bool
 		tmp3 := KZG.NewG1()
-		tmp3.Set1()
-		tmp3.Mul(p.Proof.Pi_contents[k].CZ_j, p.Proof.Pi_contents[k].g_Fj)
+		tmp3.Set0()
+		tmp3.Add(p.Proof.Pi_contents[k].CZ_j, p.Proof.Pi_contents[k].g_Fj)
 		verifyRj = tmp3.Equals(p.Proof.Pi_contents[k].CR_j)
 		if !verifyEval || !verifyRj {
 			fmt.Printf("Party %v VSSSend Verify Failed at k=%v\n", p.PID, k)

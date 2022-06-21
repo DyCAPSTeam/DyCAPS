@@ -5,6 +5,7 @@ forked from https://github.com/CHURPTeam/CHURP
 */
 
 import (
+	"math/big"
 	"math/rand"
 	"testing"
 	"time"
@@ -46,6 +47,49 @@ func TestDLCommit_Commit(test *testing.T) {
 	c.polyEval(polyOfX, poly, x)
 	c.CreateWitness(w, poly, x)
 	assert.True(test, c.VerifyEval(C, x, polyOfX, w), "VerifyEval")
+
+	// Test homomorphism
+	rnd2 := rand.New(rand.NewSource(199))
+
+	poly2, err2 := polyring.NewRand(t, rnd2, p)
+	assert.Nil(test, err2, "NewRand")
+
+	C2 := c.pairing.NewG1()
+	w2 := c.pairing.NewG1()
+
+	C3 := c.pairing.NewG1()
+	w3 := c.pairing.NewG1()
+
+	polyOfX2 := new(Int)
+	polyOfX3 := new(Int)
+
+	c.Commit(C2, poly2)
+	assert.True(test, c.VerifyPoly(C2, poly2), "VerifyPoly")
+
+	// G1 is an elliptic curve (additive)
+	C3 = C3.Add(C, C2)
+	poly3 := polyring.NewEmpty()
+	poly3.Add(poly, poly2)
+	assert.True(test, c.VerifyPoly(C3, poly3), "VerifyPoly")
+	c.Commit(C3, poly3)
+	assert.True(test, c.VerifyPoly(C3, poly3), "VerifyPoly")
+
+	C4 := c.pairing.NewG1()
+	C4 = C4.MulBig(C, big.NewInt(2))
+	poly4 := polyring.NewEmpty()
+	poly4.Add(poly, poly)
+	assert.True(test, c.VerifyPoly(C4, poly4), "VerifyPoly")
+
+	c.polyEval(polyOfX2, poly2, x)
+	c.CreateWitness(w2, poly2, x)
+	assert.True(test, c.VerifyEval(C2, x, polyOfX2, w2), "VerifyEval")
+
+	c.polyEval(polyOfX3, poly3, x)
+	c.CreateWitness(w3, poly3, x)
+	assert.True(test, c.VerifyEval(C3, x, polyOfX3, w3), "VerifyEval")
+	w3.Add(w, w2)
+	assert.True(test, c.VerifyEval(C3, x, polyOfX3, w3), "VerifyEval")
+
 }
 
 func TestDLCommit_Large(test *testing.T) {

@@ -2,7 +2,6 @@ package party
 
 import (
 	"fmt"
-	"os"
 	"sync"
 	"testing"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/Nik-U/pbc"
 	"github.com/golang/protobuf/proto"
 	"github.com/ncw/gmp"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDealer(t *testing.T) {
@@ -66,8 +66,6 @@ func TestDealer(t *testing.T) {
 		gs := KZG.NewG1()
 		gs.SetCompressedBytes(content.Pi.Gs)
 
-		// fmt.Println("node", i+1, "receive", m.Sender, m.Id, m.Type, m.Data)
-		// fmt.Println("the gs received is", gs.String())
 		pi_test := new(Pi)
 		pi_test.G_s = KZG.NewG1()
 		pi_test.G_s.Set(gs)
@@ -89,12 +87,10 @@ func TestDealer(t *testing.T) {
 
 			// verify CR_j=CZ_j*g_Fj
 			tmp := KZG.NewG1()
-			tmp.Set1()
-			tmp.Mul(pi_test.Pi_contents[j].CZ_j, pi_test.Pi_contents[j].g_Fj)
-			if !tmp.Equals(pi_test.Pi_contents[j].CR_j) {
-				fmt.Println("Polynomial verification fails at j = ", j)
-				os.Exit(1)
-			}
+			tmp.Set0()
+			tmp.Add(pi_test.Pi_contents[j].CZ_j, pi_test.Pi_contents[j].g_Fj)
+			assert.True(t, tmp.Equals(pi_test.Pi_contents[j].CR_j), "verify CR_j = CZ_j * g_Fj")
+
 		}
 
 		//verify g^s = \prod g^{lambda[j]*F(j)} = \prod (g^F(j))^lambda[j]
@@ -107,18 +103,15 @@ func TestDealer(t *testing.T) {
 
 		polyring.GetLagrangeCoefficients(2*int(F), knownIndexes, ecparam.PBC256.Ngmp, gmp.NewInt(0), lambda)
 		tmp := KZG.NewG1()
-		tmp.Set1()
+		tmp.Set0()
 		for j := 1; uint32(j) <= 2*F+1; j++ {
 			tmp2 := KZG.NewG1()
-			tmp2.Set1()
-			tmp2.PowBig(pi_test.Pi_contents[j].g_Fj, conv.GmpInt2BigInt(lambda[j-1])) // the x value of index j-1 is j
-			tmp.Mul(tmp, tmp2)
+			// tmp2.Set1()
+			tmp2.MulBig(pi_test.Pi_contents[j].g_Fj, conv.GmpInt2BigInt(lambda[j-1])) // the x value of index j-1 is j
+			// tmp2.PowBig(pi_test.Pi_contents[j].g_Fj, conv.GmpInt2BigInt(lambda[j-1])) // the x value of index j-1 is j
+			tmp.ThenAdd(tmp2)
 		}
-
-		if !tmp.Equals(pi_test.G_s) {
-			fmt.Println("g_s != multiply(lambda_i,g_F(i)),gs = ", gs.String(), "multiply(lambda_i,g_F(i))= ", tmp.String())
-			os.Exit(1)
-		}
+		assert.True(t, tmp.Equals(pi_test.G_s), "verify g^s = \\prod g^{lambda[j]*F(j)} = \\prod (g^F(j))^lambda[j]")
 
 		//KZG verification
 		for j := 1; uint32(j) <= 2*F+1; j++ {
@@ -126,10 +119,7 @@ func TestDealer(t *testing.T) {
 			WRji := KZG.NewG1()
 			Rji.SetBytes(content.RjiList[j])
 			WRji.SetCompressedBytes(content.WRjiList[j])
-			if !KZG.VerifyEval(pi_test.Pi_contents[j].CR_j, gmp.NewInt(int64((i + 1))), Rji, WRji) {
-				fmt.Println("KZG verification fails at j = ", j)
-				os.Exit(1)
-			}
+			assert.True(t, KZG.VerifyEval(pi_test.Pi_contents[j].CR_j, gmp.NewInt(int64((i+1))), Rji, WRji), "KZG verification")
 		}
 	}
 }
@@ -168,7 +158,7 @@ func TestVSS(t *testing.T) {
 	}
 
 	var client Client
-	client.s = new(gmp.Int).SetBytes([]byte("1111111111111111111111111"))
+	client.s = new(gmp.Int).SetBytes([]byte("11111111111111111111111112"))
 	clientID := uint32(0x7fffffff)
 	client.HonestParty = NewHonestParty(N, F, clientID, ipList, portList, ipList_next, portList_next, pk, sk[2*F+1], pi_init, witness_init, witness_init_indexes)
 	client.InitSendChannel()
