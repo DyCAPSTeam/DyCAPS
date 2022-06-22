@@ -1,6 +1,7 @@
 package party
 
 import (
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -47,6 +48,7 @@ func (client *Client) Share(ID []byte) {
 	s_poly, _ := polyring.New(0)
 	_ = s_poly.SetCoefficientBig(0, client.s)
 	KZG.Commit(pi.G_s, s_poly)
+	fmt.Printf("pi.G_s: %v\n", pi.G_s)
 
 	//generate a 2t-degree random polynomial F, where F(0) = s
 	var rnd = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))

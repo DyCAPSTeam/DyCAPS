@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/DyCAPSTeam/DyCAPS/internal/ecparam"
 	"github.com/ncw/gmp"
 )
 
 func TestGetLagrangeCoefficients(t *testing.T) {
 
 	deg := 2
-	p := gmp.NewInt(5)
+	p := ecparam.PBC256.Ngmp
 	knownIndexes := make([]*gmp.Int, 3)
 	knownIndexes[0] = gmp.NewInt(1)
 	knownIndexes[1] = gmp.NewInt(2)
@@ -19,7 +20,7 @@ func TestGetLagrangeCoefficients(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		lambda[i] = gmp.NewInt(0)
 	}
-	GetLagrangeCoefficients(deg, knownIndexes, p, gmp.NewInt(3), lambda)
+	GetLagrangeCoefficients(deg, knownIndexes, p, gmp.NewInt(8756), lambda)
 	fmt.Println(lambda)
 
 }

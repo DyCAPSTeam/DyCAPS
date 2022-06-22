@@ -176,18 +176,18 @@ func InterpolateComOrWit(degree uint32, targetindex uint32, C_list []*pbc.Elemen
 	knownIndexes := make([]*gmp.Int, degree+1)
 	for j := uint32(0); j < degree+1; j++ {
 		lambda[j] = gmp.NewInt(int64(j + 1))
-		knownIndexes[j] = gmp.NewInt(int64(j + 1))
+		knownIndexes[j] = gmp.NewInt(int64(j + 1)) //known indexes: 1, ..., deg+1
 	}
 
 	polyring.GetLagrangeCoefficients(int(degree), knownIndexes, ecparamN, gmp.NewInt(int64(targetindex)), lambda)
-	//TODO: sometimes get lambda[j]=0
 
 	ans := KZG.NewG1()
 	ans.Set0()
 	for j := uint32(0); j < degree+1; j++ {
 		tmp := KZG.NewG1()
 		// tmp.Set1()
-		fmt.Printf("j: %v, C_list[j]: %v, lambda[j]: %v\n", j, C_list[j], conv.GmpInt2BigInt(lambda[j]))
+		// fmt.Printf("j: %v,  C_list[j]: %s, lambda[j]: %s\n", j, C_list[j].String(), lambda[j].String())
+		fmt.Println("C_list[j]:", C_list[j].String(), "lambda[j]:", lambda[j].String())
 		tmp.MulBig(C_list[j], conv.GmpInt2BigInt(lambda[j]))
 		// tmp.PowBig(C_list[j], conv.GmpInt2BigInt(lambda[j]))
 		ans.ThenAdd(tmp)
