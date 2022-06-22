@@ -2,7 +2,6 @@ package party
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/DyCAPSTeam/DyCAPS/internal/conv"
@@ -187,7 +186,7 @@ func InterpolateComOrWit(degree uint32, targetindex uint32, C_list []*pbc.Elemen
 		tmp := KZG.NewG1()
 		// tmp.Set1()
 		// fmt.Printf("j: %v,  C_list[j]: %s, lambda[j]: %s\n", j, C_list[j].String(), lambda[j].String())
-		fmt.Println("C_list[j]:", C_list[j].String(), "lambda[j]:", lambda[j].String())
+		// fmt.Println("C_list[j]:", C_list[j].String(), "lambda[j]:", lambda[j].String())
 		tmp.MulBig(C_list[j], conv.GmpInt2BigInt(lambda[j]))
 		// tmp.PowBig(C_list[j], conv.GmpInt2BigInt(lambda[j]))
 		ans.ThenAdd(tmp)

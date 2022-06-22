@@ -214,7 +214,7 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 					Data:   EchoData,
 				}
 				p.Broadcast(EchoMessage)
-				fmt.Printf("Party %v broadcasts Echo Message\n", p.PID)
+				// fmt.Printf("Party %v broadcasts Echo Message\n", p.PID)
 				mutex_pi.Unlock()
 			}
 
@@ -272,7 +272,7 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 							Readydata := Encapsulate_VSSReady(p.Proof, "SHARE", v_l, witnessInterpolated[l+1], p.N, p.F)
 							p.Send(&protobuf.Message{Type: "VSSReady", Id: ID, Sender: p.PID, Data: Readydata}, l)
 						}
-						fmt.Printf("Collected n-t=%v VSSEcho messages, VSSReady sent, PID: %v, ReadyType: SHARE\n", EchoMap[pi_hash_str], p.PID)
+						// fmt.Printf("Collected n-t=%v VSSEcho messages, VSSReady sent, PID: %v, ReadyType: SHARE\n", EchoMap[pi_hash_str], p.PID)
 						ReadySent = true
 						PiChecked = true
 						PiCheckedChannel <- true
@@ -289,7 +289,7 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 						}
 						Readydata := Encapsulate_VSSReady(p.Proof, "NOSHARE", nil, nil, p.N, p.F)
 						p.Broadcast(&protobuf.Message{Type: "VSSReady", Id: ID, Sender: p.PID, Data: Readydata})
-						fmt.Printf("Collected n-t=%v VSSEcho message, VSSReady sent, PID: %v, ReadyType: NOSHARE\n", EchoMap[pi_hash_str], p.PID)
+						// fmt.Printf("Collected n-t=%v VSSEcho message, VSSReady sent, PID: %v, ReadyType: NOSHARE\n", EchoMap[pi_hash_str], p.PID)
 						ReadySent = true
 						PiChecked = true
 						PiCheckedChannel <- true
@@ -315,7 +315,7 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 		for {
 			m := <-p.GetMessage("VSSReady", ID)
 			proto.Unmarshal(m.Data, &payloadMessage)
-			fmt.Printf("Party %v has received VSSReady from %v, ReadyType: %v\n", p.PID, m.Sender, payloadMessage.ReadyType)
+			// fmt.Printf("Party %v has received VSSReady from %v, ReadyType: %v\n", p.PID, m.Sender, payloadMessage.ReadyType)
 			pi_from_Ready.SetFromVSSMessage(payloadMessage.Pi, p.F)
 			pi_hash := sha256.New()
 			pi_byte, _ := proto.Marshal(payloadMessage.Pi)
@@ -341,12 +341,12 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 				} else {
 					C = InterpolateComOrWit(2*p.F, p.PID+1, C_R_temp[1:2*p.F+2])
 				}
-				fmt.Printf("Verifying, C:%s, mSender+1: %v, v_l: %s, w_l: %s\n", C.String(), mSender+1, v_l.String(), w_l.String())
+				// fmt.Printf("Verifying, C:%s, mSender+1: %v, v_l: %s, w_l: %s\n", C.String(), mSender+1, v_l.String(), w_l.String())
 				verified := KZG.VerifyEval(C, gmp.NewInt(int64(mSender+1)), v_l, w_l)
 
 				if verified {
 					//count++
-					fmt.Printf("Party %v verified: %v, sender: %v\n", p.PID, verified, mSender)
+					// fmt.Printf("Party %v verified: %v, sender: %v\n", p.PID, verified, mSender)
 					mutex_ReadyMap.Lock()
 					_, ok := ReadyMap[pi_hash_str]
 					if ok {
@@ -354,7 +354,7 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 					} else {
 						ReadyMap[pi_hash_str] = 1
 					}
-					fmt.Printf("ReadyMap[pi_hash_str]: %v, PID: %v\n", ReadyMap[pi_hash_str], p.PID)
+					// fmt.Printf("ReadyMap[pi_hash_str]: %v, PID: %v\n", ReadyMap[pi_hash_str], p.PID)
 					mutex_ReadyMap.Unlock()
 
 					//record the value and witness
@@ -395,7 +395,7 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 			//send Ready Message
 			mutex_ReadyMap.Lock()
 			if uint32(ReadyMap[pi_hash_str]) >= p.F+1 {
-				fmt.Printf("Sending Ready message, ReadyMap[pi_hash_str]: %v, PID: %v\n", ReadyMap[pi_hash_str], p.PID)
+				// fmt.Printf("Sending Ready message, ReadyMap[pi_hash_str]: %v, PID: %v\n", ReadyMap[pi_hash_str], p.PID)
 				mutex_ReadySent.Lock()
 				if !ReadySent {
 					mutex_pi.Lock()
@@ -410,7 +410,7 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 						ReadySent = true
 						PiChecked = true
 						PiCheckedChannel <- true
-						fmt.Printf("Collected t+1 VSSReady message, VSSReady sent, PID: %v, ReadyType: SHARE\n", p.PID)
+						// fmt.Printf("Collected t+1 VSSReady message, VSSReady sent, PID: %v, ReadyType: SHARE\n", p.PID)
 					} else {
 						//send Ready-NOSHARE
 						p.Proof.Set(pi_from_Ready, p.F)
@@ -424,14 +424,14 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 						ReadySent = true
 						PiChecked = true
 						PiCheckedChannel <- true
-						fmt.Printf("Collected t+1 VSSReady message, VSSReady sent, PID: %v, ReadyType: NOSHARE\n", p.PID)
+						// fmt.Printf("Collected t+1 VSSReady message, VSSReady sent, PID: %v, ReadyType: NOSHARE\n", p.PID)
 					}
 					mutex_pi.Unlock()
 				}
 				mutex_ReadySent.Unlock()
 			}
 			if uint32(ReadyMap[pi_hash_str]) >= p.N-p.F {
-				fmt.Printf("Party %v has collected n-t=%v Ready messages\n", p.PID, ReadyMap[pi_hash_str])
+				// fmt.Printf("Party %v has collected n-t=%v Ready messages\n", p.PID, ReadyMap[pi_hash_str])
 				StartDist <- true
 			}
 			mutex_ReadyMap.Unlock()
@@ -440,7 +440,6 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 			// 	fmt.Printf("Party %v has sent VSSReady\n", p.PID)
 			// 	// break
 			// }
-			// time.Sleep(1000)
 		}
 	}()
 
@@ -448,19 +447,15 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 	go func() {
 		var DistSent = false
 		<-StartDist
-		fmt.Printf("Party %v starts to send Distribute message\n", p.PID)
 		for {
 			mutex_ReadyMap.Lock()
 			for pi_hash_str, count := range ReadyMap {
 				if uint32(count) >= p.N-p.F {
-					fmt.Printf("Party %v has collected %v Ready messages\n", p.PID, count)
+					// fmt.Printf("Party %v has collected %v Ready messages\n", p.PID, count)
 					for {
 						mutex_ReadyContent.Lock()
-						if p.PID == 2 {
-							fmt.Printf("len(ReadyContent[pi_hash_str]): %v\n", len(ReadyContent[pi_hash_str]))
-						}
 						if uint32(len(ReadyContent[pi_hash_str])) >= p.F+1 {
-							fmt.Println("Party", p.PID, "starts to interpolate reduced share B(x,i)")
+							// fmt.Println("Party", p.PID, "starts to interpolate reduced share B(x,i)")
 							//interpolate B(x,i)
 							var witnessReceivedinReady []*pbc.Element = make([]*pbc.Element, p.F+1)
 							var reducedShare_x []*gmp.Int = make([]*gmp.Int, p.F+1)
@@ -515,7 +510,7 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 				fmt.Println("Party", p.PID, "Distribute breaks now")
 				break
 			}
-			time.Sleep(1000)
+			// time.Sleep(1000)
 		}
 	}()
 
@@ -536,7 +531,7 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 			witnessReceivedinDist.SetCompressedBytes(payloadMessage.WBLi)
 
 			if KZG.VerifyEval(C_R[msg.Sender+1], gmp.NewInt(int64(p.PID+1)), valueReceivedinDist, witnessReceivedinDist) {
-				fmt.Printf("Party %v verifies Distribute message from %v, ok\n", p.PID, msg.Sender)
+				// fmt.Printf("Party %v verifies Distribute message from %v, ok\n", p.PID, msg.Sender)
 				S_full_polyValue = append(S_full_polyValue, valueReceivedinDist)
 				S_full_indexes = append(S_full_indexes, gmp.NewInt(int64(msg.Sender+1)))
 				length := len(S_full_polyValue)
