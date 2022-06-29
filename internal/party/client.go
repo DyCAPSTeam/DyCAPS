@@ -24,10 +24,10 @@ var Sys_Suite = pairing.NewSuiteBn256()
 
 type Pi_Content struct {
 	j    int
-	CR_j *pbc.Element
-	CZ_j *pbc.Element
-	WZ_0 *pbc.Element
-	g_Fj *pbc.Element
+	CR_j *pbc.Element //In DyCAPS.Share, R_j(x)=B(j,x), R_j(0)=F(j)
+	CZ_j *pbc.Element //Z_j(x)=R_j(x)-R_j(0)
+	WZ_0 *pbc.Element //witness of Z_j(0)=0
+	g_Fj *pbc.Element //g^F(j), F(j) is of t degree
 }
 
 type Pi struct {

@@ -5,7 +5,8 @@ import (
 	"go.dedis.ch/kyber/v3/share"
 )
 
-//SigKeyGen return pk and sks, n is the number of parties, t is the threshold of combining signature
+//SigKeyGen return pk and sks for threshold signature
+//n is the number of parties, t is the threshold of combining signature
 func SigKeyGen(n uint32, t uint32) ([]*share.PriShare, *share.PubPoly) {
 	suit := pairing.NewSuiteBn256()
 	random := suit.RandomStream()

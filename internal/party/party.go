@@ -110,20 +110,24 @@ func NewHonestParty(N uint32, F uint32, pid uint32, ipList []string, portList []
 
 func (p *HonestParty) ShareReduceSend(ID []byte) {
 	ecparamN := ecparam.PBC256.Ngmp
-	//interpolate  N commitments by p.Proof
-	var CB_temp = make([]*pbc.Element, p.N+1, p.N+1) //B(x,j)=R_j(x)  start from 1
+	//interpolate N commitments by p.Proof
+	var CB_temp = make([]*pbc.Element, p.N+1, p.N+1) //B(j,x)=R_j(x), start from 1
 	var WB_temp = make([]*pbc.Element, p.N+1, p.N+1) //start from 1
 	for i := 0; uint32(i) <= p.N; i++ {
 		CB_temp[i] = KZG.NewG1()
 		WB_temp[i] = KZG.NewG1()
 	}
+
 	C_R_known := make([]*pbc.Element, 2*p.F+2)
 	for j := uint32(0); j <= 2*p.F+1; j++ {
 		C_R_known[j] = KZG.NewG1()
 		C_R_known[j].Set(p.Proof.Pi_contents[j].CR_j)
+		CB_temp[j].Set(p.Proof.Pi_contents[j].CR_j)
 	}
-	// for j := uint32(1); j <= p.N; j++ {
-	for j := 2*p.F + 1; j <= p.N; j++ {
+	for j := uint32(1); j <= 2*p.F+1; j++ {
+
+	}
+	for j := 2*p.F + 2; j <= p.N; j++ {
 		CB_temp[j] = InterpolateComOrWit(2*p.F, j, C_R_known[1:])
 		WB_temp[j] = InterpolateComOrWitbyKnownIndexes(2*p.F, j, p.witness_init_indexes, p.witness_init)
 	}
@@ -231,7 +235,6 @@ func (p *HonestParty) ShareReduceReceiver(ID []byte) {
 
 //FIXME: the secret after the Proactivize phase is not correct.
 func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
-
 	// Init
 	ecparamN := ecparam.PBC256.Ngmp
 	var flg_C = make([]uint32, p.N+1)

@@ -89,6 +89,9 @@ func TestDLCommit_Commit(test *testing.T) {
 	assert.True(test, c.VerifyEval(C3, x, polyOfX3, w3), "VerifyEval")
 	w3.Add(w, w2)
 	assert.True(test, c.VerifyEval(C3, x, polyOfX3, w3), "VerifyEval")
+	w4 := c.pairing.NewG1()
+	w4.Mul(w, w2)
+	assert.True(test, c.VerifyEval(C3, x, polyOfX3, w4), "VerifyEval")
 
 }
 

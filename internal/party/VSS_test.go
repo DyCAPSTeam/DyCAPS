@@ -2,6 +2,7 @@ package party
 
 import (
 	"fmt"
+	"math/big"
 	"sync"
 	"testing"
 
@@ -127,6 +128,7 @@ func TestDealer(t *testing.T) {
 func TestVSS(t *testing.T) {
 	//This test sometimes crushes, possibly related to InterpolateComOrWit() and KZG.VerifyEval()
 	//The crush is caused by the hardware. For a MacBook Pro 2018, N=3 only succeeds occasionally
+	//FIXME: some party may receive incorrect VSS messages (the results show not verified)
 	ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
 	portList := []string{"10080", "10081", "10082", "10083", "10084", "10085", "10086", "10087", "10088", "10089"}
 	ipList_next := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
@@ -172,6 +174,7 @@ func TestVSS(t *testing.T) {
 	wg.Add(int(N))
 	for i := uint32(0); i < N; i++ {
 		go func(i uint32) {
+			fmt.Printf("Party %v starting...\n", i)
 			p[i].VSSshareReceiver([]byte("VSSshare"))
 			wg.Done()
 		}(i)
@@ -180,4 +183,15 @@ func TestVSS(t *testing.T) {
 	wg.Wait()
 
 	fmt.Println("VSS Finish")
+}
+func TestF(t *testing.T) {
+
+	KZG.SetupFix(2)
+	C := KZG.NewG1()
+	C2 := KZG.NewG1()
+	C2.Set1()
+	C2.MulBig(C2, big.NewInt(2))
+	C = C2
+	fmt.Printf("C: %v\n", C)
+	fmt.Printf("C2: %v\n", C2)
 }
