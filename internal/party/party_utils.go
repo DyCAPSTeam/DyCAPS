@@ -195,9 +195,13 @@ func (pi *Pi) Set(src *Pi, F uint32) {
 
 //Interpolate commitment or witness according to the first 2t+1 elements
 func InterpolateComOrWit(degree uint32, targetindex uint32, C_list []*pbc.Element) *pbc.Element {
+	CWList := make([]*pbc.Element, degree+1)
+	copy(CWList, C_list)
+
 	ecparamN := ecparam.PBC256.Ngmp
 	lambda := make([]*gmp.Int, degree+1)
 	knownIndexes := make([]*gmp.Int, degree+1)
+
 	for j := uint32(0); j < degree+1; j++ {
 		lambda[j] = gmp.NewInt(int64(j + 1))
 		knownIndexes[j] = gmp.NewInt(int64(j + 1)) //known indexes: 1, ..., deg+1
@@ -209,9 +213,9 @@ func InterpolateComOrWit(degree uint32, targetindex uint32, C_list []*pbc.Elemen
 	ans.Set0()
 	for j := uint32(0); j < degree+1; j++ {
 		tmp := KZG.NewG1()
-		// tmp.Set1()
+		tmp.Set1()
 		// fmt.Printf("j: %v,  C_list[j]: %s, lambda[j]: %s\n", j, C_list[j].String(), lambda[j].String())
-		tmp.MulBig(C_list[j], conv.GmpInt2BigInt(lambda[j]))
+		tmp.MulBig(CWList[j], conv.GmpInt2BigInt(lambda[j]))
 		ans.ThenAdd(tmp)
 	}
 	return ans

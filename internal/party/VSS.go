@@ -16,13 +16,14 @@ import (
 	"github.com/ncw/gmp"
 )
 
+var mutexPolyring sync.Mutex
+
 //Receiving VSS Shares
 func (p *HonestParty) VSSshareReceiver(ID []byte) {
 	ecparamN := ecparam.PBC256.Ngmp
 
 	var PiChecked bool = false //Once PiChecked, p will send VSSReady messages
 	var mutexPi sync.Mutex
-	//TODO: the problem should be related to the mutexes
 
 	var EchoMap = make(map[string]int)
 
@@ -32,10 +33,12 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 	var ReadyContent = make(map[string][]polypoint.PolyPoint)
 	var mutex_ReadyContent sync.Mutex
 
-	var PiCheckedChannel chan bool = make(chan bool, 1)
 	var InitDoneChannel chan bool = make(chan bool, 1)
 	var InitDoneChannel2 chan bool = make(chan bool, 1)
 	var InitDoneChannel3 chan bool = make(chan bool, 1)
+	var PiCheckedChannel chan bool = make(chan bool, 1)
+	var CRSetChannel chan bool = make(chan bool, 1)
+	var CRResetChannel chan bool = make(chan bool)
 
 	var DistSent bool = false
 	var VSSshareFinished chan bool = make(chan bool, 1)
@@ -74,11 +77,11 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 	go func() {
 		polyValueFromSend := make([]*gmp.Int, 2*p.F+2, p.N+1)
 		witnessFromSend := make([]*pbc.Element, 2*p.F+2, p.N+1)
-		CRFromSend := make([]*pbc.Element, 2*p.F+2, p.N+1)
+		// CRFromSend := make([]*pbc.Element, 2*p.F+2, p.N+1)
 		for i := uint32(0); i < 2*p.F+2; i++ {
 			polyValueFromSend[i] = gmp.NewInt(0)
 			witnessFromSend[i] = KZG.NewG1()
-			CRFromSend[i] = KZG.NewG1()
+			// CRFromSend[i] = KZG.NewG1()
 		}
 
 		var pi_from_Send = new(Pi)
@@ -99,66 +102,63 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 
 		mutexPi.Lock()
 		if PiChecked == false {
-
 			for j := uint32(1); j < 2*p.F+2; j++ {
 				polyValueFromSend[j].SetBytes(payloadMessage.RjiList[j])
 				witnessFromSend[j].SetCompressedBytes(payloadMessage.WRjiList[j])
 			}
-
+			// mutexPolyring.Lock()
 			verifyOK = p.VerifyVSSSendReceived(polyValueFromSend, witnessFromSend, pi_from_Send)
+			// mutexPolyring.Unlock()
 			if !verifyOK {
 				fmt.Printf("Party %v verifies VSSSend Failed\n", p.PID)
 			} else {
 				fmt.Printf("Party %v verifies VSSSend Success\n", p.PID)
-				// During the verification, PiChcked may become true.
-				// So PiChecked == false is checked again here
-				if PiChecked == false {
-					// p.Proof.SetFromVSSMessage(payloadMessage.Pi, p.F)
-					p.Proof.Set(pi_from_Send, p.F)
+				// p.Proof.SetFromVSSMessage(payloadMessage.Pi, p.F)
+				p.Proof.Set(pi_from_Send, p.F)
 
-					//prepare for interpolation
-					mutexCW.Lock()
-					for j := uint32(1); j < 2*p.F+2; j++ {
-						C_R[j].Set(pi_from_Send.Pi_contents[j].CR_j)
-						CRFromSend[j].Set(pi_from_Send.Pi_contents[j].CR_j)
-						witnessInterpolated[j].Set(witnessFromSend[j])
-					}
-
-					//interpolate the remaining w_B*(i,j)
-					for j := 2*p.F + 2; j < p.N+1; j++ {
-						witnessInterpolated[j].Set(InterpolateComOrWit(2*p.F, j, witnessFromSend[1:]))
-					}
-					mutexCW.Unlock()
-
-					//interpolate 2t-degree polynomial B*(i,y)
-					x := make([]*gmp.Int, 2*p.F+1) //start from 0
-					y := make([]*gmp.Int, 2*p.F+1)
-					for j := uint32(0); j < 2*p.F+1; j++ {
-						x[j] = gmp.NewInt(0)
-						x[j].Set(gmp.NewInt(int64(j + 1)))
-						y[j] = gmp.NewInt(0)
-						y[j].Set(polyValueFromSend[j+1])
-					}
-					tmp_poly, _ := interpolation.LagrangeInterpolate(int(2*p.F), x, y, ecparamN)
-					fullShare_from_Send.ResetTo(tmp_poly)
-					fmt.Printf("Party %v interpolate B*(i,x) polynomial when receive Send Message:\n", p.PID)
-					fullShare_from_Send.Print()
-
-					//sendEcho
-					EchoData := Encapsulate_VSSEcho(pi_from_Send, p.N, p.F)
-					EchoMessage := &protobuf.Message{
-						Type:   "VSSEcho",
-						Id:     ID,
-						Sender: p.PID,
-						Data:   EchoData,
-					}
-					p.Broadcast(EchoMessage)
-					fmt.Printf("Party %v broadcasts Echo Message\n", p.PID)
-
+				//prepare for interpolation
+				mutexCW.Lock()
+				for j := uint32(1); j < 2*p.F+2; j++ {
+					C_R[j].Set(pi_from_Send.Pi_contents[j].CR_j)
+					// CRFromSend[j].Set(pi_from_Send.Pi_contents[j].CR_j)
+					witnessInterpolated[j].Set(witnessFromSend[j])
 				}
+				CRSetChannel <- true
 
+				//interpolate the remaining w_B*(i,j)
+				// for j := 2*p.F + 2; j < p.N+1; j++ {
+				// 	mutexInterpolate.Lock()
+				// 	witnessInterpolated[j].Set(InterpolateComOrWit(2*p.F, j, witnessFromSend[1:2*p.F+2]))
+				// 	mutexInterpolate.Unlock()
+				// }
+
+				mutexCW.Unlock()
+
+				//interpolate 2t-degree polynomial B*(i,y)
+				x := make([]*gmp.Int, 2*p.F+1) //start from 0
+				y := make([]*gmp.Int, 2*p.F+1)
+				for j := uint32(0); j < 2*p.F+1; j++ {
+					x[j] = gmp.NewInt(0)
+					x[j].Set(gmp.NewInt(int64(j + 1)))
+					y[j] = gmp.NewInt(0)
+					y[j].Set(polyValueFromSend[j+1])
+				}
+				tmp_poly, _ := interpolation.LagrangeInterpolate(int(2*p.F), x, y, ecparamN)
+				fullShare_from_Send.ResetTo(tmp_poly)
+				fmt.Printf("Party %v interpolate B*(i,x) polynomial when receive Send Message:\n", p.PID)
+				fullShare_from_Send.Print()
+
+				//sendEcho
+				EchoData := Encapsulate_VSSEcho(pi_from_Send, p.N, p.F)
+				EchoMessage := &protobuf.Message{
+					Type:   "VSSEcho",
+					Id:     ID,
+					Sender: p.PID,
+					Data:   EchoData,
+				}
+				p.Broadcast(EchoMessage)
+				fmt.Printf("Party %v broadcasts Echo Message, handle VSSSend done\n", p.PID)
 			}
-
 		}
 		mutexPi.Unlock()
 	}()
@@ -195,10 +195,18 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 				if p.Proof.Equals(pi_from_Echo, p.F) {
 					//in this case (pi = pi'), this party must have received a valid VSSSend message
 
+					w := KZG.NewG1()
 					for l := uint32(0); l < p.N; l++ {
 						v_l := gmp.NewInt(0) //value at l+1
 						fullShare_from_Send.EvalMod(gmp.NewInt(int64(l+1)), ecparamN, v_l)
-						Readydata := Encapsulate_VSSReady(p.Proof, "SHARE", v_l, witnessInterpolated[l+1], p.N, p.F)
+						if l < 2*p.F+1 {
+							w = witnessInterpolated[l+1]
+						} else {
+							mutexPolyring.Lock()
+							w.Set(InterpolateComOrWit(2*p.F, l+1, witnessInterpolated[1:2*p.F+2]))
+							mutexPolyring.Unlock()
+						}
+						Readydata := Encapsulate_VSSReady(pi_from_Echo, "SHARE", v_l, w, p.N, p.F)
 						p.Send(&protobuf.Message{Type: "VSSReady", Id: ID, Sender: p.PID, Data: Readydata}, l)
 					}
 					fmt.Printf("Collected n-t=%v VSSEcho messages, VSSReady sent, PID: %v, ReadyType: SHARE\n", counter, p.PID)
@@ -223,6 +231,7 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 					for j := uint32(1); j < 2*p.F+2; j++ {
 						C_R[j].SetCompressedBytes(payloadMessage.Pi.PiContents[j].CRJ)
 					}
+					CRResetChannel <- true
 
 					//reset witness
 					for i := uint32(0); i < p.N+1; i++ {
@@ -231,7 +240,7 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 					mutexCW.Unlock()
 
 					//send VSSReady-NOSHARE
-					Readydata := Encapsulate_VSSReady(p.Proof, "NOSHARE", nil, nil, p.N, p.F)
+					Readydata := Encapsulate_VSSReady(pi_from_Echo, "NOSHARE", nil, nil, p.N, p.F)
 					p.Broadcast(&protobuf.Message{Type: "VSSReady", Id: ID, Sender: p.PID, Data: Readydata})
 					fmt.Printf("Collected n-t=%v VSSEcho message, VSSReady sent, PID: %v, ReadyType: NOSHARE\n", counter, p.PID)
 
@@ -284,10 +293,15 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 				if p.PID < 2*p.F+1 {
 					C.Set(CRFromReady[p.PID+1])
 				} else {
-					C.Set(InterpolateComOrWit(2*p.F, p.PID+1, CRFromReady[1:]))
+					mutexPolyring.Lock()
+					C.Set(InterpolateComOrWit(2*p.F, p.PID+1, CRFromReady[1:2*p.F+2]))
+					mutexPolyring.Unlock()
 				}
 				fmt.Printf("Party %v verifying, mSender+1: %v, C:%s, v_l: %s, w_l: %s\n", p.PID, gmp.NewInt(int64(mSender+1)), C.String(), v_l.String(), w_l.String())
+
+				mutexKZG.Lock()
 				verified := KZG.VerifyEval(C, gmp.NewInt(int64(mSender+1)), v_l, w_l)
+				mutexKZG.Unlock()
 
 				if verified {
 					fmt.Printf("Party %v verified: %v, sender: %v\n", p.PID, verified, mSender)
@@ -320,7 +334,7 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 					}
 					mutex_ReadyContent.Unlock()
 				} else {
-					fmt.Printf("Party %v not verified: %v, sender: %v\n", p.PID, verified, mSender)
+					fmt.Printf("Party %v not verified, mSender+1=%v, C=%s, v_l=%s, w_l=%s\n", p.PID, mSender+1, C.String(), v_l.String(), w_l.String())
 				}
 			} else if payloadMessage.ReadyType == "NOSHARE" {
 				mutex_ReadyMap.Lock()
@@ -343,10 +357,18 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 				if p.Proof.Equals(pi_from_Ready, p.F) {
 					// in this case, p.Proof has been set by VSSSend message
 					// send VSSReady-SHARE
+					w := KZG.NewG1()
 					for l := uint32(0); l < p.N; l++ {
 						v_l_Send := gmp.NewInt(0) //value at l+1
 						fullShare_from_Send.EvalMod(gmp.NewInt(int64(l+1)), ecparamN, v_l_Send)
-						Readydata := Encapsulate_VSSReady(p.Proof, "SHARE", v_l_Send, witnessInterpolated[l+1], p.N, p.F)
+						if l < 2*p.F+1 {
+							w = p.witness_init[l+1]
+						} else {
+							mutexPolyring.Lock()
+							w.Set(InterpolateComOrWit(2*p.F, l+1, witnessInterpolated[1:2*p.F+2]))
+							mutexPolyring.Unlock()
+						}
+						Readydata := Encapsulate_VSSReady(pi_from_Ready, "SHARE", v_l_Send, w, p.N, p.F)
 						p.Send(&protobuf.Message{Type: "VSSReady", Id: ID, Sender: p.PID, Data: Readydata}, uint32(l))
 					}
 					fmt.Printf("Collected t+1 VSSReady message, VSSReady sent, PID: %v, ReadyType: SHARE\n", p.PID)
@@ -363,6 +385,7 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 					for j := uint32(1); j < 2*p.F+2; j++ {
 						C_R[j].SetCompressedBytes(payloadMessage.Pi.PiContents[j].CRJ)
 					}
+					CRResetChannel <- true
 
 					//reset witnesses
 					for i := uint32(0); i < p.N+1; i++ {
@@ -375,7 +398,7 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 					mutexCW.Unlock()
 
 					//send Ready-NOSHARE
-					Readydata := Encapsulate_VSSReady(p.Proof, "NOSHARE", nil, nil, p.N, p.F)
+					Readydata := Encapsulate_VSSReady(pi_from_Ready, "NOSHARE", nil, nil, p.N, p.F)
 					p.Broadcast(&protobuf.Message{Type: "VSSReady", Id: ID, Sender: p.PID, Data: Readydata})
 					fmt.Printf("Collected t+1 VSSReady message, VSSReady sent, PID: %v, ReadyType: NOSHARE\n", p.PID)
 
@@ -420,7 +443,11 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 					polyValue_dist := gmp.NewInt(0)
 					reducedShare.EvalMod(gmp.NewInt(int64(l+1)), ecparamN, polyValue_dist)
 					witness_dist := KZG.NewG1()
+
+					mutexKZG.Lock()
 					KZG.CreateWitness(witness_dist, reducedShare, gmp.NewInt(int64(l+1)))
+					mutexKZG.Unlock()
+
 					data_dist := Encapsulate_VSSDistribute(polyValue_dist, witness_dist, p.N, p.F)
 					p.Send(&protobuf.Message{
 						Type:   "VSSDistribute",
@@ -448,55 +475,67 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 		<-PiCheckedChannel // waiting for Pi checked
 		var fullShareInterpolated = false
 
-		for {
-			msg := <-p.GetMessage("VSSDistribute", ID)
-			var payloadMessage protobuf.VSSDistribute
-			proto.Unmarshal(msg.Data, &payloadMessage)
-			fmt.Printf("Party %v has received VSSDistribute from %v \n", p.PID, msg.Sender)
+		select {
+		case <-CRSetChannel:
+		case <-CRResetChannel:
+			fmt.Printf("Party %v is ready to handle VSSDistribute Message\n", p.PID)
+			for {
+				msg := <-p.GetMessage("VSSDistribute", ID)
+				var payloadMessage protobuf.VSSDistribute
+				proto.Unmarshal(msg.Data, &payloadMessage)
+				fmt.Printf("Party %v has received VSSDistribute from %v \n", p.PID, msg.Sender)
 
-			valueFromDist := gmp.NewInt(0)
-			valueFromDist.SetBytes(payloadMessage.BLi)
-			witnessFromDist := KZG.NewG1()
-			witnessFromDist.SetCompressedBytes(payloadMessage.WBLi)
+				valueFromDist := gmp.NewInt(0)
+				valueFromDist.SetBytes(payloadMessage.BLi)
+				witnessFromDist := KZG.NewG1()
+				witnessFromDist.SetCompressedBytes(payloadMessage.WBLi)
 
-			mutexCW.Lock()
-			//interpolate the required CR
-			C := KZG.NewG1()
-			if msg.Sender < 2*p.F+1 {
-				C = C_R[msg.Sender+1]
-			} else {
-				C = InterpolateComOrWit(2*p.F, msg.Sender+1, C_R[1:2*p.F+2])
-			}
-			distVerifyOK := KZG.VerifyEval(C, gmp.NewInt(int64(p.PID+1)), valueFromDist, witnessFromDist)
-			if distVerifyOK {
-				fmt.Printf("Party %v verifies Distribute message from %v, ok\n", p.PID, msg.Sender)
-				S_full_polyValue = append(S_full_polyValue, valueFromDist)
-				S_full_indexes = append(S_full_indexes, gmp.NewInt(int64(msg.Sender+1)))
-				length := len(S_full_polyValue)
-				p.witness_init[length-1].Set(witnessFromDist)
-				p.witness_init_indexes[length-1].Set(gmp.NewInt(int64(msg.Sender + 1))) //change this name later.
-			} else {
-				fmt.Printf("Party %v verifies Distribute message from %v, FAIL, C_R[%v]=%v, valueFromDist=%v, witnessFromDist=%v\n", p.PID, msg.Sender, msg.Sender+1, C_R[msg.Sender+1], valueFromDist, witnessFromDist)
-			}
-			mutexCW.Unlock()
-
-			if uint32(len(S_full_polyValue)) >= 2*p.F+1 && !fullShareInterpolated {
-				// fmt.Println(p.PID, "starts to interpolate")
-				fullShare, err := interpolation.LagrangeInterpolate(int(2*p.F), S_full_indexes, S_full_polyValue, ecparamN)
-				if err != nil {
-					fmt.Printf("Party %v interpolation error: %v\n", p.PID, err)
-					// continue
+				mutexCW.Lock()
+				//interpolate the required CR
+				C := KZG.NewG1()
+				if msg.Sender < 2*p.F+1 {
+					C = C_R[msg.Sender+1]
 				} else {
-					//set the final reduceShare and witnesses, then break
-					p.fullShare.ResetTo(fullShare)
-					fmt.Printf("Party %v gets its full share B(i,y):\n", p.PID)
-					p.fullShare.Print()
-					fullShareInterpolated = true
-					VSSshareFinished <- true
-					break
+					mutexPolyring.Lock()
+					C.Set(InterpolateComOrWit(2*p.F, msg.Sender+1, C_R[1:2*p.F+2]))
+					mutexPolyring.Unlock()
+				}
+
+				mutexKZG.Lock()
+				distVerifyOK := KZG.VerifyEval(C, gmp.NewInt(int64(p.PID+1)), valueFromDist, witnessFromDist)
+				mutexKZG.Unlock()
+
+				if distVerifyOK {
+					fmt.Printf("Party %v verifies Distribute message from %v, ok\n", p.PID, msg.Sender)
+					S_full_polyValue = append(S_full_polyValue, valueFromDist)
+					S_full_indexes = append(S_full_indexes, gmp.NewInt(int64(msg.Sender+1)))
+					length := len(S_full_polyValue)
+					p.witness_init[length-1].Set(witnessFromDist)
+					p.witness_init_indexes[length-1].Set(gmp.NewInt(int64(msg.Sender + 1))) //change this name later.
+				} else {
+					fmt.Printf("Party %v verifies Distribute message from %v, FAIL, C_R[%v]=%v, valueFromDist=%v, witnessFromDist=%v\n", p.PID, msg.Sender, msg.Sender+1, C_R[msg.Sender+1], valueFromDist, witnessFromDist)
+				}
+				mutexCW.Unlock()
+
+				if uint32(len(S_full_polyValue)) >= 2*p.F+1 && !fullShareInterpolated {
+					// fmt.Println(p.PID, "starts to interpolate")
+					fullShare, err := interpolation.LagrangeInterpolate(int(2*p.F), S_full_indexes, S_full_polyValue, ecparamN)
+					if err != nil {
+						fmt.Printf("Party %v interpolation error: %v\n", p.PID, err)
+						// continue
+					} else {
+						//set the final reduceShare and witnesses, then break
+						p.fullShare.ResetTo(fullShare)
+						fmt.Printf("Party %v gets its full share B(i,y):\n", p.PID)
+						p.fullShare.Print()
+						fullShareInterpolated = true
+						VSSshareFinished <- true
+						break
+					}
 				}
 			}
 		}
+		fmt.Printf("Party %v has exit the select when handling VSSDistribute\n", p.PID)
 	}()
 
 	<-VSSshareFinished
@@ -511,6 +550,7 @@ func (p *HonestParty) VSSshareReceiver(ID []byte) {
 //Verify pi' and v'ji ,w'ji received
 func (p *HonestParty) VerifyVSSSendReceived(polyValue []*gmp.Int, witness []*pbc.Element, pi_received *Pi) bool {
 	ecparamN := ecparam.PBC256.Ngmp
+
 	//Verify g^s == sigma((g^F_j)^lambda_j)
 	lambda := make([]*gmp.Int, 2*p.F+1)
 	knownIndexes := make([]*gmp.Int, 2*p.F+1)
@@ -519,7 +559,10 @@ func (p *HonestParty) VerifyVSSSendReceived(polyValue []*gmp.Int, witness []*pbc
 		knownIndexes[j] = gmp.NewInt(int64(j + 1))
 	}
 
+	mutexPolyring.Lock()
 	polyring.GetLagrangeCoefficients(int(2*p.F), knownIndexes, ecparamN, gmp.NewInt(0), lambda)
+	mutexPolyring.Unlock()
+
 	tmp := KZG.NewG1()
 	tmp.Set0()
 	for j := uint32(1); j < 2*p.F+2; j++ {
@@ -536,9 +579,11 @@ func (p *HonestParty) VerifyVSSSendReceived(polyValue []*gmp.Int, witness []*pbc
 	}
 	//Verify KZG.VerifyEval(CZjk,0,0,WZjk0) == 1 && CRjk == CZjk * g^Fj(k) for k in [1,2t+1]
 	for k := uint32(1); k < 2*p.F+2; k++ {
+		mutexKZG.Lock()
 		verifyEval := KZG.VerifyEval(pi_received.Pi_contents[k].CZ_j, gmp.NewInt(0), gmp.NewInt(0), pi_received.Pi_contents[k].WZ_0)
+		mutexKZG.Unlock()
 
-		var verifyRj bool
+		var verifyRj bool = false
 		tmp3 := KZG.NewG1()
 		tmp3.Set0()
 		tmp3.Add(pi_received.Pi_contents[k].CZ_j, pi_received.Pi_contents[k].g_Fj)
@@ -552,7 +597,10 @@ func (p *HonestParty) VerifyVSSSendReceived(polyValue []*gmp.Int, witness []*pbc
 	//Verify v'ji,w'ji w.r.t pi'
 	for j := uint32(1); j < 2*p.F+2; j++ {
 		//KZG Verify
+		mutexKZG.Lock()
 		verifyPoint := KZG.VerifyEval(pi_received.Pi_contents[j].CR_j, gmp.NewInt(int64((p.PID + 1))), polyValue[j], witness[j])
+		mutexKZG.Unlock()
+
 		if !verifyPoint {
 			fmt.Printf("Party %v VSSSend KZGVerify Failed when verify v'ji and w'ji, i=%v, CR_j[%v]=%v, polyValue[%v]=%v, witness[%v]=%v\n", p.PID, p.PID+1, j, pi_received.Pi_contents[j].CR_j, j, polyValue[j], j, witness[j])
 			return false

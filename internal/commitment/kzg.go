@@ -156,7 +156,7 @@ func (c *DLPolyCommit) VerifyEval(C *Element, x *Int, polyX *Int, w *Element) bo
 	e2.Pair(w, t2)
 	t1.Pair(c.pk[0].Source(), c.pk[0].Source())
 	exp.SetString(polyX.String(), 10)
-	t1.PowBig(t1, exp)
+	t1.MulBig(t1, exp)
 	e2.Mul(e2, t1)
 	// fmt.Printf("e1\n%s\ne2\n%s\n", e1.String(), e2.String())
 	return e1.Equals(e2)

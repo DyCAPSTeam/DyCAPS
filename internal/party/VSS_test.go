@@ -126,15 +126,13 @@ func TestDealer(t *testing.T) {
 }
 
 func TestVSS(t *testing.T) {
-	//This test sometimes crushes, possibly related to InterpolateComOrWit() and KZG.VerifyEval()
-	//The crush is caused by the hardware. For a MacBook Pro 2018, N=3 only succeeds occasionally
-	//FIXME: some party may receive incorrect VSS messages (the results show not verified)
-	ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
-	portList := []string{"10080", "10081", "10082", "10083", "10084", "10085", "10086", "10087", "10088", "10089"}
-	ipList_next := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
-	portList_next := []string{"10090", "10091", "10092", "10093", "10094", "10095", "10096", "10097", "10098", "10099"}
-	N := uint32(10)
-	F := uint32(3)
+	//This test sometimes crashes, possibly related to InterpolateComOrWit() and KZG.VerifyEval()
+	ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
+	portList := []string{"10080", "10081", "10082", "10083", "10084", "10085", "10086", "10087", "10088", "10089", "10090", "10091", "10092"}
+	ipList_next := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
+	portList_next := []string{"10190", "10191", "10192", "10193", "10194", "10195", "10196", "10197", "10198", "10199", "10200", "10201", "10202"}
+	N := uint32(13)
+	F := uint32(4)
 	sk, pk := SigKeyGen(N, 2*F+2) // wrong usage, but it doesn't matter here
 
 	KZG.SetupFix(2 * int(F))
@@ -177,6 +175,7 @@ func TestVSS(t *testing.T) {
 			fmt.Printf("Party %v starting...\n", i)
 			p[i].VSSshareReceiver([]byte("VSSshare"))
 			wg.Done()
+			fmt.Printf("Party %v done\n", i)
 		}(i)
 	}
 

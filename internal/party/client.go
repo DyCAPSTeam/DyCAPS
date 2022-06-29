@@ -3,6 +3,7 @@ package party
 import (
 	"fmt"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/DyCAPSTeam/DyCAPS/internal/commitment"
@@ -20,6 +21,7 @@ type Client struct {
 }
 
 var KZG = new(commitment.DLPolyCommit)
+var mutexKZG sync.Mutex
 var Sys_Suite = pairing.NewSuiteBn256()
 
 type Pi_Content struct {
