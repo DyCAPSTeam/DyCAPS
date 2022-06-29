@@ -136,28 +136,7 @@ func (p *HonestParty) checkInitSendChannelstoNext() bool {
 	return true
 }
 
-// func GetPiChecked() bool {
-// 	mutexPiChecked.RLock()
-// 	defer mutexPiChecked.RUnlock()
-// 	return PiChecked
-// }
-
-// func SetPiChecked() {
-// 	mutexPiChecked.Lock()
-// 	defer mutexPiChecked.Unlock()
-// 	PiChecked = true
-// }
-
-// func GetEchoMapCount() bool {
-// 	mutexPiChecked.RLock()
-// 	defer mutexPiChecked.RUnlock()
-// 	return PiChecked
-// }
-
 func (pi *Pi) Init(F uint32) {
-	// mutexPi.Lock()
-	// defer mutexPi.Unlock()
-
 	pi.G_s = KZG.NewG1()
 	pi.Pi_contents = make([]Pi_Content, 2*F+2)
 	for i := 0; uint32(i) <= 2*F+1; i++ {
@@ -181,9 +160,6 @@ func (pi *Pi) SetFromVSSMessage(m *protobuf.Pi, F uint32) {
 }
 
 func (pi *Pi) Set(src *Pi, F uint32) {
-	// mutexPi.Lock()
-	// defer mutexPi.Unlock()
-
 	pi.G_s.Set(src.G_s)
 	for j := 1; uint32(j) <= 2*F+1; j++ {
 		pi.Pi_contents[j].CR_j.Set(src.Pi_contents[j].CR_j)
@@ -277,10 +253,6 @@ func Encapsulate_VSSSend(pi *Pi, Rji_list []*gmp.Int, Wji_list []*pbc.Element, N
 func Encapsulate_VSSEcho(pi *Pi, N uint32, F uint32) []byte {
 	var msg = new(protobuf.VSSEcho)
 	msg.Pi = new(protobuf.Pi)
-
-	// mutexPi.RLock()
-	// defer mutexPi.RUnlock()
-
 	msg.Pi.Gs = pi.G_s.CompressedBytes()
 
 	for j := 0; uint32(j) <= 2*F+1; j++ {
@@ -309,10 +281,6 @@ func Encapsulate_VSSEcho(pi *Pi, N uint32, F uint32) []byte {
 func Encapsulate_VSSReady(pi *Pi, ReadyType string, B_li *gmp.Int, w_li *pbc.Element, N uint32, F uint32) []byte {
 	var msg = new(protobuf.VSSReady)
 	msg.Pi = new(protobuf.Pi)
-
-	// mutexPi.RLock()
-	// defer mutexPi.RUnlock()
-
 	msg.Pi.Gs = pi.G_s.CompressedBytes()
 	msg.ReadyType = ReadyType // possible bug
 	if msg.ReadyType == "SHARE" {
@@ -351,9 +319,6 @@ func Encapsulate_VSSDistribute(B_li *gmp.Int, w_li *pbc.Element, N uint32, F uin
 }
 
 func (pi *Pi) Equals(other *Pi, F uint32) bool {
-	// mutexPi.RLock()
-	// defer mutexPi.RUnlock()
-
 	if !pi.G_s.Equals(other.G_s) {
 		return false
 	}
