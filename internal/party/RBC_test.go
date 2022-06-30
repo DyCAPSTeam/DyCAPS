@@ -15,26 +15,26 @@ import (
 
 func TestRBC(t *testing.T) {
 
-	ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
-	portList := []string{"8880", "8881", "8882", "8883", "8884", "8885", "8886"}
-	ipList_next := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
-	portList_next := []string{"8887", "8888", "8889", "8890", "8891", "8892", "8893"}
-	N := uint32(7)
-	F := uint32(2)
+	ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
+	portList := []string{"10080", "10081", "10082", "10083", "10084", "10085", "10086", "10087", "10088", "10089", "10090", "10091", "10092"}
+	ipListNext := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
+	portListNext := []string{"10190", "10191", "10192", "10193", "10194", "10195", "10196", "10197", "10198", "10199", "10200", "10201", "10202"}
+	N := uint32(13)
+	F := uint32(4)
 	KZG.SetupFix(int(2 * F))
 	sk, pk := SigKeyGen(N, N-F)
-	pi_init := new(Pi)
-	pi_init.Init(F)
-	witness_init := make([]*pbc.Element, N-F)
-	witness_init_indexes := make([]*gmp.Int, N-F)
+	piInit := new(Pi)
+	piInit.Init(F)
+	witnessInit := make([]*pbc.Element, N-F)
+	witnessInitIndexes := make([]*gmp.Int, N-F)
 	for i := 0; uint32(i) < N-F; i++ {
-		witness_init[i] = KZG.NewG1()
-		witness_init_indexes[i] = gmp.NewInt(0)
+		witnessInit[i] = KZG.NewG1()
+		witnessInitIndexes[i] = gmp.NewInt(0)
 	}
 
 	var p []*HonestParty = make([]*HonestParty, N)
 	for i := uint32(0); i < N; i++ {
-		p[i] = NewHonestParty(N, F, i, ipList, portList, ipList_next, portList_next, pk, sk[i], pi_init, witness_init, witness_init_indexes)
+		p[i] = NewHonestParty(N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i], piInit, witnessInit, witnessInitIndexes)
 	}
 	for i := uint32(0); i < N; i++ {
 		p[i].InitReceiveChannel()
@@ -65,26 +65,26 @@ func TestRBC(t *testing.T) {
 
 func TestRBCExlude(t *testing.T) {
 	// test malicious sender: excluding one party
-	ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
-	portList := []string{"8880", "8881", "8882", "8883", "8884", "8885", "8886"}
-	ipList_next := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
-	portList_next := []string{"8887", "8888", "8889", "8890", "8891", "8892", "8893"}
+	ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
+	portList := []string{"10080", "10081", "10082", "10083", "10084", "10085", "10086", "10087", "10088", "10089", "10090", "10091", "10092"}
+	ipListNext := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
+	portListNext := []string{"10190", "10191", "10192", "10193", "10194", "10195", "10196", "10197", "10198", "10199", "10200", "10201", "10202"}
 	N := uint32(7)
 	F := uint32(1)
 	KZG.SetupFix(int(2 * F))
 	sk, pk := SigKeyGen(N, N-F)
-	pi_init := new(Pi)
-	pi_init.Init(F)
-	witness_init := make([]*pbc.Element, N-F)
-	witness_init_indexes := make([]*gmp.Int, N-F)
+	piInit := new(Pi)
+	piInit.Init(F)
+	witnessInit := make([]*pbc.Element, N-F)
+	witnessInitIndexes := make([]*gmp.Int, N-F)
 	for i := 0; uint32(i) < N-F; i++ {
-		witness_init[i] = KZG.NewG1()
-		witness_init_indexes[i] = gmp.NewInt(0)
+		witnessInit[i] = KZG.NewG1()
+		witnessInitIndexes[i] = gmp.NewInt(0)
 	}
 
 	var p []*HonestParty = make([]*HonestParty, N)
 	for i := uint32(0); i < N; i++ {
-		p[i] = NewHonestParty(N, F, i, ipList, portList, ipList_next, portList_next, pk, sk[i], pi_init, witness_init, witness_init_indexes)
+		p[i] = NewHonestParty(N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i], piInit, witnessInit, witnessInitIndexes)
 	}
 	for i := uint32(0); i < N; i++ {
 		p[i].InitReceiveChannel()
@@ -116,26 +116,26 @@ func TestRBCExlude(t *testing.T) {
 
 func TestMultiRBC(t *testing.T) {
 
-	ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
-	portList := []string{"8880", "8881", "8882", "8883", "8884", "8885", "8886"}
-	ipList_next := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
-	portList_next := []string{"8887", "8888", "8889", "8890", "8891", "8892", "8893"}
+	ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
+	portList := []string{"10080", "10081", "10082", "10083", "10084", "10085", "10086", "10087", "10088", "10089", "10090", "10091", "10092"}
+	ipListNext := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
+	portListNext := []string{"10190", "10191", "10192", "10193", "10194", "10195", "10196", "10197", "10198", "10199", "10200", "10201", "10202"}
 	N := uint32(4)
 	F := uint32(1)
 	KZG.SetupFix(int(2 * F))
 	sk, pk := SigKeyGen(N, 2*F+1)
-	pi_init := new(Pi)
-	pi_init.Init(F)
-	witness_init := make([]*pbc.Element, 2*F+1)
-	witness_init_indexes := make([]*gmp.Int, 2*F+1)
+	piInit := new(Pi)
+	piInit.Init(F)
+	witnessInit := make([]*pbc.Element, 2*F+1)
+	witnessInitIndexes := make([]*gmp.Int, 2*F+1)
 	for i := 0; uint32(i) < 2*F+1; i++ {
-		witness_init[i] = KZG.NewG1()
-		witness_init_indexes[i] = gmp.NewInt(0)
+		witnessInit[i] = KZG.NewG1()
+		witnessInitIndexes[i] = gmp.NewInt(0)
 	}
 
 	var p []*HonestParty = make([]*HonestParty, N)
 	for i := uint32(0); i < N; i++ {
-		p[i] = NewHonestParty(N, F, i, ipList, portList, ipList_next, portList_next, pk, sk[i], pi_init, witness_init, witness_init_indexes)
+		p[i] = NewHonestParty(N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i], piInit, witnessInit, witnessInitIndexes)
 	}
 	for i := uint32(0); i < N; i++ {
 		p[i].InitReceiveChannel()

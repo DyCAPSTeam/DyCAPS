@@ -13,7 +13,7 @@ import (
 )
 
 // received message shard (RS code) in RBC
-type m_received struct {
+type mReceived struct {
 	j  int
 	mj []byte
 }
@@ -34,17 +34,17 @@ func (p *HonestParty) RBCSendExclude(M *protobuf.Message, ID []byte, pid uint32)
 }
 
 func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
-	h_local := sha256.New()
+	hLocal := sha256.New()
 	var M1 = make([][]byte, p.N) //  M' in the RBC paper (line 9, Algo 4). Must assign length (or copy will fail)
-	var mlen int                 // the length of M_i
+	var mLen int                 // the length of M_i
 	//here we ignore P(.)
 
 	//handle RBCPropose message
 	go func() {
 		m := <-p.GetMessage("RBCPropose", ID)
 		M := m.Data
-		mlen = len(M) // the length of M is used to remove the padding zeros after RS decoding
-		h_local.Write(M)
+		mLen = len(M) // the length of M is used to remove the padding zeros after RS decoding
+		hLocal.Write(M)
 
 		//TODO: Check if the usage of RS code is correct
 		//encode
@@ -55,7 +55,7 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 		copy(M1, shards)
 		for j := uint32(0); j < p.N; j++ {
 			//encapsulate, append the length of M at the end of hash
-			EchoData, _ := proto.Marshal(&protobuf.RBCEcho{Hash: append(h_local.Sum(nil), utils.IntToBytes(mlen)...), M: shards[j]})
+			EchoData, _ := proto.Marshal(&protobuf.RBCEcho{Hash: append(hLocal.Sum(nil), utils.IntToBytes(mLen)...), M: shards[j]})
 			p.Send(&protobuf.Message{Type: "RBCEcho", Sender: p.PID, Id: ID, Data: EchoData}, j)
 
 			/*
@@ -79,14 +79,14 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 	var EchoMessageMap = make(map[string]map[string]int)
 
 	//T_h in line 16, Algo 4, RBC paper. T maps the hash to []m_received = {(j,mj), ...}
-	var T = make(map[string][]m_received)
+	var T = make(map[string][]mReceived)
 	var MaxReadyNumber = int(0)
 	var MaxReadyHash []byte
 
 	var isReadySent = false
 	var mutex sync.Mutex // isReadySent will be written by two goroutines. (line 11 and 13, Algo 4)
-	var mutex_EchoMap sync.Mutex
-	var mutex_ReadyMap sync.Mutex
+	var mutexEchoMap sync.Mutex
+	var mutexReadyMap sync.Mutex
 
 	var RSDecStart = make(chan bool, 1)
 	// var RecDone = make(chan bool)
@@ -99,7 +99,7 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 			proto.Unmarshal(m.Data, &payloadMessage)
 			hash := string(payloadMessage.Hash)
 			mi := string(payloadMessage.M)
-			mutex_EchoMap.Lock()
+			mutexEchoMap.Lock()
 			_, ok1 := EchoMessageMap[hash]
 			if ok1 {
 				//ok1 denotes that the map of hash exists
@@ -121,11 +121,11 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 			mutex.Lock()
 			if uint32(EchoMessageMap[hash][mi]) >= p.N-p.F && !isReadySent {
 				isReadySent = true
-				ready_data, _ := proto.Marshal(&protobuf.RBCReady{Hash: []byte(hash), M: []byte(mi)})
-				p.Broadcast(&protobuf.Message{Type: "RBCReady", Sender: p.PID, Id: ID, Data: ready_data})
+				readyData, _ := proto.Marshal(&protobuf.RBCReady{Hash: []byte(hash), M: []byte(mi)})
+				p.Broadcast(&protobuf.Message{Type: "RBCReady", Sender: p.PID, Id: ID, Data: readyData})
 			}
 			mutex.Unlock()
-			mutex_EchoMap.Unlock()
+			mutexEchoMap.Unlock()
 
 			//finish this goroutine when RBCReady is sent
 			if isReadySent {
@@ -141,39 +141,39 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 			var payloadMessage protobuf.RBCReady
 			proto.Unmarshal(m.Data, &payloadMessage)
 			hash := payloadMessage.Hash
-			hash_string := string(hash)
-			m_j := payloadMessage.M
+			hashString := string(hash)
+			mJ := payloadMessage.M
 			j := m.Sender //sender's pid, i.e., the index of the sender
 
-			mutex_ReadyMap.Lock()
-			_, ok := T[hash_string]
+			mutexReadyMap.Lock()
+			_, ok := T[hashString]
 			if ok {
-				T[hash_string] = append(T[hash_string], m_received{int(j), m_j})
+				T[hashString] = append(T[hashString], mReceived{int(j), mJ})
 			} else {
-				T[hash_string] = make([]m_received, 0)
-				T[hash_string] = append(T[hash_string], m_received{int(j), m_j})
+				T[hashString] = make([]mReceived, 0)
+				T[hashString] = append(T[hashString], mReceived{int(j), mJ})
 			}
 
-			if len(T[hash_string]) > MaxReadyNumber {
-				MaxReadyNumber = len(T[hash_string])
+			if len(T[hashString]) > MaxReadyNumber {
+				MaxReadyNumber = len(T[hashString])
 				MaxReadyHash = hash
 			}
 
 			//send RBCReady messages, line 13-15, Algo 4 in RBC paper
 			mutex.Lock()
-			if uint32(len(T[hash_string])) >= p.F+1 && !isReadySent {
+			if uint32(len(T[hashString])) >= p.F+1 && !isReadySent {
 				for {
-					mutex_EchoMap.Lock()
-					for m_i, count := range EchoMessageMap[hash_string] {
+					mutexEchoMap.Lock()
+					for m_i, count := range EchoMessageMap[hashString] {
 						if uint32(count) >= p.F+1 {
 							isReadySent = true
-							ready_data, _ := proto.Marshal(&protobuf.RBCReady{Hash: hash, M: []byte(m_i)})
-							p.Broadcast(&protobuf.Message{Type: "RBCReady", Sender: p.PID, Id: ID, Data: ready_data})
+							readyData, _ := proto.Marshal(&protobuf.RBCReady{Hash: hash, M: []byte(m_i)})
+							p.Broadcast(&protobuf.Message{Type: "RBCReady", Sender: p.PID, Id: ID, Data: readyData})
 							fmt.Printf("%v has broadcast RBCReady\n", p.PID)
 							break
 						}
 					}
-					mutex_EchoMap.Unlock()
+					mutexEchoMap.Unlock()
 					if isReadySent {
 						break
 					}
@@ -185,7 +185,7 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 			if uint32(len(T[string(hash)])) == p.N-p.F {
 				RSDecStart <- true
 			}
-			mutex_ReadyMap.Unlock()
+			mutexReadyMap.Unlock()
 
 			//FIXME: kill this for loop when the RBC message is reconstructed
 			// isRec := <-RecDone
@@ -204,14 +204,14 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 			}
 		}
 
-		var m_received_temp = make([]m_received, p.N-p.F+r)
-		mutex_ReadyMap.Lock()
-		copy(m_received_temp, T[string(MaxReadyHash)])
-		mutex_ReadyMap.Unlock()
+		var mReceivedTemp = make([]mReceived, p.N-p.F+r)
+		mutexReadyMap.Lock()
+		copy(mReceivedTemp, T[string(MaxReadyHash)])
+		mutexReadyMap.Unlock()
 
 		var M = make([][]byte, p.N)
 		for i := uint32(0); i < p.N-p.F+r; i++ {
-			M[m_received_temp[i].j] = m_received_temp[i].mj
+			M[mReceivedTemp[i].j] = mReceivedTemp[i].mj
 		}
 
 		RSEncoder, _ := reedsolomon.New(int(p.N-(p.F+1)), int(p.F+1))
@@ -221,23 +221,23 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 		}
 
 		//parse M and remove the padding zeros
-		var m_reconstructed = make([]byte, 0)
+		var mReconstructed = make([]byte, 0)
 		for i := uint32(0); i < p.N-(p.F+1); i++ {
-			m_reconstructed = append(m_reconstructed, M[i]...)
+			mReconstructed = append(mReconstructed, M[i]...)
 		}
 
 		//the last several bytes in MaxReadyHash are the lenth of M' (see line 9, Algo 4 in RBC paper)
-		mlen_new := utils.BytesToInt(MaxReadyHash[256/8:])
+		mLenNew := utils.BytesToInt(MaxReadyHash[256/8:])
 		//the first 256/8 bytes in MaxReadyHash are the hash value
 		MaxReadyHash = MaxReadyHash[:256/8]
-		m_reconstructed = m_reconstructed[0:mlen_new]
+		mReconstructed = mReconstructed[0:mLenNew]
 
-		h_new := sha256.New()
-		h_new.Write(m_reconstructed)
+		hNew := sha256.New()
+		hNew.Write(mReconstructed)
 
-		if bytes.Compare(h_new.Sum(nil), MaxReadyHash) == 0 {
+		if bytes.Compare(hNew.Sum(nil), MaxReadyHash) == 0 {
 			var replyMessage protobuf.Message
-			proto.Unmarshal(m_reconstructed, &replyMessage)
+			proto.Unmarshal(mReconstructed, &replyMessage)
 			return &replyMessage
 		}
 	}

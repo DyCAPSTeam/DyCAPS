@@ -22,19 +22,19 @@ type Client struct {
 
 var KZG = new(commitment.DLPolyCommit)
 var mutexKZG sync.Mutex
-var Sys_Suite = pairing.NewSuiteBn256()
+var SysSuite = pairing.NewSuiteBn256()
 
-type Pi_Content struct {
+type PiContent struct {
 	j    int
-	CR_j *pbc.Element //In DyCAPS.Share, R_j(x)=B(j,x), R_j(0)=F(j)
+	CB_j *pbc.Element //In DyCAPS.Share, R_j(x)=B(j,x), R_j(0)=F(j)
 	CZ_j *pbc.Element //Z_j(x)=R_j(x)-R_j(0)
 	WZ_0 *pbc.Element //witness of Z_j(0)=0
 	g_Fj *pbc.Element //g^F(j), F(j) is of t degree
 }
 
 type Pi struct {
-	G_s         *pbc.Element // g^s
-	Pi_contents []Pi_Content
+	Gs         *pbc.Element // g^s
+	PiContents []PiContent
 }
 
 //Assuming KZG setup has done, and public parameters are available
@@ -43,99 +43,105 @@ func (client *Client) Share(ID []byte) {
 
 	pi := new(Pi)
 	pi.Init(client.F)
-	pi.Pi_contents = make([]Pi_Content, 2*client.F+2) // here we do not use pi.Pi_contents[0]
-	var p *gmp.Int                                    // the prime of Zp* (the type is *gmp.Int)
+	pi.PiContents = make([]PiContent, 2*client.F+2) // here we do not use pi.Pi_contents[0]
+	var p *gmp.Int                                  // the prime of Zp* (the type is *gmp.Int)
 	p = ecparam.PBC256.Ngmp
 	//pi <- g^s
-	s_poly, _ := polyring.New(0)
-	_ = s_poly.SetCoefficientBig(0, client.s)
-	KZG.Commit(pi.G_s, s_poly)
-	fmt.Printf("pi.G_s: %v\n", pi.G_s)
+	sPoly, _ := polyring.New(0)
+	_ = sPoly.SetCoefficientBig(0, client.s)
+	KZG.Commit(pi.Gs, sPoly)
+	fmt.Printf("pi.Gs: %v\n", pi.Gs)
 
 	//generate a 2t-degree random polynomial F, where F(0) = s
 	var rnd = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	//TODO: use crypto/rand instead
 	var F, _ = polyring.NewRand(int(2*client.F), rnd, p)
-	var F_ValueAt = make([]*gmp.Int, 2*client.F+2) // here we do not use F_ValueAt[0]
+	var FValueat = make([]*gmp.Int, 2*client.F+2) // here we do not use F_ValueAt[0]
 	for i := 0; uint32(i) < 2*client.F+2; i++ {
-		F_ValueAt[i] = gmp.NewInt(0)
+		FValueat[i] = gmp.NewInt(0)
 	}
 	F.SetCoefficientBig(0, client.s)
 
 	//generate 2t+1 t-degree Rj(x)
-	var R_list = make([]polyring.Polynomial, 2*client.F+2) // here we do not use R_list[0]
+	var RList = make([]polyring.Polynomial, 2*client.F+2) // here we do not use R_list[0]
 	var rnd2 = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	for j := 1; uint32(j) <= 2*client.F+1; j++ {
-		F.EvalMod(gmp.NewInt(int64(j)), p, F_ValueAt[j])
-		R_list[j], _ = polyring.NewRand(int(client.F), rnd2, p) //TODO: will rnd2 makes the coefficients duplicated?
-		R_list[j].SetCoefficientBig(0, F_ValueAt[j])
+		F.EvalMod(gmp.NewInt(int64(j)), p, FValueat[j])
+		RList[j], _ = polyring.NewRand(int(client.F), rnd2, p) //TODO: will rnd2 makes the coefficients duplicated?
+		RList[j].SetCoefficientBig(0, FValueat[j])
 	}
 
 	//Commit
-	var Z_list = make([]polyring.Polynomial, 2*client.F+2) // here we do not use Z_list[0]
-	var C_R_list = make([]*pbc.Element, 2*client.F+2)      // here we do not use C_R_list[0]
-	var C_Z_list = make([]*pbc.Element, 2*client.F+2)      // here we do not use C_Z_list[0]
-	var W_Z0_list = make([]*pbc.Element, 2*client.F+2)
+	var ZList = make([]polyring.Polynomial, 2*client.F+2) // here we do not use Z_list[0]
+	var CBList = make([]*pbc.Element, 2*client.F+2)       // here we do not use C_R_list[0]
+	var CZList = make([]*pbc.Element, 2*client.F+2)       // here we do not use C_Z_list[0]
+	var WZ0List = make([]*pbc.Element, 2*client.F+2)
 	for i := 0; uint32(i) <= 2*client.F+1; i++ {
-		C_R_list[i] = KZG.NewG1()
-		C_Z_list[i] = KZG.NewG1()
-		W_Z0_list[i] = KZG.NewG1()
+		CBList[i] = KZG.NewG1()
+		CZList[i] = KZG.NewG1()
+		WZ0List[i] = KZG.NewG1()
 	}
 
 	for i := 1; uint32(i) <= 2*client.F+1; i++ {
-		Z_list[i] = polyring.NewEmpty()
-		Z_list[i].ResetTo(R_list[i])
+		ZList[i] = polyring.NewEmpty()
+		ZList[i].ResetTo(RList[i])
 	}
 
 	for i := 1; uint32(i) <= 2*client.F+1; i++ {
 		//generate Z_list
 		temp, _ := polyring.New(0) // temp means the 0-degree polynomial f(x) = F_ValueAt[i]
-		temp.SetCoefficientBig(0, F_ValueAt[i])
-		copyedZ := polyring.NewEmpty()
-		copyedZ.ResetTo(Z_list[i])
-		Z_list[i].Sub(copyedZ, temp)
-		Z_list[i].Mod(p) // don't forget mod p!!!
+		err := temp.SetCoefficientBig(0, FValueat[i])
+		if err != nil {
+			fmt.Printf("Client SetCoefficientBig error at i=%v: %v", i, err)
+		}
+		copiedZ := polyring.NewEmpty()
+		copiedZ.ResetTo(ZList[i])
+		ZList[i].Sub(copiedZ, temp)
+		ZList[i].Mod(p) // don't forget mod p!!!
 		//commit R_list
-		KZG.Commit(C_R_list[i], R_list[i])
+		KZG.Commit(CBList[i], RList[i])
 		//commit Z_list
-		KZG.Commit(C_Z_list[i], Z_list[i])
+		KZG.Commit(CZList[i], ZList[i])
 		//create witness of (Zj(x),0)
-		KZG.CreateWitness(W_Z0_list[i], Z_list[i], gmp.NewInt(0))
+		KZG.CreateWitness(WZ0List[i], ZList[i], gmp.NewInt(0))
 
 		//add to pi
 		var FjCommit *pbc.Element = KZG.NewG1()
 		KZG.Commit(FjCommit, temp)
-		pi.Pi_contents[i] = Pi_Content{j: i, CR_j: C_R_list[i], CZ_j: C_Z_list[i], WZ_0: W_Z0_list[i], g_Fj: FjCommit}
+		pi.PiContents[i] = PiContent{j: i, CB_j: CBList[i], CZ_j: CZList[i], WZ_0: WZ0List[i], g_Fj: FjCommit}
 	}
 
 	//Send
-	W_Rji := make([][]*pbc.Element, client.N+1) // the first index is in range[1,N],and the second [1,2F+1]. start from 1
-	Rji_list := make([][]*gmp.Int, client.N+1)
+	WRji := make([][]*pbc.Element, client.N+1) // the first index is in range[1,N],and the second [1,2F+1]. start from 1
+	RjiList := make([][]*gmp.Int, client.N+1)
 
 	for i := 1; uint32(i) <= client.N; i++ {
-		W_Rji[i] = make([]*pbc.Element, 2*client.F+2) // start from 1
-		Rji_list[i] = make([]*gmp.Int, 2*client.F+2)  // start from 1
+		WRji[i] = make([]*pbc.Element, 2*client.F+2) // start from 1
+		RjiList[i] = make([]*gmp.Int, 2*client.F+2)  // start from 1
 		for j := 0; uint32(j) <= 2*client.F+1; j++ {
-			Rji_list[i][j] = gmp.NewInt(0)
-			W_Rji[i][j] = KZG.NewG1()
+			RjiList[i][j] = gmp.NewInt(0)
+			WRji[i][j] = KZG.NewG1()
 		}
 		//set W_Rji
 		for j := 1; uint32(j) <= 2*client.F+1; j++ {
-			KZG.CreateWitness(W_Rji[i][j], R_list[j], gmp.NewInt(int64(i)))
-			R_list[j].EvalMod(gmp.NewInt(int64(i)), p, Rji_list[i][j])
+			KZG.CreateWitness(WRji[i][j], RList[j], gmp.NewInt(int64(i)))
+			RList[j].EvalMod(gmp.NewInt(int64(i)), p, RjiList[i][j])
 		}
 		//encapsulate
-		data := Encapsulate_VSSSend(pi, Rji_list[i], W_Rji[i], client.N, client.F)
+		data := EncapsulateVSSSend(pi, RjiList[i], WRji[i], client.N, client.F)
 		// fmt.Println("encapsulated data for ", i-1, " : ", data)
 		// for j := 1; uint32(j) <= 2*client.F+1; j++ {
 		// 	fmt.Println("i= ", i, " j= ", j, " Rj(i) = ", Rji_list[i][j], " W_Rji = ", W_Rji[i][j])
 		// }
-		client.Send(&protobuf.Message{
+		err := client.Send(&protobuf.Message{
 			Type:   "VSSSend",
 			Id:     ID,
 			Sender: 0x7fffffff, // 0x7fffffff denotes the dealer (this client) id
 			Data:   data,
-		}, uint32(i-1)) // pid = i - 1
+		}, uint32(i-1))
+		if err != nil {
+			fmt.Printf("Client send VSSSend error: %v", err)
+		} // pid = i - 1
 		// fmt.Println("client send VSSSend message to ", i)
 	}
 }

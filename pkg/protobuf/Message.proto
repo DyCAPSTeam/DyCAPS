@@ -15,6 +15,7 @@ message Value{
   bytes value = 1;// paload
   bytes validation = 2;// for external validating
 }
+
 message Echo{
   bytes sigshare = 1 ;
 }
@@ -24,29 +25,34 @@ message Lock{
   bytes value = 1;
   bytes sig = 2;
 }
+
 message Finish{
   bytes value = 1;
   bytes sig = 2;
 }
+
 message Done{
   bytes coinShare = 1 ;
 }
+
 message Halt{//Halt:=<Finish> of the round-leader
   bytes value = 1;
   bytes sig = 2;
 }
+
 message PreVote{
   bool vote = 1;
   bytes value = 2;
   bytes sig = 3;
 }
+
 message Vote{
   bool vote = 1;
   bytes value =2;
   bytes sig =3;
   bytes sigshare = 4 ;
 }
-//is this ok?
+
 message RBCEcho{
   bytes hash = 1;
   bytes m = 2;
@@ -59,7 +65,7 @@ message RBCReady{
 
 message Pi_content{
   int32 j = 1;
-  bytes CR_j = 2;
+  bytes CB_j = 2;
   bytes CZ_j = 3;
   bytes WZ_0 = 4;
   bytes g_Fj = 5;

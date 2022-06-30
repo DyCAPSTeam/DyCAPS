@@ -37,9 +37,9 @@ type HonestParty struct {
 	portList     []string // port list of the current committee
 	sendChannels []chan *protobuf.Message
 
-	ipList_next        []string // ip list of the new committee
-	portList_next      []string // port list of the new committee
-	sendtoNextChannels []chan *protobuf.Message
+	ipListNext         []string // ip list of the new committee
+	portListNext       []string // port list of the new committee
+	sendToNextChannels []chan *protobuf.Message
 
 	dispatcheChannels *sync.Map
 
@@ -51,30 +51,30 @@ type HonestParty struct {
 	fullShare polyring.Polynomial // B(p.PID+1,y)
 	halfShare polyring.Polynomial // B(x,p.PID+1)
 
-	witness_init         []*pbc.Element
-	witness_init_indexes []*gmp.Int //TODO: change this name later. witness_init_indexes[j] means the witness of Rj+1(p.PID+1)
+	witnessInit        []*pbc.Element
+	witnessInitIndexes []*gmp.Int //TODO: change this name later. witnessInitIndexes[j] means the witness of Rj+1(p.PID+1)
 }
 
 // set of elements for recover
-type S_rec_Element struct {
+type SRecElement struct {
 	j int
 	v *gmp.Int
 }
 
 // set of signatures
-type S_sig_Element struct {
+type SSigElement struct {
 	j   int
 	Sig []byte
 }
 
 // set of commitments
-type S_com_Element struct {
+type SComElement struct {
 	j  int
 	CB *pbc.Element
 }
 
 // set of elements for full shares
-type S_B_Element struct {
+type SBElement struct {
 	j  int
 	CB *pbc.Element
 	v  *gmp.Int
@@ -83,27 +83,27 @@ type S_B_Element struct {
 
 //NewHonestParty return a new honest party object
 //FIXME: witness_init may bring the problem of null pointers.
-func NewHonestParty(N uint32, F uint32, pid uint32, ipList []string, portList []string, ipList_next []string, portList_next []string, sigPK *share.PubPoly, sigSK *share.PriShare, Proof *Pi, witness []*pbc.Element, witness_indexes []*gmp.Int) *HonestParty {
+func NewHonestParty(N uint32, F uint32, pid uint32, ipList []string, portList []string, ipListNext []string, portListNext []string, sigPK *share.PubPoly, sigSK *share.PriShare, Proof *Pi, witness []*pbc.Element, witnessIndexes []*gmp.Int) *HonestParty {
 	p := HonestParty{
 		N:                  N,
 		F:                  F,
 		PID:                pid,
 		ipList:             ipList,
 		portList:           portList,
-		ipList_next:        ipList_next,
-		portList_next:      portList_next,
+		ipListNext:         ipListNext,
+		portListNext:       portListNext,
 		sendChannels:       make([]chan *protobuf.Message, N),
-		sendtoNextChannels: make([]chan *protobuf.Message, N),
+		sendToNextChannels: make([]chan *protobuf.Message, N),
 
 		SigPK: sigPK,
 		SigSK: sigSK,
 
 		Proof: Proof,
 
-		fullShare:            polyring.NewEmpty(),
-		halfShare:            polyring.NewEmpty(),
-		witness_init:         witness,
-		witness_init_indexes: witness_indexes,
+		fullShare:          polyring.NewEmpty(),
+		halfShare:          polyring.NewEmpty(),
+		witnessInit:        witness,
+		witnessInitIndexes: witnessIndexes,
 	}
 	return &p
 }
@@ -121,15 +121,15 @@ func (p *HonestParty) ShareReduceSend(ID []byte) {
 	C_R_known := make([]*pbc.Element, 2*p.F+2)
 	for j := uint32(0); j <= 2*p.F+1; j++ {
 		C_R_known[j] = KZG.NewG1()
-		C_R_known[j].Set(p.Proof.Pi_contents[j].CR_j)
-		CB_temp[j].Set(p.Proof.Pi_contents[j].CR_j)
+		C_R_known[j].Set(p.Proof.PiContents[j].CB_j)
+		CB_temp[j].Set(p.Proof.PiContents[j].CB_j)
 	}
 	for j := uint32(1); j <= 2*p.F+1; j++ {
 
 	}
 	for j := 2*p.F + 2; j <= p.N; j++ {
 		CB_temp[j] = InterpolateComOrWit(2*p.F, j, C_R_known[1:])
-		WB_temp[j] = InterpolateComOrWitbyKnownIndexes(2*p.F, j, p.witness_init_indexes, p.witness_init)
+		WB_temp[j] = InterpolateComOrWitbyKnownIndexes(2*p.F, j, p.witnessInitIndexes, p.witnessInit)
 	}
 	for j := 0; uint32(j) < p.N; j++ {
 		polyValue := gmp.NewInt(0)
@@ -239,7 +239,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	ecparamN := ecparam.PBC256.Ngmp
 	var flg_C = make([]uint32, p.N+1)
 	var flg_Rec = make([]uint32, p.N+1)
-	var sig []Pi_Content = make([]Pi_Content, 0)
+	var sig []PiContent = make([]PiContent, 0)
 
 	for i := 0; i <= int(p.N); i++ {
 		flg_C[i] = 0
@@ -312,10 +312,10 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 		KZG.Commit(CZ[j], Z[j])
 		KZG.CreateWitness(wz[j], Z[j], gmp.NewInt(0))
 		// pi_i
-		sig = append(sig, Pi_Content{j, KZG.NewG1(), KZG.NewG1(), KZG.NewG1(), KZG.NewG1()})
+		sig = append(sig, PiContent{j, KZG.NewG1(), KZG.NewG1(), KZG.NewG1(), KZG.NewG1()})
 		sig[j-1].WZ_0.Set(wz[j])
 		sig[j-1].CZ_j.Set(CZ[j])
-		sig[j-1].CR_j.Set(CR[p.PID+1][j])
+		sig[j-1].CB_j.Set(CR[p.PID+1][j])
 		sig[j-1].g_Fj.Set(Fj_C)
 	}
 
@@ -325,7 +325,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 		Commit_Message.Sig[j] = new(protobuf.PiContent)
 		Commit_Message.Sig[j].J = int32(sig[j].j)
 		Commit_Message.Sig[j].WZ_0 = sig[j].WZ_0.CompressedBytes()
-		Commit_Message.Sig[j].CRJ = sig[j].CR_j.CompressedBytes()
+		Commit_Message.Sig[j].CBJ = sig[j].CB_j.CompressedBytes()
 		Commit_Message.Sig[j].CZJ = sig[j].CZ_j.CompressedBytes()
 		Commit_Message.Sig[j].G_Fj = sig[j].g_Fj.CompressedBytes()
 	}
@@ -374,7 +374,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 					CZ_k := KZG.NewG1()
 					wz_k := KZG.NewG1()
 					Gj_k := KZG.NewG1()
-					CR_k.SetCompressedBytes(Received_Data.Sig[k].CRJ)
+					CR_k.SetCompressedBytes(Received_Data.Sig[k].CBJ)
 					CR[m.Sender+1][k+1].Set(CR_k) //added by ch
 					CZ_k.SetCompressedBytes(Received_Data.Sig[k].CZJ)
 					wz_k.SetCompressedBytes(Received_Data.Sig[k].WZ_0)
@@ -503,7 +503,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 					}
 					//Sig_hash := sha256.Sum256([]byte(string(j)))
 					//Sig[j][int(p.PID+1)] = bls.Sign(Sig_hash, p.SigSK)
-					Sig[j][int(p.PID+1)], _ = tbls.Sign(Sys_Suite, p.SigSK, []byte((strconv.Itoa(j))))
+					Sig[j][int(p.PID+1)], _ = tbls.Sign(SysSuite, p.SigSK, []byte((strconv.Itoa(j))))
 					lambda := make([]*gmp.Int, 2*p.F+1)
 					knownIndexes := make([]*gmp.Int, 2*p.F+1)
 					for k := 0; uint32(k) < 2*p.F+1; k++ {
@@ -554,11 +554,11 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 		Recover_Data_Map[i] = make(map[int]protobuf.Recover)
 	}
 	var Recover_Data_Map_Mutex sync.Mutex
-	var S_rec [][]S_rec_Element = make([][]S_rec_Element, p.N+1) // start from 1
-	var S_sig [][]S_sig_Element = make([][]S_sig_Element, p.N+1) // start from 1
+	var S_rec [][]SRecElement = make([][]SRecElement, p.N+1) // start from 1
+	var S_sig [][]SSigElement = make([][]SSigElement, p.N+1) // start from 1
 	for i := 0; i <= int(p.N); i++ {
-		S_rec[i] = make([]S_rec_Element, 0)
-		S_sig[i] = make([]S_sig_Element, 0)
+		S_rec[i] = make([]SRecElement, 0)
+		S_sig[i] = make([]SSigElement, 0)
 	}
 	var Interpolate_poly_x = make([]*gmp.Int, p.N+1)
 	var Interpolate_poly_y = make([]*gmp.Int, p.N+1)
@@ -610,11 +610,11 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 						Received_Sig := now_Recover_Data.Sig
 						//Check_Sig_Hash := sha256.Sum256([]byte(string(j)))
 
-						if KZG.VerifyEval(CR[k][p.PID+1], gmp.NewInt(int64(j)), v_k_i_j, w_k_i_j) == false || (tbls.Verify(Sys_Suite, p.SigPK, []byte(strconv.Itoa(k)), Received_Sig) != nil) {
+						if KZG.VerifyEval(CR[k][p.PID+1], gmp.NewInt(int64(j)), v_k_i_j, w_k_i_j) == false || (tbls.Verify(SysSuite, p.SigPK, []byte(strconv.Itoa(k)), Received_Sig) != nil) {
 							delete(Recover_Data_Map[k], j) // discard this message
 							continue                       // ch change break to continue.
 						}
-						S_rec[k] = append(S_rec[k], S_rec_Element{j, v_k_i_j})
+						S_rec[k] = append(S_rec[k], SRecElement{j, v_k_i_j})
 						if len(S_rec[k]) >= int(p.F+1) && flg_Rec[k] == 0 {
 							for t := 0; t < len(S_rec[k]); t++ {
 								Interpolate_poly_x[t] = gmp.NewInt(int64(S_rec[k][t].j))
@@ -624,13 +624,13 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 							R[k][int(p.PID+1)], _ = interpolation.LagrangeInterpolate(int(p.F), Interpolate_poly_x[:p.F+1], Interpolate_poly_y[:p.F+1], ecparamN) //ch add :p.F+1
 							flg_Rec[k] = 1
 						}
-						S_sig[k] = append(S_sig[k], S_sig_Element{j, Received_Sig})
+						S_sig[k] = append(S_sig[k], SSigElement{j, Received_Sig})
 						if len(S_sig[k]) >= int(2*p.F+1) && Combined_flag[k] == false {
 							var tmp_Sig = make([][]byte, len(S_sig))
 							for t := 0; t < len(S_sig[k]); t++ {
 								tmp_Sig[t] = S_sig[k][t].Sig
 							}
-							Combined_Sig[k], _ = tbls.Recover(Sys_Suite, p.SigPK, []byte(strconv.Itoa(k)), tmp_Sig, int(2*p.F), int(p.N))
+							Combined_Sig[k], _ = tbls.Recover(SysSuite, p.SigPK, []byte(strconv.Itoa(k)), tmp_Sig, int(2*p.F), int(p.N))
 							Combined_flag[k] = true
 							MVBA_In_Mutex.Lock()
 							MVBA_In.J = append(MVBA_In.J, int32(k))
@@ -697,8 +697,8 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 
 	//-------------------------------------ShareDist-------------------------------------
 	//Init
-	var S_com = make(map[int]S_com_Element)
-	var S_B []S_B_Element = make([]S_B_Element, 0)
+	var S_com = make(map[int]SComElement)
+	var S_B []SBElement = make([]SBElement, 0)
 	var S_com_Mutex sync.Mutex
 
 	//Commit
@@ -739,7 +739,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 			Received_CB.SetCompressedBytes(NewCommit_Data)
 
 			S_com_Mutex.Lock()
-			S_com[int(m.Sender+1)] = S_com_Element{
+			S_com[int(m.Sender+1)] = SComElement{
 				j:  int(m.Sender + 1),
 				CB: KZG.NewG1(),
 			}
@@ -795,7 +795,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 							}*/
 						// debug for KZG Verification later.
 						// TODO: complete the KZG verification here.
-						S_B = append(S_B, S_B_Element{
+						S_B = append(S_B, SBElement{
 							j:  0,
 							CB: KZG.NewG1(),
 							v:  gmp.NewInt(0),
