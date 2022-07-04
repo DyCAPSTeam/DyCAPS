@@ -50,7 +50,7 @@ func (client *Client) Share(ID []byte) {
 	sPoly, _ := polyring.New(0)
 	_ = sPoly.SetCoefficientBig(0, client.s)
 	KZG.Commit(pi.Gs, sPoly)
-	fmt.Printf("pi.Gs: %v\n", pi.Gs)
+	fmt.Printf("[VSSSend] pi.Gs: %v\n", pi.Gs)
 
 	//generate a 2t-degree random polynomial F, where F(0) = s
 	var rnd = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
@@ -92,7 +92,7 @@ func (client *Client) Share(ID []byte) {
 		temp, _ := polyring.New(0) // temp means the 0-degree polynomial f(x) = F_ValueAt[i]
 		err := temp.SetCoefficientBig(0, FValueat[i])
 		if err != nil {
-			fmt.Printf("Client SetCoefficientBig error at i=%v: %v", i, err)
+			fmt.Printf("[VSSSend] Client SetCoefficientBig error at i=%v: %v", i, err)
 		}
 		copiedZ := polyring.NewEmpty()
 		copiedZ.ResetTo(ZList[i])
@@ -129,19 +129,17 @@ func (client *Client) Share(ID []byte) {
 		}
 		//encapsulate
 		data := EncapsulateVSSSend(pi, RjiList[i], WRji[i], client.N, client.F)
-		// fmt.Println("encapsulated data for ", i-1, " : ", data)
-		// for j := 1; uint32(j) <= 2*client.F+1; j++ {
-		// 	fmt.Println("i= ", i, " j= ", j, " Rj(i) = ", Rji_list[i][j], " W_Rji = ", W_Rji[i][j])
-		// }
 		err := client.Send(&protobuf.Message{
 			Type:   "VSSSend",
 			Id:     ID,
 			Sender: 0x7fffffff, // 0x7fffffff denotes the dealer (this client) id
 			Data:   data,
-		}, uint32(i-1))
+		}, uint32(i-1)) // pid = i - 1
 		if err != nil {
-			fmt.Printf("Client send VSSSend error: %v", err)
-		} // pid = i - 1
-		// fmt.Println("client send VSSSend message to ", i)
+			fmt.Printf("[VSSSend] Client send VSSSend error: %v\n", err)
+		} else {
+			fmt.Printf("[VSSSend] Client has sent VSSSend to party %v\n", i-1)
+		}
+		// fmt.Println("[VSSSend] client send VSSSend message to ", i)
 	}
 }

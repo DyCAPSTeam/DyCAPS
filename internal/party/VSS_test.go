@@ -46,7 +46,7 @@ func TestDealer(t *testing.T) {
 	for i := uint32(0); i < N; i++ {
 		err := p[i].InitReceiveChannel()
 		if err != nil {
-			fmt.Printf("Party %v initReceiveChannel err: %v\n", i, err)
+			fmt.Printf("[VSS TestDealer] Party %v initReceiveChannel err: %v\n", i, err)
 		}
 	}
 
@@ -54,7 +54,7 @@ func TestDealer(t *testing.T) {
 	for i := uint32(0); i < N; i++ {
 		err := p[i].InitSendChannel()
 		if err != nil {
-			fmt.Printf("Party %v InitSendChannel err: %v\n", i, err)
+			fmt.Printf("[VSS TestDealer] Party %v InitSendChannel err: %v\n", i, err)
 		}
 	}
 
@@ -64,7 +64,7 @@ func TestDealer(t *testing.T) {
 	client.HonestParty = NewHonestParty(N, F, clientID, ipList, portList, ipListNext, portListNext, pk, sk[2*F+1], piInit, witnessInit, witnessInitIndexes)
 	err := client.InitSendChannel()
 	if err != nil {
-		fmt.Printf("Client InitSendChannel err: %v\n", err)
+		fmt.Printf("[VSS TestDealer] Client InitSendChannel err: %v\n", err)
 	}
 
 	client.Share([]byte("vssshare"))
@@ -164,7 +164,7 @@ func TestVSS(t *testing.T) {
 	for i := uint32(0); i < N; i++ {
 		err := p[i].InitReceiveChannel()
 		if err != nil {
-			fmt.Printf("Party %v initReceiveChannel err: %v\n", i, err)
+			fmt.Printf("[VSS] Party %v initReceiveChannel err: %v\n", i, err)
 		}
 	}
 
@@ -172,7 +172,7 @@ func TestVSS(t *testing.T) {
 	for i := uint32(0); i < N; i++ {
 		err := p[i].InitSendChannel()
 		if err != nil {
-			fmt.Printf("Party %v InitSendChannel err: %v\n", i, err)
+			fmt.Printf("[VSS] Party %v InitSendChannel err: %v\n", i, err)
 		}
 	}
 
@@ -182,27 +182,27 @@ func TestVSS(t *testing.T) {
 	client.HonestParty = NewHonestParty(N, F, clientID, ipList, portList, ipListNext, portListNext, pk, sk[2*F+1], piInit, witnessInit, witnessInitIndexes)
 	err := client.InitSendChannel()
 	if err != nil {
-		fmt.Printf("Client InitSendChannel err: %v\n", err)
+		fmt.Printf("[VSS] Client InitSendChannel err: %v\n", err)
 	}
 
 	client.Share([]byte("VSSshare"))
-	fmt.Printf("VSSshare done\n")
+	fmt.Printf("[VSS] VSSshare done\n")
 
 	var wg sync.WaitGroup
 
 	wg.Add(int(N))
 	for i := uint32(0); i < N; i++ {
 		go func(i uint32) {
-			fmt.Printf("Party %v starting...\n", i)
-			p[i].VSSshareReceiver([]byte("VSSshare"))
+			fmt.Printf("[VSS] Party %v starting...\n", i)
+			p[i].VSSShareReceive([]byte("VSSshare"))
 			wg.Done()
-			fmt.Printf("Party %v done\n", i)
+			fmt.Printf("[VSS] Party %v done\n", i)
 		}(i)
 	}
 
 	wg.Wait()
 
-	fmt.Println("VSS Finish")
+	fmt.Println("[VSS] VSS Finish")
 }
 func TestF(t *testing.T) {
 
