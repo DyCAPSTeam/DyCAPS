@@ -8,7 +8,6 @@ import (
 
 	"github.com/DyCAPSTeam/DyCAPS/internal/ecparam"
 	"github.com/DyCAPSTeam/DyCAPS/internal/polyring"
-	"github.com/Nik-U/pbc"
 	"github.com/ncw/gmp"
 )
 
@@ -22,20 +21,12 @@ func TestCompleteProcess(t *testing.T) {
 	sk, pk := SigKeyGen(N, 2*F+1)
 	sk_new, pk_new := SigKeyGen(N, 2*F+1)
 	KZG.SetupFix(int(2 * F))
-	pi_init := new(Pi)
-	pi_init.Init(F)
-	witness_init := make([]*pbc.Element, 2*F+1)
-	witness_init_indexes := make([]*gmp.Int, 2*F+1)
-	for i := 0; uint32(i) < 2*F+1; i++ {
-		witness_init[i] = KZG.NewG1()
-		witness_init_indexes[i] = gmp.NewInt(0)
-	}
 
 	var p []*HonestParty = make([]*HonestParty, N)
 	var p_next []*HonestParty = make([]*HonestParty, N)
 	for i := uint32(0); i < N; i++ {
-		p[i] = NewHonestParty(N, F, i, ipList, portList, ipList_next, portList_next, pk, sk[i], pi_init, witness_init, witness_init_indexes)
-		p_next[i] = NewHonestParty(N, F, i, ipList_next, portList_next, nil, nil, pk_new, sk_new[i], pi_init, witness_init, witness_init_indexes)
+		p[i] = NewHonestParty(N, F, i, ipList, portList, ipList_next, portList_next, pk, sk[i])
+		p_next[i] = NewHonestParty(N, F, i, ipList_next, portList_next, nil, nil, pk_new, sk_new[i])
 	}
 
 	for i := uint32(0); i < N; i++ {
@@ -52,7 +43,7 @@ func TestCompleteProcess(t *testing.T) {
 	var client Client
 	client.s = new(gmp.Int)
 	client.s.SetInt64(int64(111111111111111))
-	client.HonestParty = NewHonestParty(N, F, 0x7fffffff, ipList, portList, ipList_next, portList_next, pk, nil, pi_init, witness_init, witness_init_indexes)
+	client.HonestParty = NewHonestParty(N, F, 0x7fffffff, ipList, portList, ipList_next, portList_next, pk, nil)
 	client.InitSendChannel()
 
 	client.Share([]byte("vssshare"))
@@ -62,7 +53,7 @@ func TestCompleteProcess(t *testing.T) {
 	wg.Add(int(N))
 	for i := uint32(0); i < N; i++ {
 		go func(i uint32) {
-			p[i].VSSshareReceiver([]byte("vssshare"))
+			p[i].VSSShareReceive([]byte("vssshare"))
 			wg.Done()
 		}(i)
 	}
@@ -71,7 +62,7 @@ func TestCompleteProcess(t *testing.T) {
 	wg.Add(int(N))
 	for i := uint32(0); i < N; i++ {
 		go func(i uint32) {
-			p_next[i].ShareReduceReceiver([]byte("shareReduce"))
+			p_next[i].ShareReduceReceive([]byte("shareReduce"))
 			wg.Done()
 		}(i)
 	}
@@ -102,18 +93,10 @@ func TestProactivizeAndShareDist(t *testing.T) {
 	F := uint32(1)
 	sk, pk := SigKeyGen(N, 2*F+1)
 	KZG.SetupFix(int(2 * F))
-	pi_init := new(Pi)
-	pi_init.Init(F)
-	witness_init := make([]*pbc.Element, 2*F+1)
-	witness_init_indexes := make([]*gmp.Int, 2*F+1)
-	for i := 0; uint32(i) < 2*F+1; i++ {
-		witness_init[i] = KZG.NewG1()
-		witness_init_indexes[i] = gmp.NewInt(0)
-	}
 
 	var p []*HonestParty = make([]*HonestParty, N)
 	for i := uint32(0); i < N; i++ {
-		p[i] = NewHonestParty(N, F, i, ipList, portList, ipList_next, portList_next, pk, sk[i], pi_init, witness_init, witness_init_indexes)
+		p[i] = NewHonestParty(N, F, i, ipList, portList, ipList_next, portList_next, pk, sk[i])
 	}
 
 	for i := uint32(0); i < N; i++ {
@@ -127,7 +110,7 @@ func TestProactivizeAndShareDist(t *testing.T) {
 	for i := uint32(0); i < N; i++ {
 		var rnd = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 		newPoly, _ := polyring.NewRand(int(F), rnd, ecparam.PBC256.Ngmp)
-		p[i].halfShare.ResetTo(newPoly)
+		p[i].reducedShare.ResetTo(newPoly)
 	}
 
 	var wg sync.WaitGroup

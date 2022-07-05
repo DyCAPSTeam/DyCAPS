@@ -8,7 +8,7 @@ import (
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/utils"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 //MakeReceiveChannel returns a channel receiving messages

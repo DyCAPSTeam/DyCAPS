@@ -9,8 +9,6 @@ import (
 
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 	_ "github.com/DyCAPSTeam/DyCAPS/pkg/utils"
-	"github.com/Nik-U/pbc"
-	"github.com/ncw/gmp"
 )
 
 func TestRBC(t *testing.T) {
@@ -23,18 +21,10 @@ func TestRBC(t *testing.T) {
 	F := uint32(4)
 	KZG.SetupFix(int(2 * F))
 	sk, pk := SigKeyGen(N, N-F)
-	piInit := new(Pi)
-	piInit.Init(F)
-	witnessInit := make([]*pbc.Element, N-F)
-	witnessInitIndexes := make([]*gmp.Int, N-F)
-	for i := 0; uint32(i) < N-F; i++ {
-		witnessInit[i] = KZG.NewG1()
-		witnessInitIndexes[i] = gmp.NewInt(0)
-	}
 
 	var p []*HonestParty = make([]*HonestParty, N)
 	for i := uint32(0); i < N; i++ {
-		p[i] = NewHonestParty(N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i], piInit, witnessInit, witnessInitIndexes)
+		p[i] = NewHonestParty(N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i])
 	}
 	for i := uint32(0); i < N; i++ {
 		p[i].InitReceiveChannel()
@@ -73,18 +63,10 @@ func TestRBCExlude(t *testing.T) {
 	F := uint32(1)
 	KZG.SetupFix(int(2 * F))
 	sk, pk := SigKeyGen(N, N-F)
-	piInit := new(Pi)
-	piInit.Init(F)
-	witnessInit := make([]*pbc.Element, N-F)
-	witnessInitIndexes := make([]*gmp.Int, N-F)
-	for i := 0; uint32(i) < N-F; i++ {
-		witnessInit[i] = KZG.NewG1()
-		witnessInitIndexes[i] = gmp.NewInt(0)
-	}
 
 	var p []*HonestParty = make([]*HonestParty, N)
 	for i := uint32(0); i < N; i++ {
-		p[i] = NewHonestParty(N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i], piInit, witnessInit, witnessInitIndexes)
+		p[i] = NewHonestParty(N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i])
 	}
 	for i := uint32(0); i < N; i++ {
 		p[i].InitReceiveChannel()
@@ -124,18 +106,10 @@ func TestMultiRBC(t *testing.T) {
 	F := uint32(1)
 	KZG.SetupFix(int(2 * F))
 	sk, pk := SigKeyGen(N, 2*F+1)
-	piInit := new(Pi)
-	piInit.Init(F)
-	witnessInit := make([]*pbc.Element, 2*F+1)
-	witnessInitIndexes := make([]*gmp.Int, 2*F+1)
-	for i := 0; uint32(i) < 2*F+1; i++ {
-		witnessInit[i] = KZG.NewG1()
-		witnessInitIndexes[i] = gmp.NewInt(0)
-	}
 
 	var p []*HonestParty = make([]*HonestParty, N)
 	for i := uint32(0); i < N; i++ {
-		p[i] = NewHonestParty(N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i], piInit, witnessInit, witnessInitIndexes)
+		p[i] = NewHonestParty(N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i])
 	}
 	for i := uint32(0); i < N; i++ {
 		p[i].InitReceiveChannel()

@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/Nik-U/pbc"
-	"github.com/golang/protobuf/proto"
 	"github.com/ncw/gmp"
 	"go.dedis.ch/kyber/v3/share"
 	"go.dedis.ch/kyber/v3/sign/tbls"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/DyCAPSTeam/DyCAPS/internal/conv"
 	"github.com/DyCAPSTeam/DyCAPS/internal/ecparam"
@@ -21,13 +21,14 @@ import (
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 )
 
-//Party is a interface of committee members
+//Party is an interface of committee members
 type Party interface {
 	send(m *protobuf.Message, des uint32) error
 	broadcast(m *protobuf.Message) error
 	getMessageWithType(messageType string) (*protobuf.Message, error)
 }
 
+//TODO: add epoch number into this struct
 //HonestParty is a struct of honest committee members
 type HonestParty struct {
 	N            uint32   // committee size
@@ -41,39 +42,39 @@ type HonestParty struct {
 	portListNext       []string // port list of the new committee
 	sendToNextChannels []chan *protobuf.Message
 
-	dispatcheChannels *sync.Map
+	dispatchChannels *sync.Map
 
 	SigPK *share.PubPoly  //tss pk
 	SigSK *share.PriShare //tss sk
 
 	Proof *Pi //pi
 
-	fullShare polyring.Polynomial // B(p.PID+1,y)
-	halfShare polyring.Polynomial // B(x,p.PID+1)
+	fullShare    polyring.Polynomial // B(p.PID+1,y)
+	reducedShare polyring.Polynomial // B(x,p.PID+1)
 
 	witnessInit        []*pbc.Element
 	witnessInitIndexes []*gmp.Int //TODO: change this name later. witnessInitIndexes[j] means the witness of Rj+1(p.PID+1)
 }
 
-// set of elements for recover
+// SRecElement is the set of elements for recover
 type SRecElement struct {
 	j int
 	v *gmp.Int
 }
 
-// set of signatures
+// SSigElement is the set of signatures
 type SSigElement struct {
 	j   int
 	Sig []byte
 }
 
-// set of commitments
+// SComElement is the set of commitments
 type SComElement struct {
 	j  int
 	CB *pbc.Element
 }
 
-// set of elements for full shares
+// SBElement is the set of elements for full shares
 type SBElement struct {
 	j  int
 	CB *pbc.Element
@@ -81,9 +82,17 @@ type SBElement struct {
 	w  *pbc.Element
 }
 
-//NewHonestParty return a new honest party object
-//FIXME: witness_init may bring the problem of null pointers.
-func NewHonestParty(N uint32, F uint32, pid uint32, ipList []string, portList []string, ipListNext []string, portListNext []string, sigPK *share.PubPoly, sigSK *share.PriShare, Proof *Pi, witness []*pbc.Element, witnessIndexes []*gmp.Int) *HonestParty {
+//NewHonestParty returns a new honest party object
+//FIXME: witnessInit may bring the problem of null pointers.
+func NewHonestParty(N uint32, F uint32, pid uint32, ipList []string, portList []string, ipListNext []string, portListNext []string, sigPK *share.PubPoly, sigSK *share.PriShare) *HonestParty {
+	piInit := new(Pi)
+	piInit.Init(F)
+	witnessInit := make([]*pbc.Element, 2*F+2)
+	witnessInitIndexes := make([]*gmp.Int, 2*F+2)
+	for i := 0; uint32(i) < 2*F+2; i++ {
+		witnessInit[i] = KZG.NewG1()
+		witnessInitIndexes[i] = gmp.NewInt(0)
+	}
 	p := HonestParty{
 		N:                  N,
 		F:                  F,
@@ -98,46 +107,53 @@ func NewHonestParty(N uint32, F uint32, pid uint32, ipList []string, portList []
 		SigPK: sigPK,
 		SigSK: sigSK,
 
-		Proof: Proof,
+		Proof: piInit,
 
 		fullShare:          polyring.NewEmpty(),
-		halfShare:          polyring.NewEmpty(),
-		witnessInit:        witness,
-		witnessInitIndexes: witnessIndexes,
+		reducedShare:       polyring.NewEmpty(),
+		witnessInit:        witnessInit,
+		witnessInitIndexes: witnessInitIndexes,
 	}
 	return &p
 }
 
 func (p *HonestParty) ShareReduceSend(ID []byte) {
 	ecparamN := ecparam.PBC256.Ngmp
-	//interpolate N commitments by p.Proof
-	var CB_temp = make([]*pbc.Element, p.N+1, p.N+1) //B(j,x)=R_j(x), start from 1
-	var WB_temp = make([]*pbc.Element, p.N+1, p.N+1) //start from 1
-	for i := 0; uint32(i) <= p.N; i++ {
-		CB_temp[i] = KZG.NewG1()
-		WB_temp[i] = KZG.NewG1()
+
+	var tmpCB = make([]*pbc.Element, p.N+1) //B(x,j)=R_j(x), start from 1
+	var tmpWB = make([]*pbc.Element, p.N+1) //start from 1
+	for i := uint32(0); i < p.N+1; i++ {
+		tmpCB[i] = KZG.NewG1()
+		tmpWB[i] = KZG.NewG1()
 	}
 
-	C_R_known := make([]*pbc.Element, 2*p.F+2)
-	for j := uint32(0); j <= 2*p.F+1; j++ {
-		C_R_known[j] = KZG.NewG1()
-		C_R_known[j].Set(p.Proof.PiContents[j].CB_j)
-		CB_temp[j].Set(p.Proof.PiContents[j].CB_j)
+	for j := uint32(0); j < 2*p.F+2; j++ {
+		tmpCB[j].Set(p.Proof.PiContents[j].CB_j)
+		tmpWB[p.witnessInitIndexes[j].Int64()].Set(p.witnessInit[j])
 	}
-	for j := uint32(1); j <= 2*p.F+1; j++ {
 
+	//interpolate the commitments and witnesses
+	mutexPolyring.Lock()
+	for j := uint32(1); j < p.N+1; j++ {
+		tmpCB[j] = InterpolateComOrWit(2*p.F, j, tmpCB[1:2*p.F+2])
+		tmpWB[j] = InterpolateComOrWitbyKnownIndexes(2*p.F, j, p.witnessInitIndexes[1:], p.witnessInit[1:])
+		// tmpWB[j] = InterpolateComOrWit(2*p.F, j, tmpWB[1:])
 	}
-	for j := 2*p.F + 2; j <= p.N; j++ {
-		CB_temp[j] = InterpolateComOrWit(2*p.F, j, C_R_known[1:])
-		WB_temp[j] = InterpolateComOrWitbyKnownIndexes(2*p.F, j, p.witnessInitIndexes, p.witnessInit)
+
+	mutexPolyring.Unlock()
+
+	if p.PID == 1 {
+		fmt.Printf("Party %v, tmpWB: %v\n", p.PID, tmpWB)
+		fmt.Printf("Party %v, tmpCB: %v\n", p.PID, tmpCB)
 	}
-	for j := 0; uint32(j) < p.N; j++ {
+
+	for j := uint32(0); j < p.N; j++ {
 		polyValue := gmp.NewInt(0)
 		p.fullShare.EvalMod(gmp.NewInt(int64(j+1)), ecparamN, polyValue)
 		ShareReduceMessage := protobuf.ShareReduce{
-			C: CB_temp[j+1].CompressedBytes(),
+			C: tmpCB[j+1].CompressedBytes(),
 			V: polyValue.Bytes(),
-			W: WB_temp[j+1].CompressedBytes(),
+			W: tmpWB[j+1].CompressedBytes(),
 		}
 		data, _ := proto.Marshal(&ShareReduceMessage)
 		p.SendtoNext(&protobuf.Message{
@@ -145,92 +161,93 @@ func (p *HonestParty) ShareReduceSend(ID []byte) {
 			Id:     ID,
 			Sender: p.PID,
 			Data:   data,
-		}, uint32(j))
+		}, j)
 	}
 }
 
-func (p *HonestParty) ShareReduceReceiver(ID []byte) {
+func (p *HonestParty) ShareReduceReceive(ID []byte) {
 	ecparamN := ecparam.PBC256.Ngmp
-	var ShareReduce_wg sync.WaitGroup
-	var ShareReduce_map = make(map[string][]polypoint.PolyPoint)
-	var ShareReduce_C_count = make(map[string]uint32)
-	var mutex_ShareReduceMap sync.Mutex
-	var Most_Counted_C string
+	// var wgShareReduce sync.WaitGroup
+	var ShareReduceMap = make(map[string][]polypoint.PolyPoint)
+	var ComMap = make(map[string]uint32)
+	// var mutexShareReduceMap sync.Mutex
+	var MostCountedCom string
 
-	var v_j *gmp.Int
-	var C, w_j *pbc.Element
+	var vJ *gmp.Int
+	var C, wJ *pbc.Element
 	var deg = 0
-	var poly_x, poly_y []*gmp.Int
-	v_j = gmp.NewInt(0)
+	var polyX, polyY []*gmp.Int
+	vJ = gmp.NewInt(0)
 	C = KZG.NewG1()
-	w_j = KZG.NewG1()
+	wJ = KZG.NewG1()
 
-	ShareReduce_wg.Add(1)
-	go func() {
-		for {
-			m := <-p.GetMessage("ShareReduce", ID)
-			fmt.Println(p.PID, " receive ShareReduce Message from ", m.Sender)
-			var ShareReduceData protobuf.ShareReduce
-			proto.Unmarshal(m.Data, &ShareReduceData)
-			C.SetCompressedBytes(ShareReduceData.C)
-			w_j.SetCompressedBytes(ShareReduceData.W)
-			v_j.SetBytes(ShareReduceData.V)
-			mutex_ShareReduceMap.Lock()
+	for {
+		m := <-p.GetMessage("ShareReduce", ID)
+		fmt.Printf("[ShareReduce] Party %v receives ShareReduce message from %v\n", p.PID, m.Sender)
+		var ShareReduceData protobuf.ShareReduce
+		proto.Unmarshal(m.Data, &ShareReduceData)
+		C.SetCompressedBytes(ShareReduceData.C)
+		wJ.SetCompressedBytes(ShareReduceData.W)
+		vJ.SetBytes(ShareReduceData.V)
 
-			//if KZG.VerifyEval(C, gmp.NewInt(int64(m.Sender+1)), v_j, w_j) {
-			//TODO:Add KZG verification here
-			_, ok2 := ShareReduce_map[string(ShareReduceData.C)]
+		verified := KZG.VerifyEval(C, gmp.NewInt(int64(m.Sender+1)), vJ, wJ)
+		if verified {
+			// mutexShareReduceMap.Lock()
+			_, ok2 := ShareReduceMap[string(ShareReduceData.C)]
 			if ok2 {
-				ShareReduce_map[string(ShareReduceData.C)] = append(ShareReduce_map[string(ShareReduceData.C)], polypoint.PolyPoint{
+				ShareReduceMap[string(ShareReduceData.C)] = append(ShareReduceMap[string(ShareReduceData.C)], polypoint.PolyPoint{
 					X:       0,
 					Y:       gmp.NewInt(0),
 					PolyWit: KZG.NewG1(),
 				})
-				count := ShareReduce_C_count[string(ShareReduceData.C)]
+				count := ComMap[string(ShareReduceData.C)]
 
-				ShareReduce_map[string(ShareReduceData.C)][count].X = int32(m.Sender + 1)
-				ShareReduce_map[string(ShareReduceData.C)][count].Y.Set(v_j)
-				ShareReduce_map[string(ShareReduceData.C)][count].PolyWit.Set(w_j)
-				ShareReduce_C_count[string(ShareReduceData.C)] += 1
+				ShareReduceMap[string(ShareReduceData.C)][count].X = int32(m.Sender + 1)
+				ShareReduceMap[string(ShareReduceData.C)][count].Y.Set(vJ)
+				ShareReduceMap[string(ShareReduceData.C)][count].PolyWit.Set(wJ)
+				ComMap[string(ShareReduceData.C)] += 1
 			} else {
-				ShareReduce_map[string(ShareReduceData.C)] = make([]polypoint.PolyPoint, 0)
-				ShareReduce_map[string(ShareReduceData.C)] = append(ShareReduce_map[string(ShareReduceData.C)], polypoint.PolyPoint{
+				ShareReduceMap[string(ShareReduceData.C)] = make([]polypoint.PolyPoint, 0)
+				ShareReduceMap[string(ShareReduceData.C)] = append(ShareReduceMap[string(ShareReduceData.C)], polypoint.PolyPoint{
 					X:       0,
 					Y:       gmp.NewInt(0),
 					PolyWit: KZG.NewG1(),
 				})
-				ShareReduce_map[string(ShareReduceData.C)][0].X = int32(m.Sender + 1)
-				ShareReduce_map[string(ShareReduceData.C)][0].Y.Set(v_j)
-				ShareReduce_map[string(ShareReduceData.C)][0].PolyWit.Set(w_j)
-				ShareReduce_C_count[string(ShareReduceData.C)] = 1
+				ShareReduceMap[string(ShareReduceData.C)][0].X = int32(m.Sender + 1)
+				ShareReduceMap[string(ShareReduceData.C)][0].Y.Set(vJ)
+				ShareReduceMap[string(ShareReduceData.C)][0].PolyWit.Set(wJ)
+				ComMap[string(ShareReduceData.C)] = 1
 			}
-			//}
-			if uint32(ShareReduce_C_count[string(ShareReduceData.C)]) >= p.F+1 {
-				Most_Counted_C = string(ShareReduceData.C)
-				ShareReduce_wg.Done()
-				mutex_ShareReduceMap.Unlock()
-				return
+
+			if ComMap[string(ShareReduceData.C)] >= p.F+1 {
+				MostCountedCom = string(ShareReduceData.C)
+
+				// mutexShareReduceMap.Unlock()
+				fmt.Printf("[ShareReduce] Party %v has finished ShareReduce.\n", p.PID)
+				break
 			}
-			mutex_ShareReduceMap.Unlock()
+			// mutexShareReduceMap.Unlock()
+		} else {
+			fmt.Printf("[ShareReduce] Party %v verifies Reduce message from party %v FAIL. C: %s, v: %v, w: %s\n", p.PID, m.Sender, C.String(), vJ, wJ.String())
 		}
-	}()
-	ShareReduce_wg.Wait()
-	mutex_ShareReduceMap.Lock()
-	poly_x = make([]*gmp.Int, p.F+1)
-	poly_y = make([]*gmp.Int, p.F+1)
+	}
+
+	// mutexShareReduceMap.Lock()
+	polyX = make([]*gmp.Int, p.F+1)
+	polyY = make([]*gmp.Int, p.F+1)
 	for i := uint32(0); i <= p.F; i++ {
 
-		poly_x[deg] = gmp.NewInt(0)
-		poly_x[deg].Set(gmp.NewInt(int64(ShareReduce_map[Most_Counted_C][i].X)))
-		poly_y[deg] = gmp.NewInt(0)
-		poly_y[deg].Set(ShareReduce_map[Most_Counted_C][i].Y)
+		polyX[deg] = gmp.NewInt(0)
+		polyX[deg].Set(gmp.NewInt(int64(ShareReduceMap[MostCountedCom][i].X)))
+		polyY[deg] = gmp.NewInt(0)
+		polyY[deg].Set(ShareReduceMap[MostCountedCom][i].Y)
 		deg++
 	}
 
-	mutex_ShareReduceMap.Unlock()
-	p.halfShare, _ = interpolation.LagrangeInterpolate(int(p.F), poly_x, poly_y, ecparamN)
-	fmt.Println("Party ", p.PID, " recover its halfShare:")
-	p.halfShare.Print()
+	// mutexShareReduceMap.Unlock()
+	p.reducedShare, _ = interpolation.LagrangeInterpolate(int(p.F), polyX, polyY, ecparamN)
+	fmt.Println("Party ", p.PID, " recover its reducedShare:")
+	p.reducedShare.Print()
 }
 
 //FIXME: the secret after the Proactivize phase is not correct.
@@ -340,8 +357,8 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				fmt.Println("Party", p.PID, "receive RBC message from", m.Sender, "in ShareDist Phase,the ID is", string(ID))
 				var Received_Data protobuf.Commit
 				proto.Unmarshal(m.Data, &Received_Data)
-				var Verify_Flag = KZG.NewG1()
-				Verify_Flag = Verify_Flag.Set1()
+				// var Verify_Flag = KZG.NewG1()
+				// Verify_Flag = Verify_Flag.Set1()
 				lambda := make([]*gmp.Int, 2*p.F+1)
 				knownIndexes := make([]*gmp.Int, 2*p.F+1)
 				for k := 0; uint32(k) < 2*p.F+1; k++ {
@@ -381,12 +398,12 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 					Gj_k.SetCompressedBytes(Received_Data.Sig[k].G_Fj)
 					mul_res := KZG.NewG1()
 					mul_res.Mul(CZ_k, Gj_k)
-					if KZG.VerifyEval(CZ_k, gmp.NewInt(0), gmp.NewInt(0), wz_k) == false || CR_k.Equals(mul_res) == false {
+					if !KZG.VerifyEval(CZ_k, gmp.NewInt(0), gmp.NewInt(0), wz_k) || !CR_k.Equals(mul_res) {
 						revert_flag = true
 						break
 					}
 				}
-				if revert_flag == true {
+				if revert_flag {
 					return //possible bug
 				}
 
@@ -684,14 +701,14 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 		//TODO: add CQ here later!!
 		fmt.Println("Party", p.PID, "recover Q:")
 		Q.Print()
-		fmt.Println("Party", p.PID, "previous halfShare:")
-		p.halfShare.Print()
+		fmt.Println("Party", p.PID, "previous reducedShare:")
+		p.reducedShare.Print()
 		copyed_halfShare := polyring.NewEmpty()
-		copyed_halfShare.ResetTo(p.halfShare)
-		p.halfShare.Add(Q, copyed_halfShare)
-		p.halfShare.Mod(ecparamN)
-		fmt.Println("Party ", p.PID, "get its new halfShare:")
-		p.halfShare.Print()
+		copyed_halfShare.ResetTo(p.reducedShare)
+		p.reducedShare.Add(Q, copyed_halfShare)
+		p.reducedShare.Mod(ecparamN)
+		fmt.Println("Party ", p.PID, "get its new reducedShare:")
+		p.reducedShare.Print()
 		break
 	}
 
@@ -707,7 +724,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 		C_B[i] = KZG.NewG1()
 	}
 
-	KZG.Commit(C_B[p.PID+1], p.halfShare)
+	KZG.Commit(C_B[p.PID+1], p.reducedShare)
 	var NewCommit_Message protobuf.NewCommit
 	NewCommit_Message.CB = C_B[p.PID+1].CompressedBytes()
 	NewCommit_Message_Data, _ := proto.Marshal(&NewCommit_Message)
@@ -720,8 +737,8 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	B_i_j = gmp.NewInt(0)
 
 	for j := 1; j <= int(p.N); j++ {
-		p.halfShare.EvalMod(gmp.NewInt(int64(j)), ecparamN, B_i_j)
-		KZG.CreateWitness(w_B_i_j, p.halfShare, gmp.NewInt(int64(j)))
+		p.reducedShare.EvalMod(gmp.NewInt(int64(j)), ecparamN, B_i_j)
+		KZG.CreateWitness(w_B_i_j, p.reducedShare, gmp.NewInt(int64(j)))
 		var ShareDist_Message protobuf.ShareDist
 		ShareDist_Message.B = B_i_j.Bytes()
 		ShareDist_Message.WB = w_B_i_j.CompressedBytes()

@@ -44,8 +44,7 @@ func (client *Client) Share(ID []byte) {
 	pi := new(Pi)
 	pi.Init(client.F)
 	pi.PiContents = make([]PiContent, 2*client.F+2) // here we do not use pi.Pi_contents[0]
-	var p *gmp.Int                                  // the prime of Zp* (the type is *gmp.Int)
-	p = ecparam.PBC256.Ngmp
+	var p *gmp.Int = ecparam.PBC256.Ngmp            // the prime of Zp* (the type is *gmp.Int)
 	//pi <- g^s
 	sPoly, _ := polyring.New(0)
 	_ = sPoly.SetCoefficientBig(0, client.s)

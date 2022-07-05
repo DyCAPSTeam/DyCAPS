@@ -10,8 +10,8 @@ import (
 	"github.com/DyCAPSTeam/DyCAPS/pkg/core"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 	"github.com/Nik-U/pbc"
-	"github.com/golang/protobuf/proto"
 	"github.com/ncw/gmp"
+	"google.golang.org/protobuf/proto"
 )
 
 //indexes of polyValue[] start from 1!
@@ -21,7 +21,7 @@ func ParseSendMessage(message *protobuf.VSSSend, pi *Pi, N uint32, F uint32, pol
 
 //InitReceiveChannel setup the listener and Init the receiveChannel
 func (p *HonestParty) InitReceiveChannel() error {
-	p.dispatcheChannels = core.MakeDispatcheChannels(core.MakeReceiveChannel(p.portList[p.PID]), p.N)
+	p.dispatchChannels = core.MakeDispatcheChannels(core.MakeReceiveChannel(p.portList[p.PID]), p.N)
 	return nil
 }
 
@@ -45,13 +45,13 @@ func (p *HonestParty) InitSendtoNextChannel() error {
 //Send a message to a party with des as its pid, 0 =< des < p.N
 func (p *HonestParty) Send(m *protobuf.Message, des uint32) error {
 	if !p.checkSendChannelsInit() {
-		return errors.New("This party's send channels are not initialized yet")
+		return errors.New("this party's send channels are not initialized yet")
 	}
 	if des < p.N {
 		p.sendChannels[des] <- m
 		return nil
 	} else {
-		return errors.New("This pid is too large")
+		return errors.New("this pid is too large")
 	}
 }
 
@@ -59,19 +59,19 @@ func (p *HonestParty) Send(m *protobuf.Message, des uint32) error {
 //Send a message to a new committtee party with des as its pid, 0 =< des < p.N
 func (p *HonestParty) SendtoNext(m *protobuf.Message, des uint32) error {
 	if !p.checkInitSendChannelstoNext() {
-		return errors.New("This party's send channels are not initialized yet")
+		return errors.New("this party's send channels are not initialized yet")
 	}
 	if des < p.N {
 		p.sendToNextChannels[des] <- m
 		return nil
 	}
-	return errors.New("This pid is too large")
+	return errors.New("this pid is too large")
 }
 
 //Broadcast a message to all parties
 func (p *HonestParty) Broadcast(m *protobuf.Message) error {
 	if !p.checkSendChannelsInit() {
-		return errors.New("This party's send channels are not initialized yet")
+		return errors.New("this party's send channels are not initialized yet")
 	}
 	for i := uint32(0); i < p.N; i++ {
 		err := p.Send(m, i)
@@ -85,7 +85,7 @@ func (p *HonestParty) Broadcast(m *protobuf.Message) error {
 //Broadcast a message to all parties except pid, used for RBC_test
 func (p *HonestParty) BroadcastExclude(m *protobuf.Message, pid uint32) error {
 	if !p.checkSendChannelsInit() {
-		return errors.New("This party's send channels are not initialized yet")
+		return errors.New("this party's send channels are not initialized yet")
 	}
 	for i := uint32(0); i < p.N; i++ {
 		if i != pid {
@@ -102,7 +102,7 @@ func (p *HonestParty) BroadcastExclude(m *protobuf.Message, pid uint32) error {
 //Broadcast a message to all parties in the new committee
 func (p *HonestParty) BroadcasttoNext(m *protobuf.Message) error {
 	if !p.checkInitSendChannelstoNext() {
-		return errors.New("This party's send channels are not initialized yet")
+		return errors.New("this party's send channels are not initialized yet")
 	}
 	for i := uint32(0); i < p.N; i++ {
 		err := p.SendtoNext(m, i)
@@ -115,7 +115,7 @@ func (p *HonestParty) BroadcasttoNext(m *protobuf.Message) error {
 
 //Try to get a message according to messageType and ID
 func (p *HonestParty) GetMessage(messageType string, ID []byte) chan *protobuf.Message {
-	value1, _ := p.dispatcheChannels.LoadOrStore(messageType, new(sync.Map))
+	value1, _ := p.dispatchChannels.LoadOrStore(messageType, new(sync.Map))
 
 	value2, _ := value1.(*sync.Map).LoadOrStore(string(ID), make(chan *protobuf.Message, p.N*p.N)) // ch change the size to N^2
 
@@ -123,17 +123,11 @@ func (p *HonestParty) GetMessage(messageType string, ID []byte) chan *protobuf.M
 }
 
 func (p *HonestParty) checkSendChannelsInit() bool {
-	if p.sendChannels == nil {
-		return false
-	}
-	return true
+	return p.sendToNextChannels != nil
 }
 
 func (p *HonestParty) checkInitSendChannelstoNext() bool {
-	if p.sendToNextChannels == nil {
-		return false
-	}
-	return true
+	return p.sendToNextChannels != nil
 }
 
 func (pi *Pi) Init(F uint32) {
@@ -174,46 +168,64 @@ func InterpolateComOrWit(degree uint32, targetIndex uint32, List []*pbc.Element)
 	CWList := make([]*pbc.Element, degree+1)
 	copy(CWList, List)
 
-	ecparamN := ecparam.PBC256.Ngmp
-	lambda := make([]*gmp.Int, degree+1)
-	knownIndexes := make([]*gmp.Int, degree+1)
+	// degree=2t
+	if targetIndex > 0 && targetIndex < degree+1 {
+		return CWList[targetIndex]
+	} else {
+		ecparamN := ecparam.PBC256.Ngmp
+		lambda := make([]*gmp.Int, degree+1)
+		knownIndexes := make([]*gmp.Int, degree+1)
 
-	for j := uint32(0); j < degree+1; j++ {
-		lambda[j] = gmp.NewInt(int64(j + 1))
-		knownIndexes[j] = gmp.NewInt(int64(j + 1)) //known indexes: 1, ..., deg+1
+		for j := uint32(0); j < degree+1; j++ {
+			lambda[j] = gmp.NewInt(0)
+			knownIndexes[j] = gmp.NewInt(int64(j + 1)) //known indexes: 1, ..., deg+1
+		}
+
+		polyring.GetLagrangeCoefficients(int(degree), knownIndexes, ecparamN, gmp.NewInt(int64(targetIndex)), lambda)
+
+		ans := KZG.NewG1()
+		ans.Set0()
+		for j := uint32(0); j < degree+1; j++ {
+			tmp := KZG.NewG1()
+			tmp.Set1()
+			// fmt.Printf("j: %v,  C_list[j]: %s, lambda[j]: %s\n", j, C_list[j].String(), lambda[j].String())
+			tmp.MulBig(CWList[j], conv.GmpInt2BigInt(lambda[j]))
+			ans.ThenAdd(tmp)
+		}
+		return ans
 	}
-
-	polyring.GetLagrangeCoefficients(int(degree), knownIndexes, ecparamN, gmp.NewInt(int64(targetIndex)), lambda)
-
-	ans := KZG.NewG1()
-	ans.Set0()
-	for j := uint32(0); j < degree+1; j++ {
-		tmp := KZG.NewG1()
-		tmp.Set1()
-		// fmt.Printf("j: %v,  C_list[j]: %s, lambda[j]: %s\n", j, C_list[j].String(), lambda[j].String())
-		tmp.MulBig(CWList[j], conv.GmpInt2BigInt(lambda[j]))
-		ans.ThenAdd(tmp)
-	}
-	return ans
 }
 
-func InterpolateComOrWitbyKnownIndexes(degree uint32, targetIndex uint32, knownIndexes []*gmp.Int, CList []*pbc.Element) *pbc.Element {
-	ecparamN := ecparam.PBC256.Ngmp
-	lambda := make([]*gmp.Int, degree+1)
-	for j := uint32(0); j < degree+1; j++ {
-		lambda[j] = gmp.NewInt(int64(j))
-	}
-	polyring.GetLagrangeCoefficients(int(degree), knownIndexes, ecparamN, gmp.NewInt(int64(targetIndex)), lambda)
+func InterpolateComOrWitbyKnownIndexes(degree uint32, targetIndex uint32, knownIndexes []*gmp.Int, List []*pbc.Element) *pbc.Element {
+	CWList := make([]*pbc.Element, degree+1)
+	copy(CWList, List)
 
-	ans := KZG.NewG1()
-	ans.Set0()
-	for j := uint32(0); j < degree+1; j++ {
-		tmp := KZG.NewG1()
-		// tmp.Set1()
-		tmp.MulBig(CList[j], conv.GmpInt2BigInt(lambda[j-1]))
-		ans.ThenAdd(tmp)
+	var known bool = false
+	for _, a := range knownIndexes {
+		if a == gmp.NewInt(int64(targetIndex)) {
+			known = true
+		}
 	}
-	return ans
+	if known {
+		return CWList[targetIndex]
+	} else {
+		ecparamN := ecparam.PBC256.Ngmp
+		lambda := make([]*gmp.Int, degree+1)
+		for j := uint32(0); j < degree+1; j++ {
+			lambda[j] = gmp.NewInt(0)
+		}
+		polyring.GetLagrangeCoefficients(int(degree), knownIndexes, ecparamN, gmp.NewInt(int64(targetIndex)), lambda)
+
+		ans := KZG.NewG1()
+		ans.Set0()
+		for j := uint32(0); j < degree+1; j++ {
+			tmp := KZG.NewG1()
+			tmp.Set1()
+			tmp.MulBig(CWList[j], conv.GmpInt2BigInt(lambda[j]))
+			ans.ThenAdd(tmp)
+		}
+		return ans
+	}
 }
 
 func EncapsulateVSSSend(pi *Pi, RjiList []*gmp.Int, WjiList []*pbc.Element, N uint32, F uint32) []byte {

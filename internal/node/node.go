@@ -23,7 +23,7 @@ import (
 	// pb "github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 	"github.com/Nik-U/pbc"
 	"github.com/ncw/gmp"
-	// "github.com/golang/protobuf/proto"
+	// "google.golang.org/protobuf/proto"
 	// "github.com/ncw/gmp"
 	// "google.golang.org/grpc"
 )

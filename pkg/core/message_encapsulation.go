@@ -5,7 +5,7 @@ import (
 
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 //Encapsulation encapsulates a message to a general type(*protobuf.Message)

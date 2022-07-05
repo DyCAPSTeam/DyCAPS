@@ -7,7 +7,7 @@ import (
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/utils"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 //MAXMESSAGE is the size of channels

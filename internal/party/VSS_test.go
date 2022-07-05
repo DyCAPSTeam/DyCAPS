@@ -10,10 +10,9 @@ import (
 	"github.com/DyCAPSTeam/DyCAPS/internal/ecparam"
 	"github.com/DyCAPSTeam/DyCAPS/internal/polyring"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
-	"github.com/Nik-U/pbc"
-	"github.com/golang/protobuf/proto"
 	"github.com/ncw/gmp"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestDealer(t *testing.T) {
@@ -28,19 +27,9 @@ func TestDealer(t *testing.T) {
 
 	KZG.SetupFix(2 * int(F))
 
-	piInit := new(Pi)
-	piInit.Init(F)
-	witnessInit := make([]*pbc.Element, 2*F+1)
-	witnessInitIndexes := make([]*gmp.Int, 2*F+1)
-
-	for i := 0; uint32(i) < 2*F+1; i++ {
-		witnessInit[i] = KZG.NewG1()
-		witnessInitIndexes[i] = gmp.NewInt(0)
-	}
-
 	var p []*HonestParty = make([]*HonestParty, N)
 	for i := uint32(0); i < N; i++ {
-		p[i] = NewHonestParty(N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i], piInit, witnessInit, witnessInitIndexes)
+		p[i] = NewHonestParty(N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i])
 	}
 
 	for i := uint32(0); i < N; i++ {
@@ -61,7 +50,8 @@ func TestDealer(t *testing.T) {
 	var client Client
 	client.s = new(gmp.Int).SetInt64(int64(1111111111111112222))
 	clientID := uint32(0x7fffffff)
-	client.HonestParty = NewHonestParty(N, F, clientID, ipList, portList, ipListNext, portListNext, pk, sk[2*F+1], piInit, witnessInit, witnessInitIndexes)
+
+	client.HonestParty = NewHonestParty(N, F, clientID, ipList, portList, ipListNext, portListNext, pk, sk[2*F+1])
 	err := client.InitSendChannel()
 	if err != nil {
 		fmt.Printf("[VSS TestDealer] Client InitSendChannel err: %v\n", err)
@@ -123,7 +113,7 @@ func TestDealer(t *testing.T) {
 			// tmp2.PowBig(pi_test.Pi_contents[j].g_Fj, conv.GmpInt2BigInt(lambda[j-1])) // the x value of index j-1 is j
 			tmp.ThenAdd(tmp2)
 		}
-		assert.True(t, tmp.Equals(piTest.Gs), "verify g^s = \\prod g^{lambda[j]*F(j)} = \\prod (g^F(j))^lambda[j]")
+		assert.True(t, tmp.Equals(piTest.Gs), "[VSSReceive] Verify g^s = \\prod g^{lambda[j]*F(j)} = \\prod (g^F(j))^lambda[j]")
 
 		//KZG verification
 		for j := 1; uint32(j) <= 2*F+1; j++ {
@@ -131,7 +121,7 @@ func TestDealer(t *testing.T) {
 			WRji := KZG.NewG1()
 			Rji.SetBytes(content.RjiList[j])
 			WRji.SetCompressedBytes(content.WRjiList[j])
-			assert.True(t, KZG.VerifyEval(piTest.PiContents[j].CB_j, gmp.NewInt(int64((i+1))), Rji, WRji), "KZG verification")
+			assert.True(t, KZG.VerifyEval(piTest.PiContents[j].CB_j, gmp.NewInt(int64((i+1))), Rji, WRji), "[VSSReceive] KZG verification")
 		}
 	}
 }
@@ -148,17 +138,9 @@ func TestVSS(t *testing.T) {
 
 	KZG.SetupFix(2 * int(F))
 
-	piInit := new(Pi)
-	piInit.Init(F)
-	witnessInit := make([]*pbc.Element, 2*F+1)
-	witnessInitIndexes := make([]*gmp.Int, 2*F+1)
-	for i := 0; uint32(i) < 2*F+1; i++ {
-		witnessInit[i] = KZG.NewG1()
-		witnessInitIndexes[i] = gmp.NewInt(0)
-	}
 	var p []*HonestParty = make([]*HonestParty, N)
 	for i := uint32(0); i < N; i++ {
-		p[i] = NewHonestParty(N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i], piInit, witnessInit, witnessInitIndexes)
+		p[i] = NewHonestParty(N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i])
 	}
 
 	for i := uint32(0); i < N; i++ {
@@ -179,7 +161,8 @@ func TestVSS(t *testing.T) {
 	var client Client
 	client.s = new(gmp.Int).SetBytes([]byte("11111111111111111111111112"))
 	clientID := uint32(0x7fffffff)
-	client.HonestParty = NewHonestParty(N, F, clientID, ipList, portList, ipListNext, portListNext, pk, sk[2*F+1], piInit, witnessInit, witnessInitIndexes)
+
+	client.HonestParty = NewHonestParty(N, F, clientID, ipList, portList, ipListNext, portListNext, pk, sk[2*F+1])
 	err := client.InitSendChannel()
 	if err != nil {
 		fmt.Printf("[VSS] Client InitSendChannel err: %v\n", err)
@@ -208,10 +191,31 @@ func TestF(t *testing.T) {
 
 	KZG.SetupFix(2)
 	C := KZG.NewG1()
+	C.Set1()
 	C2 := KZG.NewG1()
 	C2.Set1()
 	C2.MulBig(C2, big.NewInt(2))
 	C = C2
-	fmt.Printf("C: %v\n", C)
-	fmt.Printf("C2: %v\n", C2)
+	fmt.Printf("C: %s\n", C.String())
+	fmt.Printf("C2: %s\n", C2.String())
+
+	ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
+	portList := []string{"8880", "8881", "8882", "8883", "8884", "8885", "8886", "8887", "8888", "8889"}
+	ipListNext := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
+	portListNext := []string{"8890", "8891", "8892", "8893", "8894", "8895", "8896", "8897", "8898", "8899"}
+	N := uint32(10)
+	F := uint32(3)
+	sk, pk := SigKeyGen(N, 2*F+2) // wrong usage, but it doesn't matter here
+
+	KZG.SetupFix(2 * int(F))
+
+	var p []*HonestParty = make([]*HonestParty, N)
+	for i := uint32(0); i < N; i++ {
+		p[i] = NewHonestParty(N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i])
+	}
+	fmt.Printf("Party 1's witnessInit address: %v\n", &p[1].witnessInit[1])
+	fmt.Printf("Party 2's witnessInit address: %v\n", &p[2].witnessInit[1])
+
+	fmt.Printf("Party 1's proof address: %v\n", &p[1].Proof)
+	fmt.Printf("Party 2's proof address: %v\n", &p[2].Proof)
 }

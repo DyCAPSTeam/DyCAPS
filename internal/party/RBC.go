@@ -8,8 +8,8 @@ import (
 
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/utils"
-	"github.com/golang/protobuf/proto"
 	"github.com/klauspost/reedsolomon"
+	"google.golang.org/protobuf/proto"
 )
 
 // received message shard (RS code) in RBC
