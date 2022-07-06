@@ -213,8 +213,8 @@ func TestF(t *testing.T) {
 	for i := uint32(0); i < N; i++ {
 		p[i] = NewHonestParty(N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i])
 	}
-	fmt.Printf("Party 1's witnessInit address: %v\n", &p[1].witnessInit[1])
-	fmt.Printf("Party 2's witnessInit address: %v\n", &p[2].witnessInit[1])
+	fmt.Printf("Party 1's witness address: %v\n", &p[1].witness[1])
+	fmt.Printf("Party 2's witness address: %v\n", &p[2].witness[1])
 
 	fmt.Printf("Party 1's proof address: %v\n", &p[1].Proof)
 	fmt.Printf("Party 2's proof address: %v\n", &p[2].Proof)

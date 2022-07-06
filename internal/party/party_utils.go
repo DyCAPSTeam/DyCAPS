@@ -14,11 +14,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-//indexes of polyValue[] start from 1!
-func ParseSendMessage(message *protobuf.VSSSend, pi *Pi, N uint32, F uint32, polyValues []*gmp.Int, witnesses []*pbc.Element) {
-
-}
-
 //InitReceiveChannel setup the listener and Init the receiveChannel
 func (p *HonestParty) InitReceiveChannel() error {
 	p.dispatchChannels = core.MakeDispatcheChannels(core.MakeReceiveChannel(p.portList[p.PID]), p.N)
@@ -170,7 +165,7 @@ func InterpolateComOrWit(degree uint32, targetIndex uint32, List []*pbc.Element)
 
 	// degree=2t
 	if targetIndex > 0 && targetIndex < degree+1 {
-		return CWList[targetIndex]
+		return CWList[targetIndex-1]
 	} else {
 		ecparamN := ecparam.PBC256.Ngmp
 		lambda := make([]*gmp.Int, degree+1)
@@ -207,7 +202,7 @@ func InterpolateComOrWitbyKnownIndexes(degree uint32, targetIndex uint32, knownI
 		}
 	}
 	if known {
-		return CWList[targetIndex]
+		return CWList[targetIndex-1]
 	} else {
 		ecparamN := ecparam.PBC256.Ngmp
 		lambda := make([]*gmp.Int, degree+1)

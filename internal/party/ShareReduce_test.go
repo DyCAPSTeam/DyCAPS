@@ -66,10 +66,6 @@ func TestShareReduce(t *testing.T) {
 	wg.Wait()
 
 	fmt.Printf("[VSS] VSS finished\n")
-	for i := uint32(1); i < 2; i++ {
-		fmt.Printf("p[%v].witnessInit: %v\n", i, p[i].witnessInit[1:])
-		fmt.Printf("p[%v].witnessInitIndexes: %v\n", i, p[i].witnessInitIndexes[1:])
-	}
 	fmt.Printf("[ShstreReduce] ShareReduce starting...\n")
 
 	wg.Add(int(N))
