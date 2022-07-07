@@ -24,7 +24,7 @@ func (p *HonestParty) ShareReduceSend(ID []byte) {
 
 	//get 2t+1 values from prior execution of DyCAPS.Handoff or DyCAPS.Share
 	for j := uint32(0); j < 2*p.F+2; j++ {
-		tmpCB[j].Set(p.Proof.PiContents[j].CB_j)
+		tmpCB[j].Set(p.Proof.PiContents[j].CBj)
 		tmpWB[p.witnessIndexes[j].Int64()].Set(p.witness[j])
 	}
 
@@ -45,7 +45,7 @@ func (p *HonestParty) ShareReduceSend(ID []byte) {
 			W: tmpWB[j+1].CompressedBytes(),
 		}
 		data, _ := proto.Marshal(&ShareReduceMessage)
-		p.SendtoNext(&protobuf.Message{
+		p.SendToNextCommittee(&protobuf.Message{
 			Type:   "ShareReduce",
 			Id:     ID,
 			Sender: p.PID,

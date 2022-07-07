@@ -36,7 +36,7 @@ func TestShareReduce(t *testing.T) {
 
 	for i := uint32(0); i < N; i++ {
 		p[i].InitSendChannel()
-		p[i].InitSendtoNextChannel()
+		p[i].InitSendToNextChannel()
 		pNext[i].InitSendChannel()
 	}
 

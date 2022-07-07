@@ -235,7 +235,7 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 		hNew := sha256.New()
 		hNew.Write(mReconstructed)
 
-		if bytes.Compare(hNew.Sum(nil), MaxReadyHash) == 0 {
+		if bytes.Equal(hNew.Sum(nil), MaxReadyHash) {
 			var replyMessage protobuf.Message
 			proto.Unmarshal(mReconstructed, &replyMessage)
 			return &replyMessage

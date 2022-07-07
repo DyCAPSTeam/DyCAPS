@@ -42,7 +42,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 	var DistSent = false
 	var VSSShareFinished = make(chan bool, 1)
 
-	var CB = make([]*pbc.Element, p.N+1) //CB_j for j=1...n
+	var CB = make([]*pbc.Element, p.N+1) //CBj for j=1...n
 	var mutexCW sync.Mutex
 
 	mutexCW.Lock()
@@ -112,7 +112,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 				//prepare for interpolation
 				mutexCW.Lock()
 				for j := uint32(1); j < 2*p.F+2; j++ {
-					CB[j].Set(piFromSend.PiContents[j].CB_j)
+					CB[j].Set(piFromSend.PiContents[j].CBj)
 					witnessInterpolated[j].Set(witnessFromSend[j])
 				}
 				CBSetChannel <- true
@@ -284,7 +284,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 				wL.SetCompressedBytes(payloadMessage.WBIl)
 				//start from 1
 				for j := uint32(1); j < 2*p.F+2; j++ {
-					CBFromReady[j].Set(piFromReady.PiContents[j].CB_j)
+					CBFromReady[j].Set(piFromReady.PiContents[j].CBj)
 				}
 
 				//P_s sends {VSSReady, B*(s,r)} to P_r, so P_r interpolates C_B(x,r) to verify the evaluation at x=s
@@ -559,7 +559,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 func (p *HonestParty) VerifyVSSSendReceived(polyValue []*gmp.Int, witness []*pbc.Element, piReceived *Pi) bool {
 	ecparamN := ecparam.PBC256.Ngmp
 
-	//Verify g^s == sigma((g^F_j)^lambda_j)
+	//Verify g^s == \prod((g^F_j)^lambda_j)
 	lambda := make([]*gmp.Int, 2*p.F+1)
 	knownIndexes := make([]*gmp.Int, 2*p.F+1)
 	for j := 0; uint32(j) < 2*p.F+1; j++ {
@@ -568,7 +568,7 @@ func (p *HonestParty) VerifyVSSSendReceived(polyValue []*gmp.Int, witness []*pbc
 	}
 
 	mutexPolyring.Lock()
-	polyring.GetLagrangeCoefficients(int(2*p.F), knownIndexes, ecparamN, gmp.NewInt(0), lambda)
+	polyring.GetLagrangeCoefficients(2*p.F, knownIndexes, ecparamN, gmp.NewInt(0), lambda)
 	mutexPolyring.Unlock()
 
 	tmp := KZG.NewG1()
@@ -576,7 +576,7 @@ func (p *HonestParty) VerifyVSSSendReceived(polyValue []*gmp.Int, witness []*pbc
 	for j := uint32(1); j < 2*p.F+2; j++ {
 		tmp2 := KZG.NewG1()
 		// tmp2.Set1()
-		tmp2.MulBig(piReceived.PiContents[j].g_Fj, conv.GmpInt2BigInt(lambda[j-1])) // the x value of index j-1 is j
+		tmp2.MulBig(piReceived.PiContents[j].gFj, conv.GmpInt2BigInt(lambda[j-1])) // the x value of index j-1 is j
 		tmp.ThenAdd(tmp2)
 		// tmp.ThenMul(tmp2)
 	}
@@ -587,15 +587,15 @@ func (p *HonestParty) VerifyVSSSendReceived(polyValue []*gmp.Int, witness []*pbc
 	//Verify KZG.VerifyEval(CZjk,0,0,WZjk0) == 1 && CBjk == CZjk * g^Fj(k) for k in [1,2t+1]
 	for k := uint32(1); k < 2*p.F+2; k++ {
 		mutexKZG.Lock()
-		verifyEval := KZG.VerifyEval(piReceived.PiContents[k].CZ_j, gmp.NewInt(0), gmp.NewInt(0), piReceived.PiContents[k].WZ_0)
+		verifyEval := KZG.VerifyEval(piReceived.PiContents[k].CZj, gmp.NewInt(0), gmp.NewInt(0), piReceived.PiContents[k].WZ0)
 		mutexKZG.Unlock()
 
-		var verifyRj = false
+		var verifyCBj = false
 		tmp3 := KZG.NewG1()
 		tmp3.Set0()
-		tmp3.Add(piReceived.PiContents[k].CZ_j, piReceived.PiContents[k].g_Fj)
-		verifyRj = tmp3.Equals(piReceived.PiContents[k].CB_j)
-		if !verifyEval || !verifyRj {
+		tmp3.Add(piReceived.PiContents[k].CZj, piReceived.PiContents[k].gFj)
+		verifyCBj = tmp3.Equals(piReceived.PiContents[k].CBj)
+		if !verifyEval || !verifyCBj {
 			fmt.Printf("[VSSEcho] Party %v VSSSend Verify Failed at k=%v\n", p.PID, k)
 			return false
 		}
@@ -605,11 +605,11 @@ func (p *HonestParty) VerifyVSSSendReceived(polyValue []*gmp.Int, witness []*pbc
 	for j := uint32(1); j < 2*p.F+2; j++ {
 		//KZG Verify
 		mutexKZG.Lock()
-		verifyPoint := KZG.VerifyEval(piReceived.PiContents[j].CB_j, gmp.NewInt(int64(p.PID+1)), polyValue[j], witness[j])
+		verifyPoint := KZG.VerifyEval(piReceived.PiContents[j].CBj, gmp.NewInt(int64(p.PID+1)), polyValue[j], witness[j])
 		mutexKZG.Unlock()
 
 		if !verifyPoint {
-			fmt.Printf("[VSSEcho] Party %v VSSSend KZGVerify Failed when verify v'ji and w'ji, i=%v, CB_j[%v]=%v, polyValue[%v]=%v, witness[%v]=%v\n", p.PID, p.PID+1, j, piReceived.PiContents[j].CB_j, j, polyValue[j], j, witness[j])
+			fmt.Printf("[VSSEcho] Party %v VSSSend KZGVerify Failed when verify v'ji and w'ji, i=%v, CBj[%v]=%v, polyValue[%v]=%v, witness[%v]=%v\n", p.PID, p.PID+1, j, piReceived.PiContents[j].CBj, j, polyValue[j], j, witness[j])
 			return false
 		}
 	}

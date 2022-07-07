@@ -64,7 +64,7 @@ message RBCReady{
 }
 
 message Pi_content{
-  int32 j = 1;
+  uint32 j = 1;
   bytes CB_j = 2;
   bytes CZ_j = 3;
   bytes WZ_0 = 4;
@@ -112,7 +112,7 @@ message Reshare{
   repeated bytes wk = 2;
 }
 message Recover{
-  int32 j = 1;
+  uint32 j = 1;
   bytes v = 2;
   bytes w = 3;
   bytes sig = 4;
@@ -130,5 +130,5 @@ message Success{
 
 message MVBA_IN{
   repeated bytes sig= 1;
-  repeated int32 j = 2;
+  repeated uint32 j = 2;
 }

@@ -3,16 +3,13 @@ package party
 import (
 	"fmt"
 	"math/rand"
-	"sync"
 	"time"
 
-	"github.com/DyCAPSTeam/DyCAPS/internal/commitment"
 	"github.com/DyCAPSTeam/DyCAPS/internal/ecparam"
 	"github.com/DyCAPSTeam/DyCAPS/internal/polyring"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 	"github.com/Nik-U/pbc"
 	"github.com/ncw/gmp"
-	"go.dedis.ch/kyber/v3/pairing"
 )
 
 type Client struct {
@@ -20,31 +17,14 @@ type Client struct {
 	s *gmp.Int // the secret
 }
 
-var KZG = new(commitment.DLPolyCommit)
-var mutexKZG sync.Mutex
-var SysSuite = pairing.NewSuiteBn256()
-
-type PiContent struct {
-	j    int
-	CB_j *pbc.Element //In DyCAPS.Share, R_j(x)=B(j,x), R_j(0)=F(j)
-	CZ_j *pbc.Element //Z_j(x)=R_j(x)-R_j(0)
-	WZ_0 *pbc.Element //witness of Z_j(0)=0
-	g_Fj *pbc.Element //g^F(j), F(j) is of t degree
-}
-
-type Pi struct {
-	Gs         *pbc.Element // g^s
-	PiContents []PiContent
-}
-
+//Share shares a secret client.s to the other parties
 //Assuming KZG setup has done, and public parameters are available
-//The secret to be shared is stored in client.s
 func (client *Client) Share(ID []byte) {
 
 	pi := new(Pi)
 	pi.Init(client.F)
 	pi.PiContents = make([]PiContent, 2*client.F+2) // here we do not use pi.Pi_contents[0]
-	var p *gmp.Int = ecparam.PBC256.Ngmp            // the prime of Zp* (the type is *gmp.Int)
+	var p = ecparam.PBC256.Ngmp                     // the prime of Zp* (the type is *gmp.Int)
 	//pi <- g^s
 	sPoly, _ := polyring.New(0)
 	_ = sPoly.SetCoefficientBig(0, client.s)
@@ -86,7 +66,7 @@ func (client *Client) Share(ID []byte) {
 		ZList[i].ResetTo(RList[i])
 	}
 
-	for i := 1; uint32(i) <= 2*client.F+1; i++ {
+	for i := uint32(1); i <= 2*client.F+1; i++ {
 		//generate Z_list
 		temp, _ := polyring.New(0) // temp means the 0-degree polynomial f(x) = F_ValueAt[i]
 		err := temp.SetCoefficientBig(0, FValueat[i])
@@ -105,9 +85,9 @@ func (client *Client) Share(ID []byte) {
 		KZG.CreateWitness(WZ0List[i], ZList[i], gmp.NewInt(0))
 
 		//add to pi
-		var FjCommit *pbc.Element = KZG.NewG1()
+		var FjCommit = KZG.NewG1()
 		KZG.Commit(FjCommit, temp)
-		pi.PiContents[i] = PiContent{j: i, CB_j: CBList[i], CZ_j: CZList[i], WZ_0: WZ0List[i], g_Fj: FjCommit}
+		pi.PiContents[i] = PiContent{j: i, CBj: CBList[i], CZj: CZList[i], WZ0: WZ0List[i], gFj: FjCommit}
 	}
 
 	//Send
@@ -139,6 +119,5 @@ func (client *Client) Share(ID []byte) {
 		} else {
 			fmt.Printf("[VSSSend] Client has sent VSSSend to party %v\n", i-1)
 		}
-		// fmt.Println("[VSSSend] client send VSSSend message to ", i)
 	}
 }

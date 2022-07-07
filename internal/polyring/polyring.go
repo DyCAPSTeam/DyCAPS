@@ -610,14 +610,14 @@ func VecPrint(vec []*gmp.Int) {
 //get the lagrange coefficients at index "targetIndex", with known indexes x[].
 //remenber to allocate memory for target[] before using this function.
 //execute lambda[i] = gmp.NewInt(i) before using this funciton.
-func GetLagrangeCoefficients(deg int, x []*gmp.Int, p *gmp.Int, targetIndex *gmp.Int, lambda []*gmp.Int) {
-	if len(x) != deg+1 {
+func GetLagrangeCoefficients(deg uint32, x []*gmp.Int, p *gmp.Int, targetIndex *gmp.Int, lambda []*gmp.Int) {
+	if uint32(len(x)) != deg+1 {
 		panic("number of known indexes != deg + 1")
 	}
 
-	for i := 0; i <= deg; i++ {
+	for i := uint32(0); i <= deg; i++ {
 		res := gmp.NewInt(1)
-		for j := 0; j <= deg; j++ {
+		for j := uint32(0); j <= deg; j++ {
 			if j != i {
 				tmp := gmp.NewInt(0)
 				tmp.Sub(targetIndex, x[j])

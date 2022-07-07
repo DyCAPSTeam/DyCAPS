@@ -10,7 +10,7 @@ import (
 
 func TestGetLagrangeCoefficients(t *testing.T) {
 
-	deg := 2
+	deg := uint32(2)
 	p := ecparam.PBC256.Ngmp
 	knownIndexes := make([]*gmp.Int, 3)
 	knownIndexes[0] = gmp.NewInt(1)
