@@ -32,7 +32,7 @@ func (p *HonestParty) ShareReduceSend(ID []byte) {
 	mutexPolyring.Lock()
 	for j := uint32(1); j < p.N+1; j++ {
 		tmpCB[j] = InterpolateComOrWit(2*p.F, j, tmpCB[1:2*p.F+2])
-		tmpWB[j] = InterpolateComOrWitbyKnownIndexes(2*p.F, j, p.witnessIndexes[1:], p.witness[1:])
+		tmpWB[j] = InterpolateComOrWitByKnownIndexes(2*p.F, j, p.witnessIndexes[1:], p.witness[1:])
 	}
 	mutexPolyring.Unlock()
 

@@ -14,7 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-//InitReceiveChannel setup the listener and Init the receiveChannel
+//InitReceiveChannel sets up the listener and Init the receiveChannel
 func (p *HonestParty) InitReceiveChannel() error {
 	p.dispatchChannels = core.MakeDispatcheChannels(core.MakeReceiveChannel(p.portList[p.PID]), p.N)
 	return nil
@@ -52,7 +52,7 @@ func (p *HonestParty) Send(m *protobuf.Message, des uint32) error {
 
 //SendToNextCommittee sends a message to a new committtee party with des as its pid, 0 =< des < p.N
 func (p *HonestParty) SendToNextCommittee(m *protobuf.Message, des uint32) error {
-	if !p.checkInitSendChannelstoNext() {
+	if !p.checkInitSendChannelsToNext() {
 		return errors.New("this party's send channels are not initialized yet")
 	}
 	if des < p.N {
@@ -94,7 +94,7 @@ func (p *HonestParty) BroadcastExclude(m *protobuf.Message, pid uint32) error {
 
 //BroadcastToNextCommittee broadcasts a message m to all parties in the new committee
 func (p *HonestParty) BroadcastToNextCommittee(m *protobuf.Message) error {
-	if !p.checkInitSendChannelstoNext() {
+	if !p.checkInitSendChannelsToNext() {
 		return errors.New("this party's send channels are not initialized yet")
 	}
 	for i := uint32(0); i < p.N; i++ {
@@ -119,7 +119,7 @@ func (p *HonestParty) checkSendChannelsInit() bool {
 	return p.sendToNextChannels != nil
 }
 
-func (p *HonestParty) checkInitSendChannelstoNext() bool {
+func (p *HonestParty) checkInitSendChannelsToNext() bool {
 	return p.sendToNextChannels != nil
 }
 
@@ -136,15 +136,13 @@ func (pi *Pi) Init(F uint32) {
 }
 
 func (pi *Pi) SetFromVSSMessage(m *protobuf.Pi, F uint32) {
-
 	pi.Gs.SetCompressedBytes(m.Gs)
 	for j := uint32(1); j <= 2*F+1; j++ {
-		pi.PiContents[j].CBj.SetCompressedBytes(m.PiContents[j].CBJ)
-		pi.PiContents[j].CZj.SetCompressedBytes(m.PiContents[j].CZJ)
-		pi.PiContents[j].WZ0.SetCompressedBytes(m.PiContents[j].WZ_0)
-		pi.PiContents[j].gFj.SetCompressedBytes(m.PiContents[j].G_Fj)
+		pi.PiContents[j].CBj.SetCompressedBytes(m.PiContents[j].CBj)
+		pi.PiContents[j].CZj.SetCompressedBytes(m.PiContents[j].CZj)
+		pi.PiContents[j].WZ0.SetCompressedBytes(m.PiContents[j].WZ0)
+		pi.PiContents[j].gFj.SetCompressedBytes(m.PiContents[j].GFj)
 		pi.PiContents[j].j = j
-
 	}
 }
 
@@ -156,7 +154,6 @@ func (pi *Pi) Set(src *Pi, F uint32) {
 		pi.PiContents[j].WZ0.Set(src.PiContents[j].WZ0)
 		pi.PiContents[j].gFj.Set(src.PiContents[j].gFj)
 		pi.PiContents[j].j = src.PiContents[j].j
-
 	}
 }
 
@@ -193,11 +190,11 @@ func InterpolateComOrWit(degree uint32, targetIndex uint32, List []*pbc.Element)
 	}
 }
 
-func InterpolateComOrWitbyKnownIndexes(degree uint32, targetIndex uint32, knownIndexes []*gmp.Int, List []*pbc.Element) *pbc.Element {
+func InterpolateComOrWitByKnownIndexes(degree uint32, targetIndex uint32, knownIndexes []*gmp.Int, List []*pbc.Element) *pbc.Element {
 	CWList := make([]*pbc.Element, degree+1)
 	copy(CWList, List)
 
-	var known bool = false
+	var known = false
 	for _, a := range knownIndexes {
 		if a == gmp.NewInt(int64(targetIndex)) {
 			known = true
@@ -225,41 +222,41 @@ func InterpolateComOrWitbyKnownIndexes(degree uint32, targetIndex uint32, knownI
 	}
 }
 
-func EncapsulateVSSSend(pi *Pi, RjiList []*gmp.Int, WjiList []*pbc.Element, N uint32, F uint32) []byte {
+func EncapsulateVSSSend(pi *Pi, BijList []*gmp.Int, WBijList []*pbc.Element, F uint32) []byte {
 	var msg = new(protobuf.VSSSend)
 	msg.Pi = new(protobuf.Pi)
 	msg.Pi.Gs = pi.Gs.CompressedBytes()
 
 	for j := uint32(0); j <= 2*F+1; j++ {
 		if j == 0 {
-			msg.RjiList = make([][]byte, 2*F+2) // 0 is not used.
-			msg.WRjiList = make([][]byte, 2*F+2)
-			msg.WRjiList[0] = []byte{}
-			msg.RjiList[0] = []byte{}
+			msg.BijList = make([][]byte, 2*F+2) // 0 is not used.
+			msg.WBijList = make([][]byte, 2*F+2)
+			msg.WBijList[0] = []byte{}
+			msg.BijList[0] = []byte{}
 			msg.Pi.PiContents = make([]*protobuf.PiContent, 2*F+2)
 			for k := 0; uint32(k) <= 2*F+1; k++ {
 				msg.Pi.PiContents[k] = new(protobuf.PiContent)
 			}
 			msg.Pi.PiContents[0].J = 0
-			msg.Pi.PiContents[0].WZ_0 = []byte{}
-			msg.Pi.PiContents[0].CBJ = []byte{}
-			msg.Pi.PiContents[0].CZJ = []byte{}
-			msg.Pi.PiContents[0].G_Fj = []byte{}
+			msg.Pi.PiContents[0].WZ0 = []byte{}
+			msg.Pi.PiContents[0].CBj = []byte{}
+			msg.Pi.PiContents[0].CZj = []byte{}
+			msg.Pi.PiContents[0].GFj = []byte{}
 		} else {
-			msg.WRjiList[j] = WjiList[j].CompressedBytes()
-			msg.RjiList[j] = RjiList[j].Bytes()
+			msg.WBijList[j] = WBijList[j].CompressedBytes()
+			msg.BijList[j] = BijList[j].Bytes()
 			msg.Pi.PiContents[j].J = j
-			msg.Pi.PiContents[j].CZJ = pi.PiContents[j].CZj.CompressedBytes()
-			msg.Pi.PiContents[j].CBJ = pi.PiContents[j].CBj.CompressedBytes()
-			msg.Pi.PiContents[j].WZ_0 = pi.PiContents[j].WZ0.CompressedBytes()
-			msg.Pi.PiContents[j].G_Fj = pi.PiContents[j].gFj.CompressedBytes()
+			msg.Pi.PiContents[j].CZj = pi.PiContents[j].CZj.CompressedBytes()
+			msg.Pi.PiContents[j].CBj = pi.PiContents[j].CBj.CompressedBytes()
+			msg.Pi.PiContents[j].WZ0 = pi.PiContents[j].WZ0.CompressedBytes()
+			msg.Pi.PiContents[j].GFj = pi.PiContents[j].gFj.CompressedBytes()
 		}
 	}
 	data, _ := proto.Marshal(msg)
 	return data
 }
 
-func EncapsulateVSSEcho(pi *Pi, N uint32, F uint32) []byte {
+func EncapsulateVSSEcho(pi *Pi, F uint32) []byte {
 	var msg = new(protobuf.VSSEcho)
 	msg.Pi = new(protobuf.Pi)
 	msg.Pi.Gs = pi.Gs.CompressedBytes()
@@ -271,30 +268,30 @@ func EncapsulateVSSEcho(pi *Pi, N uint32, F uint32) []byte {
 				msg.Pi.PiContents[k] = new(protobuf.PiContent)
 			}
 			msg.Pi.PiContents[0].J = 0
-			msg.Pi.PiContents[0].WZ_0 = []byte{}
-			msg.Pi.PiContents[0].CBJ = []byte{}
-			msg.Pi.PiContents[0].CZJ = []byte{}
-			msg.Pi.PiContents[0].G_Fj = []byte{}
+			msg.Pi.PiContents[0].WZ0 = []byte{}
+			msg.Pi.PiContents[0].CBj = []byte{}
+			msg.Pi.PiContents[0].CZj = []byte{}
+			msg.Pi.PiContents[0].GFj = []byte{}
 		} else {
 			msg.Pi.PiContents[j].J = j
-			msg.Pi.PiContents[j].CZJ = pi.PiContents[j].CZj.CompressedBytes()
-			msg.Pi.PiContents[j].CBJ = pi.PiContents[j].CBj.CompressedBytes()
-			msg.Pi.PiContents[j].WZ_0 = pi.PiContents[j].WZ0.CompressedBytes()
-			msg.Pi.PiContents[j].G_Fj = pi.PiContents[j].gFj.CompressedBytes()
+			msg.Pi.PiContents[j].CZj = pi.PiContents[j].CZj.CompressedBytes()
+			msg.Pi.PiContents[j].CBj = pi.PiContents[j].CBj.CompressedBytes()
+			msg.Pi.PiContents[j].WZ0 = pi.PiContents[j].WZ0.CompressedBytes()
+			msg.Pi.PiContents[j].GFj = pi.PiContents[j].gFj.CompressedBytes()
 		}
 	}
 	data, _ := proto.Marshal(msg)
 	return data
 }
 
-func EncapsulateVSSReady(pi *Pi, ReadyType string, B_li *gmp.Int, w_li *pbc.Element, N uint32, F uint32) []byte {
+func EncapsulateVSSReady(pi *Pi, ReadyType string, Bli *gmp.Int, wli *pbc.Element, F uint32) []byte {
 	var msg = new(protobuf.VSSReady)
 	msg.Pi = new(protobuf.Pi)
 	msg.Pi.Gs = pi.Gs.CompressedBytes()
 	msg.ReadyType = ReadyType // possible bug
 	if msg.ReadyType == "SHARE" {
-		msg.BIl = B_li.Bytes()
-		msg.WBIl = w_li.CompressedBytes()
+		msg.Bil = Bli.Bytes()
+		msg.WBil = wli.CompressedBytes()
 	}
 	for j := uint32(0); j <= 2*F+1; j++ {
 		if j == 0 {
@@ -303,26 +300,26 @@ func EncapsulateVSSReady(pi *Pi, ReadyType string, B_li *gmp.Int, w_li *pbc.Elem
 				msg.Pi.PiContents[k] = new(protobuf.PiContent)
 			}
 			msg.Pi.PiContents[0].J = 0
-			msg.Pi.PiContents[0].WZ_0 = []byte{}
-			msg.Pi.PiContents[0].CBJ = []byte{}
-			msg.Pi.PiContents[0].CZJ = []byte{}
-			msg.Pi.PiContents[0].G_Fj = []byte{}
+			msg.Pi.PiContents[0].WZ0 = []byte{}
+			msg.Pi.PiContents[0].CBj = []byte{}
+			msg.Pi.PiContents[0].CZj = []byte{}
+			msg.Pi.PiContents[0].GFj = []byte{}
 		} else {
 			msg.Pi.PiContents[j].J = j
-			msg.Pi.PiContents[j].CZJ = pi.PiContents[j].CZj.CompressedBytes()
-			msg.Pi.PiContents[j].CBJ = pi.PiContents[j].CBj.CompressedBytes()
-			msg.Pi.PiContents[j].WZ_0 = pi.PiContents[j].WZ0.CompressedBytes()
-			msg.Pi.PiContents[j].G_Fj = pi.PiContents[j].gFj.CompressedBytes()
+			msg.Pi.PiContents[j].CZj = pi.PiContents[j].CZj.CompressedBytes()
+			msg.Pi.PiContents[j].CBj = pi.PiContents[j].CBj.CompressedBytes()
+			msg.Pi.PiContents[j].WZ0 = pi.PiContents[j].WZ0.CompressedBytes()
+			msg.Pi.PiContents[j].GFj = pi.PiContents[j].gFj.CompressedBytes()
 		}
 	}
 	data, _ := proto.Marshal(msg)
 	return data
 }
 
-func EncapsulateVSSDistribute(B_li *gmp.Int, w_li *pbc.Element, N uint32, F uint32) []byte {
+func EncapsulateVSSDistribute(B_li *gmp.Int, w_li *pbc.Element) []byte {
 	var msg = new(protobuf.VSSDistribute)
-	msg.BLi = B_li.Bytes()
-	msg.WBLi = w_li.CompressedBytes()
+	msg.Bli = B_li.Bytes()
+	msg.WBli = w_li.CompressedBytes()
 	data, _ := proto.Marshal(msg)
 	return data
 }

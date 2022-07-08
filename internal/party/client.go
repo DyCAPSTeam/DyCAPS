@@ -35,25 +35,25 @@ func (client *Client) Share(ID []byte) {
 	var rnd = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	//TODO: use crypto/rand instead
 	var F, _ = polyring.NewRand(int(2*client.F), rnd, p)
-	var FValueat = make([]*gmp.Int, 2*client.F+2) // here we do not use F_ValueAt[0]
+	var vF = make([]*gmp.Int, 2*client.F+2) // here we do not use F_ValueAt[0]
 	for i := 0; uint32(i) < 2*client.F+2; i++ {
-		FValueat[i] = gmp.NewInt(0)
+		vF[i] = gmp.NewInt(0)
 	}
 	F.SetCoefficientBig(0, client.s)
 
-	//generate 2t+1 t-degree Rj(x)
-	var RList = make([]polyring.Polynomial, 2*client.F+2) // here we do not use R_list[0]
+	//generate 2t+1 t-degree B(x,j)
+	var BList = make([]polyring.Polynomial, 2*client.F+2) // here we do not use BList[0]
 	var rnd2 = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	for j := 1; uint32(j) <= 2*client.F+1; j++ {
-		F.EvalMod(gmp.NewInt(int64(j)), p, FValueat[j])
-		RList[j], _ = polyring.NewRand(int(client.F), rnd2, p) //TODO: will rnd2 makes the coefficients duplicated?
-		RList[j].SetCoefficientBig(0, FValueat[j])
+		F.EvalMod(gmp.NewInt(int64(j)), p, vF[j])
+		BList[j], _ = polyring.NewRand(int(client.F), rnd2, p) //TODO: will rnd2 makes the coefficients duplicated?
+		BList[j].SetCoefficientBig(0, vF[j])
 	}
 
 	//Commit
-	var ZList = make([]polyring.Polynomial, 2*client.F+2) // here we do not use Z_list[0]
-	var CBList = make([]*pbc.Element, 2*client.F+2)       // here we do not use C_R_list[0]
-	var CZList = make([]*pbc.Element, 2*client.F+2)       // here we do not use C_Z_list[0]
+	var ZList = make([]polyring.Polynomial, 2*client.F+2) // here we do not use ZList[0]
+	var CBList = make([]*pbc.Element, 2*client.F+2)       // here we do not use CBList[0]
+	var CZList = make([]*pbc.Element, 2*client.F+2)       // here we do not use CZList[0]
 	var WZ0List = make([]*pbc.Element, 2*client.F+2)
 	for i := 0; uint32(i) <= 2*client.F+1; i++ {
 		CBList[i] = KZG.NewG1()
@@ -63,13 +63,13 @@ func (client *Client) Share(ID []byte) {
 
 	for i := 1; uint32(i) <= 2*client.F+1; i++ {
 		ZList[i] = polyring.NewEmpty()
-		ZList[i].ResetTo(RList[i])
+		ZList[i].ResetTo(BList[i])
 	}
 
 	for i := uint32(1); i <= 2*client.F+1; i++ {
 		//generate Z_list
 		temp, _ := polyring.New(0) // temp means the 0-degree polynomial f(x) = F_ValueAt[i]
-		err := temp.SetCoefficientBig(0, FValueat[i])
+		err := temp.SetCoefficientBig(0, vF[i])
 		if err != nil {
 			fmt.Printf("[VSSSend] Client SetCoefficientBig error at i=%v: %v", i, err)
 		}
@@ -78,7 +78,7 @@ func (client *Client) Share(ID []byte) {
 		ZList[i].Sub(copiedZ, temp)
 		ZList[i].Mod(p) // don't forget mod p!!!
 		//commit R_list
-		KZG.Commit(CBList[i], RList[i])
+		KZG.Commit(CBList[i], BList[i])
 		//commit Z_list
 		KZG.Commit(CZList[i], ZList[i])
 		//create witness of (Zj(x),0)
@@ -91,23 +91,23 @@ func (client *Client) Share(ID []byte) {
 	}
 
 	//Send
-	WRji := make([][]*pbc.Element, client.N+1) // the first index is in range[1,N],and the second [1,2F+1]. start from 1
-	RjiList := make([][]*gmp.Int, client.N+1)
+	WBij := make([][]*pbc.Element, client.N+1) // the first index is in range[1,N],and the second [1,2F+1]. start from 1
+	BijList := make([][]*gmp.Int, client.N+1)
 
 	for i := 1; uint32(i) <= client.N; i++ {
-		WRji[i] = make([]*pbc.Element, 2*client.F+2) // start from 1
-		RjiList[i] = make([]*gmp.Int, 2*client.F+2)  // start from 1
+		WBij[i] = make([]*pbc.Element, 2*client.F+2) // start from 1
+		BijList[i] = make([]*gmp.Int, 2*client.F+2)  // start from 1
 		for j := 0; uint32(j) <= 2*client.F+1; j++ {
-			RjiList[i][j] = gmp.NewInt(0)
-			WRji[i][j] = KZG.NewG1()
+			BijList[i][j] = gmp.NewInt(0)
+			WBij[i][j] = KZG.NewG1()
 		}
 		//set W_Rji
 		for j := 1; uint32(j) <= 2*client.F+1; j++ {
-			KZG.CreateWitness(WRji[i][j], RList[j], gmp.NewInt(int64(i)))
-			RList[j].EvalMod(gmp.NewInt(int64(i)), p, RjiList[i][j])
+			KZG.CreateWitness(WBij[i][j], BList[j], gmp.NewInt(int64(i)))
+			BList[j].EvalMod(gmp.NewInt(int64(i)), p, BijList[i][j])
 		}
 		//encapsulate
-		data := EncapsulateVSSSend(pi, RjiList[i], WRji[i], client.N, client.F)
+		data := EncapsulateVSSSend(pi, BijList[i], WBij[i], client.F)
 		err := client.Send(&protobuf.Message{
 			Type:   "VSSSend",
 			Id:     ID,

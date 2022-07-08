@@ -82,10 +82,10 @@ func TestDealer(t *testing.T) {
 
 		// j starts from 1 here
 		for j := 1; uint32(j) <= 2*F+1; j++ {
-			piTest.PiContents[j].CBj.SetCompressedBytes(content.Pi.PiContents[j].CBJ)
-			piTest.PiContents[j].CZj.SetCompressedBytes(content.Pi.PiContents[j].CZJ)
-			piTest.PiContents[j].WZ0.SetCompressedBytes(content.Pi.PiContents[j].WZ_0)
-			piTest.PiContents[j].gFj.SetCompressedBytes(content.Pi.PiContents[j].G_Fj)
+			piTest.PiContents[j].CBj.SetCompressedBytes(content.Pi.PiContents[j].CBj)
+			piTest.PiContents[j].CZj.SetCompressedBytes(content.Pi.PiContents[j].CZj)
+			piTest.PiContents[j].WZ0.SetCompressedBytes(content.Pi.PiContents[j].WZ0)
+			piTest.PiContents[j].gFj.SetCompressedBytes(content.Pi.PiContents[j].GFj)
 
 			// verify CBj=CZj*gFj
 			tmp := KZG.NewG1()
@@ -117,11 +117,11 @@ func TestDealer(t *testing.T) {
 
 		//KZG verification
 		for j := 1; uint32(j) <= 2*F+1; j++ {
-			Rji := gmp.NewInt(0)
-			WRji := KZG.NewG1()
-			Rji.SetBytes(content.RjiList[j])
-			WRji.SetCompressedBytes(content.WRjiList[j])
-			assert.True(t, KZG.VerifyEval(piTest.PiContents[j].CBj, gmp.NewInt(int64((i+1))), Rji, WRji), "[VSSReceive] KZG verification")
+			Bij := gmp.NewInt(0)
+			WBij := KZG.NewG1()
+			Bij.SetBytes(content.BijList[j])
+			WBij.SetCompressedBytes(content.WBijList[j])
+			assert.True(t, KZG.VerifyEval(piTest.PiContents[j].CBj, gmp.NewInt(int64((i+1))), Bij, WBij), "[VSSReceive] KZG verification")
 		}
 	}
 }

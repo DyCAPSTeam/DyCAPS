@@ -163,3 +163,19 @@ func TestProactivizeAndShareDist(t *testing.T) {
 	sPoly.EvalMod(gmp.NewInt(0), ecparam.PBC256.Ngmp, sRecovered)
 	fmt.Println("[ShareReduce] Finally recovered secret:", sRecovered)
 }
+func TestGoFunc(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		go func(i int) {
+			time.Sleep(1 * time.Second)
+			fmt.Println("ii:", i)
+		}(i)
+	}
+
+	for j := 0; j < 10; j++ {
+		go func(j int) {
+			time.Sleep(1 * time.Second)
+			fmt.Println("j:", j)
+		}(j)
+	}
+	time.Sleep(2 * time.Second)
+}

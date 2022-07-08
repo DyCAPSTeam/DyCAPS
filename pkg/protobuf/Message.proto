@@ -63,23 +63,23 @@ message RBCReady{
   bytes m = 2;
 }
 
-message Pi_content{
+message PiContent{
   uint32 j = 1;
-  bytes CB_j = 2;
-  bytes CZ_j = 3;
-  bytes WZ_0 = 4;
-  bytes g_Fj = 5;
+  bytes CBj = 2;
+  bytes CZj = 3;
+  bytes WZ0 = 4;
+  bytes gFj = 5;
 }
 
 message Pi{
   bytes gs = 1;
-  repeated Pi_content pi_contents = 2;
+  repeated PiContent piContents = 2;
 }
 
 message VSSSend{
   Pi pi = 1;
-  repeated bytes Rji_list = 2;
-  repeated bytes WRji_list = 3;
+  repeated bytes BijList = 2;
+  repeated bytes WBijList = 3;
 }
 
 message VSSEcho{
@@ -90,13 +90,13 @@ message VSSEcho{
 message VSSReady{
   Pi pi = 1;
   string ReadyType = 2;
-  bytes B_il = 3;
-  bytes WB_il = 4;
+  bytes Bil = 3;
+  bytes WBil = 4;
 }
 
 message VSSDistribute{
-  bytes B_li = 1;
-  bytes WB_li = 2;
+  bytes Bli = 1;
+  bytes WBli = 2;
 }
 
 message ShareReduce{
@@ -105,11 +105,11 @@ message ShareReduce{
   bytes W = 3;
 }
 message Commit{
-  repeated Pi_content Sig = 1;
+  repeated PiContent Pi = 1;
 }
 message Reshare{
-  repeated bytes Fk = 1;
-  repeated bytes wk = 2;
+  repeated bytes Qk = 1;
+  repeated bytes wQk = 2;
 }
 message Recover{
   uint32 j = 1;
@@ -128,7 +128,7 @@ message Success{
   bytes nothing = 1;
 }
 
-message MVBA_IN{
+message MVBAIN{
   repeated bytes sig= 1;
   repeated uint32 j = 2;
 }

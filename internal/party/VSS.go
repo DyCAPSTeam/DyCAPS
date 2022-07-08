@@ -98,8 +98,8 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 		mutexPi.Lock()
 		if !PiChecked {
 			for j := uint32(1); j < 2*p.F+2; j++ {
-				polyValueFromSend[j].SetBytes(payloadMessage.RjiList[j])
-				witnessFromSend[j].SetCompressedBytes(payloadMessage.WRjiList[j])
+				polyValueFromSend[j].SetBytes(payloadMessage.BijList[j])
+				witnessFromSend[j].SetCompressedBytes(payloadMessage.WBijList[j])
 			}
 
 			verifyOK = p.VerifyVSSSendReceived(polyValueFromSend, witnessFromSend, piFromSend)
@@ -134,7 +134,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 				fullShareFromSend.Print()
 
 				//sendEcho
-				EchoData := EncapsulateVSSEcho(piFromSend, p.N, p.F)
+				EchoData := EncapsulateVSSEcho(piFromSend, p.F)
 				EchoMessage := &protobuf.Message{
 					Type:   "VSSEcho",
 					Id:     ID,
@@ -196,7 +196,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 							w.Set(InterpolateComOrWit(2*p.F, l+1, witnessInterpolated[1:2*p.F+2]))
 							mutexPolyring.Unlock()
 						}
-						ReadyData := EncapsulateVSSReady(piFromEcho, "SHARE", v, w, p.N, p.F)
+						ReadyData := EncapsulateVSSReady(piFromEcho, "SHARE", v, w, p.F)
 						err := p.Send(&protobuf.Message{Type: "VSSReady", Id: ID, Sender: p.PID, Data: ReadyData}, l)
 						if err != nil {
 							fmt.Printf("[VSSReady] Party %v send VSSReady err: %v\n", p.PID, err)
@@ -222,7 +222,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 					//reset CBj and witness
 					mutexCW.Lock()
 					for j := uint32(1); j < 2*p.F+2; j++ {
-						CB[j].SetCompressedBytes(payloadMessage.Pi.PiContents[j].CBJ)
+						CB[j].SetCompressedBytes(payloadMessage.Pi.PiContents[j].CBj)
 					}
 					CBResetChannel <- true
 
@@ -233,7 +233,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 					mutexCW.Unlock()
 
 					//send VSSReady-NOSHARE
-					ReadyData := EncapsulateVSSReady(piFromEcho, "NOSHARE", nil, nil, p.N, p.F)
+					ReadyData := EncapsulateVSSReady(piFromEcho, "NOSHARE", nil, nil, p.F)
 					err := p.Broadcast(&protobuf.Message{Type: "VSSReady", Id: ID, Sender: p.PID, Data: ReadyData})
 					if err != nil {
 						fmt.Printf("[VSSReady] Party %v broadcast VSSReady error: %v\n", p.PID, err)
@@ -280,8 +280,8 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 
 			if payloadMessage.ReadyType == "SHARE" {
 				//verify READY-SHARE messages
-				vL.SetBytes(payloadMessage.BIl)
-				wL.SetCompressedBytes(payloadMessage.WBIl)
+				vL.SetBytes(payloadMessage.Bil)
+				wL.SetCompressedBytes(payloadMessage.WBil)
 				//start from 1
 				for j := uint32(1); j < 2*p.F+2; j++ {
 					CBFromReady[j].Set(piFromReady.PiContents[j].CBj)
@@ -367,7 +367,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 							w.Set(InterpolateComOrWit(2*p.F, l+1, witnessInterpolated[1:2*p.F+2]))
 							mutexPolyring.Unlock()
 						}
-						ReadyData := EncapsulateVSSReady(piFromReady, "SHARE", v, w, p.N, p.F)
+						ReadyData := EncapsulateVSSReady(piFromReady, "SHARE", v, w, p.F)
 						err := p.Send(&protobuf.Message{Type: "VSSReady", Id: ID, Sender: p.PID, Data: ReadyData}, l)
 						if err != nil {
 							fmt.Printf("[VSSReady] Party %v send VSSReady err: %v\n", p.PID, err)
@@ -385,7 +385,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 					mutexCW.Lock()
 					//reset CBj
 					for j := uint32(1); j < 2*p.F+2; j++ {
-						CB[j].SetCompressedBytes(payloadMessage.Pi.PiContents[j].CBJ)
+						CB[j].SetCompressedBytes(payloadMessage.Pi.PiContents[j].CBj)
 					}
 					CBResetChannel <- true
 
@@ -400,7 +400,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 					mutexCW.Unlock()
 
 					//send Ready-NOSHARE
-					ReadyData := EncapsulateVSSReady(piFromReady, "NOSHARE", nil, nil, p.N, p.F)
+					ReadyData := EncapsulateVSSReady(piFromReady, "NOSHARE", nil, nil, p.F)
 					err := p.Broadcast(&protobuf.Message{Type: "VSSReady", Id: ID, Sender: p.PID, Data: ReadyData})
 					if err != nil {
 						fmt.Printf("[VSSReady] Party %v broadcast VSSReady err: %v\n", p.PID, err)
@@ -452,7 +452,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 					KZG.CreateWitness(witnessDist, reducedShare, gmp.NewInt(int64(l+1)))
 					mutexKZG.Unlock()
 
-					DistData := EncapsulateVSSDistribute(polyvalueDist, witnessDist, p.N, p.F)
+					DistData := EncapsulateVSSDistribute(polyvalueDist, witnessDist)
 					err := p.Send(&protobuf.Message{
 						Type:   "VSSDistribute",
 						Id:     ID,
@@ -501,9 +501,9 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 			fmt.Printf("[VSSRecover] Party %v has received VSSDistribute from %v \n", p.PID, msg.Sender)
 
 			valueFromDist := gmp.NewInt(0)
-			valueFromDist.SetBytes(payloadMessage.BLi)
+			valueFromDist.SetBytes(payloadMessage.Bli)
 			witnessFromDist := KZG.NewG1()
-			witnessFromDist.SetCompressedBytes(payloadMessage.WBLi)
+			witnessFromDist.SetCompressedBytes(payloadMessage.WBli)
 
 			mutexCW.Lock()
 			//interpolate CBj to verify the received v and w
