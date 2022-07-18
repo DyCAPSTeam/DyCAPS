@@ -62,7 +62,7 @@ func TestCompleteProcess(t *testing.T) {
 			fmt.Printf("[VSS] Party %v starting...\n", i)
 			p[i].VSSShareReceive([]byte("vssshare"))
 			wg.Done()
-			fmt.Printf("[VSS] Party %v done\n", i)
+			// fmt.Printf("[VSS] Party %v done\n", i)
 		}(i)
 	}
 	wg.Wait()
@@ -85,6 +85,9 @@ func TestCompleteProcess(t *testing.T) {
 	}
 	wg.Wait()
 
+	fmt.Printf("[ShstreReduce] ShareReduce finished\n")
+	fmt.Printf("[Proactivize] Proactivize starting\n")
+
 	wg.Add(int(N))
 	for i := uint32(0); i < N; i++ {
 		go func(i uint32) {
@@ -93,6 +96,7 @@ func TestCompleteProcess(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
+	fmt.Printf("[ShareDist] ShareDist finished\n")
 
 	var fullShareAtZero = make([]*gmp.Int, 2*F+1)
 	var knownIndexes = make([]*gmp.Int, 2*F+1)
@@ -132,7 +136,7 @@ func TestProactivizeAndShareDist(t *testing.T) {
 		p[i].InitSendChannel()
 	}
 
-	//FIXME: wrong use!
+	//FIXME: wrong use to generate reduced shares!
 	for i := uint32(0); i < N; i++ {
 		var rnd = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 		newPoly, _ := polyring.NewRand(int(F), rnd, ecparam.PBC256.Ngmp)
@@ -162,20 +166,4 @@ func TestProactivizeAndShareDist(t *testing.T) {
 	sRecovered := gmp.NewInt(0)
 	sPoly.EvalMod(gmp.NewInt(0), ecparam.PBC256.Ngmp, sRecovered)
 	fmt.Println("[ShareReduce] Finally recovered secret:", sRecovered)
-}
-func TestGoFunc(t *testing.T) {
-	for i := 0; i < 10; i++ {
-		go func(i int) {
-			time.Sleep(1 * time.Second)
-			fmt.Println("ii:", i)
-		}(i)
-	}
-
-	for j := 0; j < 10; j++ {
-		go func(j int) {
-			time.Sleep(1 * time.Second)
-			fmt.Println("j:", j)
-		}(j)
-	}
-	time.Sleep(2 * time.Second)
 }

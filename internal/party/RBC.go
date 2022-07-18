@@ -169,7 +169,7 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 							isReadySent = true
 							readyData, _ := proto.Marshal(&protobuf.RBCReady{Hash: hash, M: []byte(m_i)})
 							p.Broadcast(&protobuf.Message{Type: "RBCReady", Sender: p.PID, Id: ID, Data: readyData})
-							fmt.Printf("%v has broadcast RBCReady\n", p.PID)
+							fmt.Printf("Party %v has broadcast RBCReady\n", p.PID)
 							break
 						}
 					}
