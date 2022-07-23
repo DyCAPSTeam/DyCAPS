@@ -565,6 +565,9 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 						mutexMVBAIn.Unlock()
 					}
 				}
+				if MVBASent {
+					break
+				}
 			}
 		}(k)
 	}
@@ -583,39 +586,34 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 		CQsum[i] = KZG.NewG1()
 	}
 
-	//there are t+1 elements in MVBA output
-	for index := uint32(1); index <= p.F+1; index++ {
-		go func(index uint32) {
+	for _, j := range MVBARes.J {
 
-			j := MVBARes.J[index-1]
-			if !flgCom[j] {
-				//wait until flgCom[j]=1
-				<-startRefreshChan[j]
-			}
+		//wait until all related flaCom = 1
+		if !flgCom[j] {
+			//wait until flgCom[j]=1
+			<-startRefreshChan[j]
+		}
 
-			for i := 0; uint32(i) < p.F+1; i++ {
-				mutexPolyring.Lock()
-				copyedQ := polyring.NewEmpty()
-				copyedQ.ResetTo(Qsum)
-				Qsum.Add(copyedQ, Q[j][p.PID+1])
-				Qsum.Mod(ecparamN)
-				mutexPolyring.Unlock()
-			}
-			//TODO: add CQsum here later!!
-			fmt.Printf("[Proactivize Refresh] New party %v recover Qsum:\n", p.PID)
-			Qsum.Print("Qsum(x)")
-			fmt.Printf("[Proactivize Refresh] New party %v previous reducedShare B(x,i):\n", p.PID)
-			p.reducedShare.Print(fmt.Sprintf("B(x,%v)", p.PID+1))
-			copyed_halfShare := polyring.NewEmpty()
-			copyed_halfShare.ResetTo(p.reducedShare)
-			p.reducedShare.Add(Qsum, copyed_halfShare)
-			p.reducedShare.Mod(ecparamN)
-			fmt.Printf("[Proactivize Refresh] New party %v get its new reducedShare B'(x,i):\n", p.PID)
-			p.reducedShare.Print(fmt.Sprintf("B'(x,%v)", p.PID+1))
-
-		}(index)
-
+		//there are t+1 elements in MVBA output
+		mutexPolyring.Lock()
+		copyedQ := polyring.NewEmpty()
+		copyedQ.ResetTo(Qsum)
+		Qsum.Add(copyedQ, Q[j][p.PID+1])
+		Qsum.Mod(ecparamN)
+		mutexPolyring.Unlock()
+		//TODO: add CQsum here later!!
 	}
+
+	fmt.Printf("[Proactivize Refresh] New party %v recover Qsum:\n", p.PID)
+	Qsum.Print("Qsum(x)")
+	fmt.Printf("[Proactivize Refresh] New party %v previous reducedShare B(x,i):\n", p.PID)
+	p.reducedShare.Print(fmt.Sprintf("B(x,%v)", p.PID+1))
+	copyed_halfShare := polyring.NewEmpty()
+	copyed_halfShare.ResetTo(p.reducedShare)
+	p.reducedShare.Add(Qsum, copyed_halfShare)
+	p.reducedShare.Mod(ecparamN)
+	fmt.Printf("[Proactivize Refresh] New party %v get its new reducedShare B'(x,i):\n", p.PID)
+	p.reducedShare.Print(fmt.Sprintf("B'(x,%v)", p.PID+1))
 
 	//-------------------------------------ShareDist-------------------------------------
 	//Init

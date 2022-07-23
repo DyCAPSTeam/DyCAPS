@@ -98,19 +98,29 @@ func TestCompleteProcess(t *testing.T) {
 	wg.Wait()
 	fmt.Printf("[ShareDist] ShareDist finished\n")
 
-	var fullShareAtZero = make([]*gmp.Int, 2*F+1)
+	var reducedShareAtZero = make([]*gmp.Int, 2*F+1)
+	var fullShareAtZero = make([]*gmp.Int, F+1)
 	var knownIndexes = make([]*gmp.Int, 2*F+1)
+
+	for i := 0; uint32(i) < 2*F+1; i++ {
+		reducedShareAtZero[i] = gmp.NewInt(0)
+		knownIndexes[i] = gmp.NewInt(int64(i + 1))
+		p_next[i].reducedShare.EvalMod(gmp.NewInt(0), ecparam.PBC256.Ngmp, reducedShareAtZero[i])
+	}
 
 	for i := 0; uint32(i) < F+1; i++ {
 		fullShareAtZero[i] = gmp.NewInt(0)
-		knownIndexes[i] = gmp.NewInt(int64(i + 1))
 		p_next[i].fullShare.EvalMod(gmp.NewInt(0), ecparam.PBC256.Ngmp, fullShareAtZero[i])
 	}
-	sPoly, _ := interpolation.LagrangeInterpolate(int(F), knownIndexes, fullShareAtZero, ecparam.PBC256.Ngmp)
-	sPoly.Print("F(x)")
-	sRecovered := gmp.NewInt(0)
-	sPoly.EvalMod(gmp.NewInt(0), ecparam.PBC256.Ngmp, sRecovered)
-	fmt.Println("[ShareReduce] Finally recovered secret:", sRecovered)
+
+	sPolyReduced, _ := interpolation.LagrangeInterpolate(int(2*F), knownIndexes, reducedShareAtZero, ecparam.PBC256.Ngmp)
+	sReducedRecovered, _ := sPolyReduced.GetCoefficient(0)
+	fmt.Println("[Proactivize] Recovered secret from new reducedShares:", sReducedRecovered.String())
+
+	sPolyFull, _ := interpolation.LagrangeInterpolate(int(F), knownIndexes, fullShareAtZero, ecparam.PBC256.Ngmp)
+	// sPolyFull.Print("F(x)")
+	sFullRecovered, _ := sPolyFull.GetCoefficient(0)
+	fmt.Println("[ShareDist] Recovered secret from new fullShares:", sFullRecovered.String())
 }
 
 func TestProactivizeAndShareDist(t *testing.T) {
