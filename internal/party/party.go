@@ -107,6 +107,12 @@ type RecoverMsg struct {
 	sigShare []byte
 }
 
+type ShareDistMsg struct {
+	sender uint32
+	v      *gmp.Int
+	w      *pbc.Element
+}
+
 var SysSuite = pairing.NewSuiteBn256()
 var KZG = new(commitment.DLPolyCommit)
 var mutexKZG sync.Mutex
@@ -384,12 +390,13 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 		SigShare[i] = make(map[uint32][]byte)
 	}
 
-	for j := uint32(1); j <= p.N; j++ {
-		go func(j uint32) {
+	for ctr := uint32(1); ctr <= p.N; ctr++ {
+		//j is not used here
+		go func(ctr uint32) {
 			m := <-p.GetMessage("Reshare", ID)
 			var ReceivedReshareData protobuf.Reshare
 			proto.Unmarshal(m.Data, &ReceivedReshareData)
-			fmt.Printf("[Proactivize Vote] New party %v has received Reshare message from party %v, index=%v\n", p.PID, m.Sender, j)
+			fmt.Printf("[Proactivize Vote] New party %v has received Reshare message from party %v\n", p.PID, m.Sender)
 
 			indexJ := m.Sender + 1
 			//wait until flgCom[indexJ]=1
@@ -411,7 +418,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				mutexKZG.Unlock()
 
 				if !verifyReshareOK {
-					fmt.Printf("[Proactivize Vote] New party %v verifies Reshare message from party %v FAIL, CQ[%v][%v]: %s, vjki:%v, wjki:%s\n", p.PID, m.Sender, indexJ, k, CQ[j][k].String(), vjki, wjki.String())
+					fmt.Printf("[Proactivize Vote] New party %v verifies Reshare message from party %v FAIL, CQ[%v][%v]: %s, vjki:%v, wjki:%s\n", p.PID, m.Sender, indexJ, k, CQ[indexJ][k].String(), vjki, wjki.String())
 					break
 				}
 			}
@@ -463,12 +470,13 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				fmt.Printf("[Proactivize Vote] New party %v has sent the Recover message, derived from Reshare from party %v\n", p.PID, m.Sender)
 
 			}
-		}(j)
+		}(ctr)
 	}
 
 	//Recover
 	var SRec = make([][]SRecElement, p.N+1) // start from 1
 	var SSig = make([][]SSigElement, p.N+1) // start from 1
+	var mutexSRec sync.Mutex
 	for i := uint32(0); i <= p.N; i++ {
 		SRec[i] = make([]SRecElement, 0)
 		SSig[i] = make([]SSigElement, 0)
@@ -530,6 +538,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				SigShareVerifyOk := tbls.Verify(SysSuite, p.SigPK, []byte(strconv.FormatUint(uint64(k), 10)), ReceivedSigShare)
 
 				if KZGVerifyOk && (SigShareVerifyOk == nil) {
+					mutexSRec.Lock()
 					SRec[k] = append(SRec[k], SRecElement{mSender + 1, vkij})
 					fmt.Printf("[Proactivize Recover] New party %v verifies Recover message from party %v as valid, k=%v. Current Srec[k] lenth: %v\n", p.PID, mSender, k, len(SRec[k]))
 					if !flgRec[k] && uint32(len(SRec[k])) >= p.F+1 {
@@ -541,6 +550,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 						Q[k][p.PID+1], _ = interpolation.LagrangeInterpolate(int(p.F), InterpolatePolyX[:p.F+1], InterpolatePolyY[:p.F+1], ecparamN)
 						flgRec[k] = true
 					}
+
 					SSig[k] = append(SSig[k], SSigElement{mSender + 1, ReceivedSigShare})
 					if !CombinedFlag[k] && uint32(len(SSig[k])) >= 2*p.F+1 {
 						var tmpSig = make([][]byte, len(SSig))
@@ -564,6 +574,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 						}
 						mutexMVBAIn.Unlock()
 					}
+					mutexSRec.Unlock()
 				}
 				if MVBASent {
 					break
@@ -590,18 +601,20 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 
 		//wait until all related flaCom = 1
 		if !flgCom[j] {
-			//wait until flgCom[j]=1
 			<-startRefreshChan[j]
 		}
 
-		//there are t+1 elements in MVBA output
 		mutexPolyring.Lock()
 		copyedQ := polyring.NewEmpty()
 		copyedQ.ResetTo(Qsum)
 		Qsum.Add(copyedQ, Q[j][p.PID+1])
 		Qsum.Mod(ecparamN)
 		mutexPolyring.Unlock()
-		//TODO: add CQsum here later!!
+
+		//TODO: set CQsum[] as HonestParty's inner parameter
+		for i := uint32(1); i <= p.N; i++ {
+			CQsum[i].ThenAdd(CQ[j][i])
+		}
 	}
 
 	fmt.Printf("[Proactivize Refresh] New party %v recover Qsum:\n", p.PID)
@@ -618,171 +631,142 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	//-------------------------------------ShareDist-------------------------------------
 	//Init
 	fmt.Printf("[ShareDist] New party %v starts ShareDist\n", p.PID)
+	var startCommitChan = make(chan bool, 1)
+	var startDistributeChan = make(chan bool, 1)
 	var SCom = make(map[uint32]SComElement)
+	var SComChan = make([]chan bool, p.N+1)
+	for i := uint32(0); i < p.N+1; i++ {
+		SComChan[i] = make(chan bool, 1)
+	}
 	var SB []SBElement = make([]SBElement, 0)
 	var SComMutex sync.Mutex
-
-	//Commit
-	var CB = make([]*pbc.Element, p.N+1)
-	for i := uint32(0); i <= p.N; i++ {
-		CB[i] = KZG.NewG1()
-	}
-
-	KZG.Commit(CB[p.PID+1], p.reducedShare)
-	var NewcommitMessage protobuf.NewCommit
-	NewcommitMessage.CB = CB[p.PID+1].CompressedBytes()
-	NewcommitMessageData, _ := proto.Marshal(&NewcommitMessage)
-	p.RBCSend(&protobuf.Message{Type: "NewCommit", Id: ID, Sender: p.PID, Data: NewcommitMessageData}, []byte(string(ID)+"Distribute"+strconv.FormatUint(uint64(p.PID+1), 10))) // this ID is not correct
+	startCommitChan <- true
+	startDistributeChan <- true
 
 	//Distribute
-	var wBij *pbc.Element
-	var Bij *gmp.Int
-	wBij = KZG.NewG1()
-	Bij = gmp.NewInt(0)
+	go func() {
+		<-startDistributeChan
+		var wBij *pbc.Element
+		var Bij *gmp.Int
+		wBij = KZG.NewG1()
+		Bij = gmp.NewInt(0)
 
-	for j := uint32(1); j <= p.N; j++ {
-		p.reducedShare.EvalMod(gmp.NewInt(int64(j)), ecparamN, Bij)
-		KZG.CreateWitness(wBij, p.reducedShare, gmp.NewInt(int64(j)))
-		var ShareDistMessage protobuf.ShareDist
-		ShareDistMessage.B = Bij.Bytes()
-		ShareDistMessage.WB = wBij.CompressedBytes()
-		SharedistMessageData, _ := proto.Marshal(&ShareDistMessage)
-		p.Send(&protobuf.Message{Type: "ShareDist", Id: ID, Sender: p.PID, Data: SharedistMessageData}, uint32(j-1))
-	}
+		for j := uint32(1); j <= p.N; j++ {
+			p.reducedShare.EvalMod(gmp.NewInt(int64(j)), ecparamN, Bij)
+			KZG.CreateWitness(wBij, p.reducedShare, gmp.NewInt(int64(j)))
+			var ShareDistMessage protobuf.ShareDist
+			ShareDistMessage.B = Bij.Bytes()
+			ShareDistMessage.WB = wBij.CompressedBytes()
+			SharedistMessageData, _ := proto.Marshal(&ShareDistMessage)
+			p.Send(&protobuf.Message{Type: "ShareDist", Id: ID, Sender: p.PID, Data: SharedistMessageData}, uint32(j-1))
+		}
+		fmt.Printf("[ShareDist] New party %v has sent the ShareDist messages\n", p.PID)
+	}()
 
-	fmt.Printf("[ShareDist] New party %v has sent the ShareDist messages\n", p.PID)
+	//Commit
+	go func() {
+		var CB = make([]*pbc.Element, p.N+1)
+		for i := uint32(0); i <= p.N; i++ {
+			CB[i] = KZG.NewG1()
+		}
+		KZG.Commit(CB[p.PID+1], p.reducedShare)
+		var NewcommitMessage protobuf.NewCommit
+		NewcommitMessage.CB = CB[p.PID+1].CompressedBytes()
+		NewcommitMessageData, _ := proto.Marshal(&NewcommitMessage)
+		p.RBCSend(&protobuf.Message{Type: "NewCommit", Id: ID, Sender: p.PID, Data: NewcommitMessageData}, []byte(string(ID)+"ShareDist"+strconv.FormatUint(uint64(p.PID+1), 10)))
+	}()
 
 	//Verify
 	for j := uint32(1); j <= p.N; j++ {
 		go func(j uint32) {
-			m := p.RBCReceive([]byte(string(ID) + "Distribute" + strconv.FormatUint(uint64(j), 10)))
+			m := p.RBCReceive([]byte(string(ID) + "ShareDist" + strconv.FormatUint(uint64(j), 10)))
 			NewCommitData := m.Data
-			var ReceivedCB = KZG.NewG1()
-			ReceivedCB.SetCompressedBytes(NewCommitData)
+			var ReceivedCB = KZG.NewG1().SetCompressedBytes(NewCommitData)
 
 			SComMutex.Lock()
-			SCom[m.Sender+1] = SComElement{
-				index: m.Sender + 1,
-				CB:    KZG.NewG1(),
+			SCom[j] = SComElement{
+				index: j,
+				CB:    KZG.NewG1().Set(ReceivedCB),
 			}
-			SCom[m.Sender+1].CB.Set(ReceivedCB) //here add it without Verifying temporarily  //ch change index to m.sender+1
-			//TODO: Add Verification here (CB'(x,index) == CB(x,index)CQsum(x,index) ?)
+			//TODO: Add Verification here (CB'(x,j) == CB(x,index)CQsum(x,j) ?)
 			SComMutex.Unlock()
+			SComChan[j] <- true
 		}(j)
 	}
 
 	//Interpolate
-	var ShareDistMap = make(map[uint32]protobuf.ShareDist)
-	var mutexShareDistMap sync.Mutex
-	var ReceivedShareDistData protobuf.ShareDist
 	var SuccessSent = false
 	var SuccessSentChan = make(chan bool, 1)
 
-	go func() {
-		for {
-			m := <-p.GetMessage("ShareDist", ID) // this ID is not correct
+	for index := uint32(0); index < p.N; index++ {
+		//index is not used here
+		go func(index uint32) {
+			m := <-p.GetMessage("ShareDist", ID)
+
+			var ReceivedShareDistData protobuf.ShareDist
 			proto.Unmarshal(m.Data, &ReceivedShareDistData)
-			mutexShareDistMap.Lock()
-			_, ok := ShareDistMap[m.Sender+1]
-			if !ok {
-				ShareDistMap[m.Sender+1] = ReceivedShareDistData
-			}
-			mutexShareDistMap.Unlock()
-		}
-	}()
-	go func() {
-		for {
-			for j := uint32(1); j <= p.N; j++ {
-				mutexShareDistMap.Lock()
-				_, ok := ShareDistMap[j]
-				if ok == true {
-					SComMutex.Lock()
-					_, ok2 := SCom[j]
-					if ok2 == true {
-						currentSharedistData := ShareDistMap[j]
-						currentCB := SCom[j].CB
-						var vjShareDist *gmp.Int
-						var wjShareDist *pbc.Element
-						vjShareDist = gmp.NewInt(0)
-						wjShareDist = KZG.NewG1()
-						vjShareDist.SetBytes(currentSharedistData.B)
-						wjShareDist.SetCompressedBytes(currentSharedistData.WB)
-						//fmt.Println(KZG.VerifyEval(currentCB, gmp.NewInt(int64(p.PID+1)), vjShareDist, wjShareDist))
-						/*
-							if KZG.VerifyEval(currentCB, gmp.NewInt(int64(p.PID+1)), vjShareDist, wjShareDist) == false {
-								delete(ShareDistMap, index)
-								mutexShareDistMap.Unlock()
-								S_com_Mutex.Unlock()
-								continue
-							}*/
-						// debug for KZG Verification later.
-						// TODO: complete the KZG verification here.
-						SB = append(SB, SBElement{
-							index: 0,
-							CB:    KZG.NewG1(),
-							v:     gmp.NewInt(0),
-							w:     KZG.NewG1(),
-						})
-						length := len(SB)
-						SB[length-1].index = j
-						SB[length-1].CB.Set(currentCB)
-						SB[length-1].v.Set(vjShareDist)
-						SB[length-1].w.Set(wjShareDist)
+			fmt.Printf("[ShareDist] New party %v has received ShareDist message from party %v\n", p.PID, m.Sender)
+			j := m.Sender + 1
+			//wait until the commitment of B'(x,j) is included in SCom
+			<-SComChan[j]
 
-						if !SuccessSent && uint32(len(SB)) >= 2*p.F+1 {
-							var DistX []*gmp.Int = make([]*gmp.Int, 2*p.F+1)
-							var DistY []*gmp.Int = make([]*gmp.Int, 2*p.F+1)
-							for t := uint32(0); t < 2*p.F+1; t++ {
-								DistX[t] = gmp.NewInt(int64(SB[t].index))
-								DistY[t] = gmp.NewInt(0)
-								DistY[t].Set(SB[t].v)
-							}
-							p.fullShare, _ = interpolation.LagrangeInterpolate(int(2*p.F), DistX, DistY, ecparamN)
-							fmt.Printf("[ShareDist] New party %v recovers the fullShare B'(i,y):\n", p.PID)
-							sname := fmt.Sprintf("B'(%v,y)", p.PID+1)
-							p.fullShare.Print(sname)
-							var SuccessMessage protobuf.Success
-							SuccessMessage.Nothing = []byte("123") // doesn't matter. Send whatever you want
-							SuccessData, _ := proto.Marshal(&SuccessMessage)
-							p.Broadcast(&protobuf.Message{Type: "Success", Id: ID, Sender: p.PID, Data: SuccessData})
-							SuccessSent = true      //added by ch
-							SuccessSentChan <- true //added by ch
-						}
-						delete(ShareDistMap, j) // added by ch
-					}
-					SComMutex.Unlock()
+			currentCB := SCom[j].CB
+			var vjShareDist *gmp.Int
+			var wjShareDist *pbc.Element
+			vjShareDist = gmp.NewInt(0)
+			wjShareDist = KZG.NewG1()
+			vjShareDist.SetBytes(ReceivedShareDistData.B)
+			wjShareDist.SetCompressedBytes(ReceivedShareDistData.WB)
 
+			// TODO: add KZG verification here.
+			SB = append(SB, SBElement{
+				index: j,
+				CB:    KZG.NewG1().Set(currentCB),
+				v:     gmp.NewInt(0).Set(vjShareDist),
+				w:     KZG.NewG1().Set(wjShareDist),
+			})
+
+			if !SuccessSent && uint32(len(SB)) >= 2*p.F+1 {
+				var DistX []*gmp.Int = make([]*gmp.Int, 2*p.F+1)
+				var DistY []*gmp.Int = make([]*gmp.Int, 2*p.F+1)
+				//interpolate from the first 2t+1 items in SB
+				for t := uint32(0); t < 2*p.F+1; t++ {
+					DistX[t] = gmp.NewInt(int64(SB[t].index))
+					DistY[t] = gmp.NewInt(0).Set(SB[t].v)
 				}
-				mutexShareDistMap.Unlock()
-			}
-		}
 
-	}()
+				p.fullShare, _ = interpolation.LagrangeInterpolate(2*int(p.F), DistX, DistY, ecparamN)
+				fmt.Printf("[ShareDist] New party %v recovers the fullShare B'(i,y):\n", p.PID)
+				p.fullShare.Print(fmt.Sprintf("B'(%v,y)", p.PID+1))
+				var SuccessMessage protobuf.Success
+				SuccessMessage.Nothing = []byte("s") // Send whatever you want
+				SuccessData, _ := proto.Marshal(&SuccessMessage)
+				p.Broadcast(&protobuf.Message{Type: "Success", Id: ID, Sender: p.PID, Data: SuccessData})
+				SuccessSent = true
+				SuccessSentChan <- true
+			}
+
+		}(index)
+	}
 
 	// Receive Success Message
-	var SuccessMap = make(map[uint32]protobuf.Success)
-	var mutexSuccessMap sync.Mutex
 	var ReceivedSuccessData protobuf.Success
 	var SuccessCount = uint32(0)
+	var EnterNormalChan = make(chan bool, 1)
 
 	go func() {
-		<-SuccessSentChan //added by ch
+		<-SuccessSentChan
 		for {
-			m := <-p.GetMessage("Success", ID) // this ID is not correct //ch thinks it is correct
+			m := <-p.GetMessage("Success", ID)
 			proto.Unmarshal(m.Data, &ReceivedSuccessData)
-			mutexSuccessMap.Lock()
-			_, ok := SuccessMap[m.Sender+1]
-			if !ok {
-				SuccessMap[m.Sender+1] = ReceivedSuccessData
-				SuccessCount++
-			}
-			if SuccessCount >= 2*p.F+1 {
-				mutexSuccessMap.Unlock()
-				fmt.Printf("[ShareDist] New party %v enters the normal state\n", p.PID)
-				break // Enter normal state
-			}
-			mutexSuccessMap.Unlock()
-		}
+			SuccessCount++
 
+			if SuccessCount >= 2*p.F+1 {
+				fmt.Printf("[ShareDist] New party %v has collected %v SUCCESS messages, entering the normal state\n", p.PID, SuccessCount)
+				EnterNormalChan <- true
+				break
+			}
+		}
 	}()
+	<-EnterNormalChan
 }

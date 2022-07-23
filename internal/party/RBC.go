@@ -23,14 +23,14 @@ func (p *HonestParty) RBCSend(M *protobuf.Message, ID []byte) {
 	//encapsulate
 	data, _ := proto.Marshal(M)
 	p.Broadcast(&protobuf.Message{Type: "RBCPropose", Sender: p.PID, Id: ID, Data: data})
-	fmt.Println("party", p.PID, "broadcasts RBC's Propose Message, instance ID: ", string(ID))
+	fmt.Printf("[RBC] Party %v broadcasts RBC's Propose Message, instance ID: %s\n", p.PID, string(ID))
 }
 
 func (p *HonestParty) RBCSendExclude(M *protobuf.Message, ID []byte, pid uint32) {
 	//encapsulate
 	data, _ := proto.Marshal(M)
 	p.BroadcastExclude(&protobuf.Message{Type: "RBCPropose", Sender: p.PID, Id: ID, Data: data}, pid)
-	fmt.Println("party", p.PID, "broadcasts RBC's Propose Message (excluding party", pid, "), instance ID: ", string(ID))
+	fmt.Printf("[RBC] Party %v broadcasts RBC's Propose Message (excluding party %v), instance ID: %s\n", p.PID, pid, string(ID))
 }
 
 func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
@@ -169,7 +169,7 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 							isReadySent = true
 							readyData, _ := proto.Marshal(&protobuf.RBCReady{Hash: hash, M: []byte(m_i)})
 							p.Broadcast(&protobuf.Message{Type: "RBCReady", Sender: p.PID, Id: ID, Data: readyData})
-							fmt.Printf("Party %v has broadcast RBCReady\n", p.PID)
+							fmt.Printf("[RBC] Party %v has broadcast RBCReady\n", p.PID)
 							break
 						}
 					}
