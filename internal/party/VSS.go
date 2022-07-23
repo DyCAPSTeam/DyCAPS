@@ -42,7 +42,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 	var DistSent = false
 	var VSSShareFinished = make(chan bool, 1)
 
-	var CB = make([]*pbc.Element, p.N+1) //CBj for j=1...n
+	var CB = make([]*pbc.Element, p.N+1) //CBj for index=1...n
 	var mutexCW sync.Mutex
 
 	mutexCW.Lock()
@@ -131,7 +131,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 				tmpPoly, _ := interpolation.LagrangeInterpolate(int(2*p.F), x, y, ecparamN)
 				fullShareFromSend.ResetTo(tmpPoly)
 				fmt.Printf("[VSSEcho] Party %v interpolate B*(i,x) polynomial when receive Send Message:\n", p.PID)
-				fullShareFromSend.Print()
+				fullShareFromSend.Print(fmt.Sprintf("B*(%v,x)", p.PID+1))
 
 				//sendEcho
 				EchoData := EncapsulateVSSEcho(piFromSend, p.F)
@@ -440,7 +440,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 				} else {
 					fmt.Printf("[VSSDistribute] Party %v has reconstructed reducedShare B(x,i) from t+1 Ready messages:\n", p.PID)
 				}
-				reducedShare.Print()
+				reducedShare.Print(fmt.Sprintf("B(x,%v)", p.PID+1))
 
 				//send VSSDistribute
 				for l := uint32(0); l < p.N; l++ {
@@ -543,7 +543,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 					//set the final reduceShare and witnesses, then break
 					p.fullShare.ResetTo(fullShare)
 					fmt.Printf("[VSSRecover] Party %v gets its full share B(i,y):\n", p.PID)
-					p.fullShare.Print()
+					p.fullShare.Print(fmt.Sprintf("B(%v,y)", p.PID+1))
 					fullShareInterpolated = true
 					VSSShareFinished <- true
 					break
@@ -553,7 +553,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 	}()
 
 	<-VSSShareFinished
-	fmt.Printf("[VSS] Party %v exist VSS now\n", p.PID)
+	fmt.Printf("[VSS] Party %v exists VSS now\n", p.PID)
 }
 
 func (p *HonestParty) VerifyVSSSendReceived(polyValue []*gmp.Int, witness []*pbc.Element, piReceived *Pi) bool {
@@ -576,12 +576,12 @@ func (p *HonestParty) VerifyVSSSendReceived(polyValue []*gmp.Int, witness []*pbc
 	for j := uint32(1); j < 2*p.F+2; j++ {
 		tmp2 := KZG.NewG1()
 		// tmp2.Set1()
-		tmp2.MulBig(piReceived.PiContents[j].gFj, conv.GmpInt2BigInt(lambda[j-1])) // the x value of index j-1 is j
+		tmp2.MulBig(piReceived.PiContents[j].gFj, conv.GmpInt2BigInt(lambda[j-1])) // the x value of index index-1 is index
 		tmp.ThenAdd(tmp2)
 		// tmp.ThenMul(tmp2)
 	}
 	if !tmp.Equals(piReceived.Gs) {
-		fmt.Printf("[VSSEcho] Party %v VSSSend Verify Failed, g_s=%v, but prod(g^F(j))=%v \n", p.PID, piReceived.Gs.String(), tmp.String())
+		fmt.Printf("[VSSEcho] Party %v VSSSend Verify Failed, g_s=%v, but prod(g^F(index))=%v \n", p.PID, piReceived.Gs.String(), tmp.String())
 		return false
 	}
 	//Verify KZG.VerifyEval(CZjk,0,0,WZjk0) == 1 && CBjk == CZjk * g^Fj(k) for k in [1,2t+1]

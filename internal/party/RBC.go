@@ -64,11 +64,11 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 				// t+1 RBCReady messages and t+1 matching RBCEcho messages
 
 				if p.PID == 0 || p.PID == 1 {
-					if j != uint32(2) {
-						p.Send(&protobuf.Message{Type: "RBCEcho", Sender: p.PID, Id: ID, Data: EchoData}, j)
+					if index != uint32(2) {
+						p.Send(&protobuf.Message{Type: "RBCEcho", Sender: p.PID, Id: ID, Data: EchoData}, index)
 					}
 				} else {
-					p.Send(&protobuf.Message{Type: "RBCEcho", Sender: p.PID, Id: ID, Data: EchoData}, j)
+					p.Send(&protobuf.Message{Type: "RBCEcho", Sender: p.PID, Id: ID, Data: EchoData}, index)
 				}
 			*/
 		}
@@ -78,7 +78,7 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 	//map (hash,M) to counter. Key value doesn't support []byte, so we transform it to string type.
 	var EchoMessageMap = make(map[string]map[string]int)
 
-	//T_h in line 16, Algo 4, RBC paper. T maps the hash to []m_received = {(j,mj), ...}
+	//T_h in line 16, Algo 4, RBC paper. T maps the hash to []m_received = {(index,mj), ...}
 	var T = make(map[string][]mReceived)
 	var MaxReadyNumber = int(0)
 	var MaxReadyHash []byte

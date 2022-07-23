@@ -41,7 +41,7 @@ func (client *Client) Share(ID []byte) {
 	}
 	F.SetCoefficientBig(0, client.s)
 
-	//generate 2t+1 t-degree B(x,j)
+	//generate 2t+1 t-degree B(x,index)
 	var BList = make([]polyring.Polynomial, 2*client.F+2) // here we do not use BList[0]
 	var rnd2 = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	for j := 1; uint32(j) <= 2*client.F+1; j++ {

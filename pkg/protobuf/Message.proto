@@ -112,10 +112,10 @@ message Reshare{
   repeated bytes wQk = 2;
 }
 message Recover{
-  uint32 j = 1;
+  uint32 index = 1;
   bytes v = 2;
   bytes w = 3;
-  bytes sig = 4;
+  bytes sigShare = 4;
 }
 message NewCommit{
   bytes CB = 1;

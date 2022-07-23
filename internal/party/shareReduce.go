@@ -15,8 +15,8 @@ import (
 func (p *HonestParty) ShareReduceSend(ID []byte) {
 	ecparamN := ecparam.PBC256.Ngmp
 
-	var tmpCB = make([]*pbc.Element, p.N+1) //commitment of B(x,j), j start from 1
-	var tmpWB = make([]*pbc.Element, p.N+1) //witness of B(i,j), j start from 1
+	var tmpCB = make([]*pbc.Element, p.N+1) //commitment of B(x,index), index start from 1
+	var tmpWB = make([]*pbc.Element, p.N+1) //witness of B(i,index), index start from 1
 	for i := uint32(0); i < p.N+1; i++ {
 		tmpCB[i] = KZG.NewG1()
 		tmpWB[i] = KZG.NewG1()
@@ -120,6 +120,6 @@ func (p *HonestParty) ShareReduceReceive(ID []byte) {
 	}
 
 	p.reducedShare, _ = interpolation.LagrangeInterpolate(int(p.F), polyX, polyY, ecparamN)
-	fmt.Printf("[ShareReduce] New party %v has recovered its reducedShare:\n", p.PID)
-	p.reducedShare.Print()
+	fmt.Printf("[ShareReduce] New party %v has recovered its reducedShare B(x,i):\n", p.PID)
+	p.reducedShare.Print(fmt.Sprintf("B(x,%v)", p.PID+1))
 }

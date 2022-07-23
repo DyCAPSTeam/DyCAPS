@@ -41,7 +41,7 @@ func messageHandler(ctx context.Context, p *HonestParty, IDr []byte, IDrj [][]by
 				buf.WriteByte(2)
 				buf.Write(h[:])
 				sm := buf.Bytes()
-				err := bls.Verify(pairing.NewSuiteBn256(), p.SigPK.Commit(), sm, payload.Sig) //verify("Echo"||ID||r||j||2||h)
+				err := bls.Verify(pairing.NewSuiteBn256(), p.SigPK.Commit(), sm, payload.Sig) //verify("Echo"||ID||r||index||2||h)
 				if err == nil {
 					Fr.Store(m.Sender, payload)
 					FrLength++

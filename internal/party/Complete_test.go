@@ -107,7 +107,7 @@ func TestCompleteProcess(t *testing.T) {
 		p_next[i].fullShare.EvalMod(gmp.NewInt(0), ecparam.PBC256.Ngmp, fullShareAtZero[i])
 	}
 	sPoly, _ := interpolation.LagrangeInterpolate(int(F), knownIndexes, fullShareAtZero, ecparam.PBC256.Ngmp)
-	sPoly.Print()
+	sPoly.Print("F(x)")
 	sRecovered := gmp.NewInt(0)
 	sPoly.EvalMod(gmp.NewInt(0), ecparam.PBC256.Ngmp, sRecovered)
 	fmt.Println("[ShareReduce] Finally recovered secret:", sRecovered)
@@ -162,7 +162,7 @@ func TestProactivizeAndShareDist(t *testing.T) {
 		p[i].fullShare.EvalMod(gmp.NewInt(0), ecparam.PBC256.Ngmp, fullShareAtZero[i])
 	}
 	sPoly, _ := interpolation.LagrangeInterpolate(int(F), knownIndexes, fullShareAtZero, ecparam.PBC256.Ngmp)
-	sPoly.Print()
+	sPoly.Print("F(x)")
 	sRecovered := gmp.NewInt(0)
 	sPoly.EvalMod(gmp.NewInt(0), ecparam.PBC256.Ngmp, sRecovered)
 	fmt.Println("[ShareReduce] Finally recovered secret:", sRecovered)

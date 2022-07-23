@@ -182,7 +182,7 @@ func InterpolateComOrWit(degree uint32, targetIndex uint32, List []*pbc.Element)
 		for j := uint32(0); j < degree+1; j++ {
 			tmp := KZG.NewG1()
 			tmp.Set1()
-			// fmt.Printf("j: %v,  C_list[j]: %s, lambda[j]: %s\n", j, C_list[j].String(), lambda[j].String())
+			// fmt.Printf("index: %v,  C_list[index]: %s, lambda[index]: %s\n", index, C_list[index].String(), lambda[index].String())
 			tmp.MulBig(CWList[j], conv.GmpInt2BigInt(lambda[j]))
 			ans.ThenAdd(tmp)
 		}

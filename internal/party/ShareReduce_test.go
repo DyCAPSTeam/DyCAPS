@@ -91,7 +91,7 @@ func TestShareReduce(t *testing.T) {
 		pNext[i].reducedShare.EvalMod(gmp.NewInt(0), ecparam.PBC256.Ngmp, reducedShareAtZero[i])
 	}
 	sPoly, _ := interpolation.LagrangeInterpolate(int(2*F), knownIndexes, reducedShareAtZero, ecparam.PBC256.Ngmp)
-	sPoly.Print()
+	sPoly.Print("F(x)")
 	sRecovered := gmp.NewInt(0)
 	sPoly.EvalMod(gmp.NewInt(0), ecparam.PBC256.Ngmp, sRecovered)
 	fmt.Println("[ShareReduce] Finally recovered secret:", sRecovered)

@@ -2,7 +2,6 @@ package party
 
 import (
 	"fmt"
-	"math/big"
 	"sync"
 	"testing"
 
@@ -80,7 +79,7 @@ func TestDealer(t *testing.T) {
 			piTest.PiContents[j].gFj = KZG.NewG1()
 		}
 
-		// j starts from 1 here
+		// index starts from 1 here
 		for j := 1; uint32(j) <= 2*F+1; j++ {
 			piTest.PiContents[j].CBj.SetCompressedBytes(content.Pi.PiContents[j].CBj)
 			piTest.PiContents[j].CZj.SetCompressedBytes(content.Pi.PiContents[j].CZj)
@@ -95,7 +94,7 @@ func TestDealer(t *testing.T) {
 
 		}
 
-		//verify g^s = \prod g^{lambda[j]*F(j)} = \prod (g^F(j))^lambda[j]
+		//verify g^s = \prod g^{lambda[index]*F(index)} = \prod (g^F(index))^lambda[index]
 		lambda := make([]*gmp.Int, 2*F+1)
 		knownIndexes := make([]*gmp.Int, 2*F+1)
 		for j := 0; uint32(j) < 2*F+1; j++ {
@@ -109,11 +108,11 @@ func TestDealer(t *testing.T) {
 		for j := 1; uint32(j) <= 2*F+1; j++ {
 			tmp2 := KZG.NewG1()
 			// tmp2.Set1()
-			tmp2.MulBig(piTest.PiContents[j].gFj, conv.GmpInt2BigInt(lambda[j-1])) // the x value of index j-1 is j
-			// tmp2.PowBig(pi_test.Pi_contents[j].gFj, conv.GmpInt2BigInt(lambda[j-1])) // the x value of index j-1 is j
+			tmp2.MulBig(piTest.PiContents[j].gFj, conv.GmpInt2BigInt(lambda[j-1])) // the x value of index index-1 is index
+			// tmp2.PowBig(pi_test.Pi_contents[index].gFj, conv.GmpInt2BigInt(lambda[index-1])) // the x value of index index-1 is index
 			tmp.ThenAdd(tmp2)
 		}
-		assert.True(t, tmp.Equals(piTest.Gs), "[VSSReceive] Verify g^s = \\prod g^{lambda[j]*F(j)} = \\prod (g^F(j))^lambda[j]")
+		assert.True(t, tmp.Equals(piTest.Gs), "[VSSReceive] Verify g^s = \\prod g^{lambda[index]*F(index)} = \\prod (g^F(index))^lambda[index]")
 
 		//KZG verification
 		for j := 1; uint32(j) <= 2*F+1; j++ {
@@ -186,36 +185,4 @@ func TestVSS(t *testing.T) {
 	wg.Wait()
 
 	fmt.Println("[VSS] VSS Finish")
-}
-func TestF(t *testing.T) {
-
-	KZG.SetupFix(2)
-	C := KZG.NewG1()
-	C.Set1()
-	C2 := KZG.NewG1()
-	C2.Set1()
-	C2.MulBig(C2, big.NewInt(2))
-	C = C2
-	fmt.Printf("C: %s\n", C.String())
-	fmt.Printf("C2: %s\n", C2.String())
-
-	ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
-	portList := []string{"8880", "8881", "8882", "8883", "8884", "8885", "8886", "8887", "8888", "8889"}
-	ipListNext := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
-	portListNext := []string{"8890", "8891", "8892", "8893", "8894", "8895", "8896", "8897", "8898", "8899"}
-	N := uint32(10)
-	F := uint32(3)
-	sk, pk := SigKeyGen(N, 2*F+2) // wrong usage, but it doesn't matter here
-
-	KZG.SetupFix(2 * int(F))
-
-	var p []*HonestParty = make([]*HonestParty, N)
-	for i := uint32(0); i < N; i++ {
-		p[i] = NewHonestParty(N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i])
-	}
-	fmt.Printf("Party 1's witness address: %v\n", &p[1].witness[1])
-	fmt.Printf("Party 2's witness address: %v\n", &p[2].witness[1])
-
-	fmt.Printf("Party 1's proof address: %v\n", &p[1].Proof)
-	fmt.Printf("Party 2's proof address: %v\n", &p[2].Proof)
 }
