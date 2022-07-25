@@ -296,14 +296,13 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 					C.Set(InterpolateComOrWit(2*p.F, p.PID+1, CBFromReady[1:2*p.F+2]))
 					mutexPolyring.Unlock()
 				}
-				fmt.Printf("[VSSReady][Party %v] Verify VSSReady-SHARE message from party %v, C:%s, v_l: %s, w_l: %s\n", p.PID, gmp.NewInt(int64(mSender)), C.String(), vL.String(), wL.String())
 
 				mutexKZG.Lock()
 				verified := KZG.VerifyEval(C, gmp.NewInt(int64(mSender+1)), vL, wL)
 				mutexKZG.Unlock()
 
 				if verified {
-					fmt.Printf("[VSSReady] Party %v verified: %v, sender: %v\n", p.PID, verified, mSender)
+					fmt.Printf("[VSSReady][Party %v] Verify VSSReady-SHARE message from party %v SUCCESS\n", p.PID, mSender)
 					mutexReadyMap.Lock()
 					counter, ok := ReadyMap[piHashStr]
 					if ok {

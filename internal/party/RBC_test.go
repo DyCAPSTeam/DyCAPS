@@ -5,14 +5,12 @@ import (
 	"strconv"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 	_ "github.com/DyCAPSTeam/DyCAPS/pkg/utils"
 )
 
 func TestRBC(t *testing.T) {
-
 	ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
 	portList := []string{"10080", "10081", "10082", "10083", "10084", "10085", "10086", "10087", "10088", "10089", "10090", "10091", "10092"}
 	ipListNext := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
@@ -24,7 +22,7 @@ func TestRBC(t *testing.T) {
 
 	var p []*HonestParty = make([]*HonestParty, N)
 	for i := uint32(0); i < N; i++ {
-		p[i] = NewHonestParty(N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i])
+		p[i] = NewHonestParty(0, N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i])
 	}
 	for i := uint32(0); i < N; i++ {
 		p[i].InitReceiveChannel()
@@ -66,7 +64,7 @@ func TestRBCExlude(t *testing.T) {
 
 	var p []*HonestParty = make([]*HonestParty, N)
 	for i := uint32(0); i < N; i++ {
-		p[i] = NewHonestParty(N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i])
+		p[i] = NewHonestParty(0, N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i])
 	}
 	for i := uint32(0); i < N; i++ {
 		p[i].InitReceiveChannel()
@@ -109,7 +107,7 @@ func TestMultiRBC(t *testing.T) {
 
 	var p []*HonestParty = make([]*HonestParty, N)
 	for i := uint32(0); i < N; i++ {
-		p[i] = NewHonestParty(N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i])
+		p[i] = NewHonestParty(0, N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i])
 	}
 	for i := uint32(0); i < N; i++ {
 		p[i].InitReceiveChannel()
@@ -129,7 +127,7 @@ func TestMultiRBC(t *testing.T) {
 				fmt.Println(j, " output RBC message from ", i, ": ", m)
 				wg.Done()
 			}(i, j)
-			time.Sleep(250000000)
+			// time.Sleep(250000000)
 		}
 	}
 

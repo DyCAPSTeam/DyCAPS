@@ -25,8 +25,8 @@ func TestShareReduce(t *testing.T) {
 	var p []*HonestParty = make([]*HonestParty, N)
 	var pNext []*HonestParty = make([]*HonestParty, N)
 	for i := uint32(0); i < N; i++ {
-		p[i] = NewHonestParty(N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i])
-		pNext[i] = NewHonestParty(N, F, i, ipListNext, portListNext, nil, nil, pkNew, skNew[i])
+		p[i] = NewHonestParty(0, N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i])
+		pNext[i] = NewHonestParty(1, N, F, i, ipListNext, portListNext, nil, nil, pkNew, skNew[i])
 	}
 
 	for i := uint32(0); i < N; i++ {
@@ -43,7 +43,7 @@ func TestShareReduce(t *testing.T) {
 	var client Client
 	client.s = new(gmp.Int)
 	client.s.SetInt64(int64(111111111111111))
-	client.HonestParty = NewHonestParty(N, F, 0x7fffffff, ipList, portList, ipListNext, portListNext, pk, sk[2*F+1])
+	client.HonestParty = NewHonestParty(0, N, F, 0x7fffffff, ipList, portList, ipListNext, portListNext, pk, sk[2*F+1])
 	err := client.InitSendChannel()
 	if err != nil {
 		fmt.Printf("[VSS] Client InitSendChannel err: %v\n", err)

@@ -28,7 +28,7 @@ func TestDealer(t *testing.T) {
 
 	var p []*HonestParty = make([]*HonestParty, N)
 	for i := uint32(0); i < N; i++ {
-		p[i] = NewHonestParty(N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i])
+		p[i] = NewHonestParty(0, N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i])
 	}
 
 	for i := uint32(0); i < N; i++ {
@@ -50,7 +50,7 @@ func TestDealer(t *testing.T) {
 	client.s = new(gmp.Int).SetInt64(int64(1111111111111112222))
 	clientID := uint32(0x7fffffff)
 
-	client.HonestParty = NewHonestParty(N, F, clientID, ipList, portList, ipListNext, portListNext, pk, sk[2*F+1])
+	client.HonestParty = NewHonestParty(0, N, F, clientID, ipList, portList, ipListNext, portListNext, pk, sk[2*F+1])
 	err := client.InitSendChannel()
 	if err != nil {
 		fmt.Printf("[VSS TestDealer] Client InitSendChannel err: %v\n", err)
@@ -139,7 +139,7 @@ func TestVSS(t *testing.T) {
 
 	var p []*HonestParty = make([]*HonestParty, N)
 	for i := uint32(0); i < N; i++ {
-		p[i] = NewHonestParty(N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i])
+		p[i] = NewHonestParty(0, N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i])
 	}
 
 	for i := uint32(0); i < N; i++ {
@@ -161,7 +161,7 @@ func TestVSS(t *testing.T) {
 	client.s = new(gmp.Int).SetBytes([]byte("11111111111111111111111112"))
 	clientID := uint32(0x7fffffff)
 
-	client.HonestParty = NewHonestParty(N, F, clientID, ipList, portList, ipListNext, portListNext, pk, sk[2*F+1])
+	client.HonestParty = NewHonestParty(0, N, F, clientID, ipList, portList, ipListNext, portListNext, pk, sk[2*F+1])
 	err := client.InitSendChannel()
 	if err != nil {
 		fmt.Printf("[VSS] Client InitSendChannel err: %v\n", err)

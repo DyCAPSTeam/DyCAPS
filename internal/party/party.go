@@ -39,6 +39,7 @@ type Pi struct {
 //HonestParty is a struct of honest committee members
 //TODO: add epoch number into this struct
 type HonestParty struct {
+	e            uint32   // epoch number
 	N            uint32   // committee size
 	F            uint32   // number of corrupted parties
 	PID          uint32   // id of this party
@@ -103,7 +104,7 @@ var KZG = new(commitment.DLPolyCommit)
 var mutexKZG sync.Mutex
 
 //NewHonestParty returns a new honest party object
-func NewHonestParty(N uint32, F uint32, pid uint32, ipList []string, portList []string, ipListNext []string, portListNext []string, sigPK *share.PubPoly, sigSK *share.PriShare) *HonestParty {
+func NewHonestParty(e uint32, N uint32, F uint32, pid uint32, ipList []string, portList []string, ipListNext []string, portListNext []string, sigPK *share.PubPoly, sigSK *share.PriShare) *HonestParty {
 	piInit := new(Pi)
 	piInit.Init(F)
 	witness := make([]*pbc.Element, 2*F+2)
@@ -113,6 +114,7 @@ func NewHonestParty(N uint32, F uint32, pid uint32, ipList []string, portList []
 		witnessIndexes[i] = gmp.NewInt(0)
 	}
 	p := HonestParty{
+		e:                  e,
 		N:                  N,
 		F:                  F,
 		PID:                pid,
