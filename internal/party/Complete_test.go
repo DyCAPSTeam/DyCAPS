@@ -68,6 +68,21 @@ func TestCompleteProcess(t *testing.T) {
 	wg.Wait()
 
 	fmt.Printf("[VSS] VSS finished\n")
+
+	//transfer the Proofs, equivalent to the Prepare phase
+	fmt.Printf("[Prepare] Prepare starts, transfering proofs to the new committee\n")
+	for i := uint32(0); i < N; i++ {
+		p_next[i].Proof.Gs.Set(p[i].Proof.Gs)
+		for j := uint32(0); j < 2*F+2; j++ {
+			p_next[i].Proof.PiContents[j].gFj.Set(p[i].Proof.PiContents[j].gFj)
+			p_next[i].Proof.PiContents[j].CBj.Set(p[i].Proof.PiContents[j].CBj)
+			p_next[i].Proof.PiContents[j].CZj.Set(p[i].Proof.PiContents[j].CZj)
+			p_next[i].Proof.PiContents[j].WZ0.Set(p[i].Proof.PiContents[j].WZ0)
+			p_next[i].Proof.PiContents[j].j = p[i].Proof.PiContents[j].j
+		}
+	}
+	fmt.Printf("[Prepare] Prepare finished\n")
+
 	fmt.Printf("[ShstreReduce] ShareReduce starting...\n")
 
 	wg.Add(int(N))

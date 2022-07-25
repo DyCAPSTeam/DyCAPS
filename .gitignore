@@ -9,3 +9,4 @@ launch.json
 *.test
 *.out
 
+.idea/*
