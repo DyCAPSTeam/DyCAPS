@@ -53,8 +53,12 @@ type HonestParty struct {
 
 	dispatchChannels *sync.Map
 
-	SigPK *share.PubPoly  //tss pk
-	SigSK *share.PriShare //tss sk
+	KZG      *commitment.DLPolyCommit
+	mutexKZG *sync.Mutex
+
+	SysSuite *pairing.SuiteBn256
+	SigPK    *share.PubPoly  //tss pk
+	SigSK    *share.PriShare //tss sk
 
 	Proof *Pi //pi
 
@@ -99,14 +103,16 @@ type RecoverMsg struct {
 	sigShare []byte
 }
 
-var SysSuite = pairing.NewSuiteBn256()
-var KZG = new(commitment.DLPolyCommit)
-var mutexKZG sync.Mutex
-
 //NewHonestParty returns a new honest party object
 func NewHonestParty(e uint32, N uint32, F uint32, pid uint32, ipList []string, portList []string, ipListNext []string, portListNext []string, sigPK *share.PubPoly, sigSK *share.PriShare) *HonestParty {
+	var SysSuite = pairing.NewSuiteBn256()
+
+	var KZG = new(commitment.DLPolyCommit)
+	var mutexKZG sync.Mutex
+	KZG.SetupFix(int(2 * F))
+
 	piInit := new(Pi)
-	piInit.Init(F)
+	piInit.Init(F, KZG)
 	witness := make([]*pbc.Element, 2*F+2)
 	witnessIndexes := make([]*gmp.Int, 2*F+2)
 	for i := 0; uint32(i) < 2*F+2; i++ {
@@ -125,8 +131,12 @@ func NewHonestParty(e uint32, N uint32, F uint32, pid uint32, ipList []string, p
 		sendChannels:       make([]chan *protobuf.Message, N),
 		sendToNextChannels: make([]chan *protobuf.Message, N),
 
-		SigPK: sigPK,
-		SigSK: sigSK,
+		SysSuite: SysSuite,
+		SigPK:    sigPK,
+		SigSK:    sigSK,
+
+		KZG:      KZG,
+		mutexKZG: &mutexKZG,
 
 		Proof: piInit,
 

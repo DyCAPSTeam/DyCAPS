@@ -2,6 +2,7 @@ package party
 
 import (
 	"errors"
+	"github.com/DyCAPSTeam/DyCAPS/internal/commitment"
 	"sync"
 
 	"github.com/DyCAPSTeam/DyCAPS/internal/conv"
@@ -123,7 +124,7 @@ func (p *HonestParty) checkInitSendChannelsToNext() bool {
 	return p.sendToNextChannels != nil
 }
 
-func (pi *Pi) Init(F uint32) {
+func (pi *Pi) Init(F uint32, KZG *commitment.DLPolyCommit) {
 	pi.Gs = KZG.NewG1()
 	pi.PiContents = make([]PiContent, 2*F+2)
 	for i := uint32(0); i <= 2*F+1; i++ {
@@ -158,7 +159,7 @@ func (pi *Pi) Set(src *Pi, F uint32) {
 }
 
 //InterpolateComOrWit interpolates commitment or witness according to the first 2t+1 elements
-func InterpolateComOrWit(degree uint32, targetIndex uint32, List []*pbc.Element) *pbc.Element {
+func InterpolateComOrWit(degree uint32, targetIndex uint32, List []*pbc.Element, KZG *commitment.DLPolyCommit) *pbc.Element {
 	CWList := make([]*pbc.Element, degree+1)
 	copy(CWList, List)
 
@@ -190,7 +191,7 @@ func InterpolateComOrWit(degree uint32, targetIndex uint32, List []*pbc.Element)
 	}
 }
 
-func InterpolateComOrWitByKnownIndexes(degree uint32, targetIndex uint32, knownIndexes []*gmp.Int, List []*pbc.Element) *pbc.Element {
+func InterpolateComOrWitByKnownIndexes(degree uint32, targetIndex uint32, knownIndexes []*gmp.Int, List []*pbc.Element, KZG *commitment.DLPolyCommit) *pbc.Element {
 	CWList := make([]*pbc.Element, degree+1)
 	copy(CWList, List)
 
@@ -316,10 +317,10 @@ func EncapsulateVSSReady(pi *Pi, ReadyType string, Bli *gmp.Int, wli *pbc.Elemen
 	return data
 }
 
-func EncapsulateVSSDistribute(B_li *gmp.Int, w_li *pbc.Element) []byte {
+func EncapsulateVSSDistribute(Bli *gmp.Int, wli *pbc.Element) []byte {
 	var msg = new(protobuf.VSSDistribute)
-	msg.Bli = B_li.Bytes()
-	msg.WBli = w_li.CompressedBytes()
+	msg.Bli = Bli.Bytes()
+	msg.WBli = wli.CompressedBytes()
 	data, _ := proto.Marshal(msg)
 	return data
 }

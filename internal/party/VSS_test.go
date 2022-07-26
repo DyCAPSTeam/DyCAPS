@@ -24,7 +24,7 @@ func TestDealer(t *testing.T) {
 	F := uint32(3)
 	sk, pk := SigKeyGen(N, 2*F+2) // wrong usage, but it doesn't matter here
 
-	KZG.SetupFix(2 * int(F))
+	//KZG.SetupFix(2 * int(F))
 
 	var p []*HonestParty = make([]*HonestParty, N)
 	for i := uint32(0); i < N; i++ {
@@ -65,18 +65,18 @@ func TestDealer(t *testing.T) {
 		if err != nil {
 			return
 		}
-		gs := KZG.NewG1()
+		gs := p[i].KZG.NewG1()
 		gs.SetCompressedBytes(content.Pi.Gs)
 
 		piTest := new(Pi)
-		piTest.Gs = KZG.NewG1()
+		piTest.Gs = p[i].KZG.NewG1()
 		piTest.Gs.Set(gs)
 		piTest.PiContents = make([]PiContent, 2*F+2)
 		for j := 0; uint32(j) <= 2*F+1; j++ {
-			piTest.PiContents[j].CBj = KZG.NewG1()
-			piTest.PiContents[j].CZj = KZG.NewG1()
-			piTest.PiContents[j].WZ0 = KZG.NewG1()
-			piTest.PiContents[j].gFj = KZG.NewG1()
+			piTest.PiContents[j].CBj = p[i].KZG.NewG1()
+			piTest.PiContents[j].CZj = p[i].KZG.NewG1()
+			piTest.PiContents[j].WZ0 = p[i].KZG.NewG1()
+			piTest.PiContents[j].gFj = p[i].KZG.NewG1()
 		}
 
 		// index starts from 1 here
@@ -87,7 +87,7 @@ func TestDealer(t *testing.T) {
 			piTest.PiContents[j].gFj.SetCompressedBytes(content.Pi.PiContents[j].GFj)
 
 			// verify CBj=CZj*gFj
-			tmp := KZG.NewG1()
+			tmp := p[i].KZG.NewG1()
 			tmp.Set0()
 			tmp.Add(piTest.PiContents[j].CZj, piTest.PiContents[j].gFj)
 			assert.True(t, tmp.Equals(piTest.PiContents[j].CBj), "verify CBj = CZj * gFj")
@@ -103,10 +103,10 @@ func TestDealer(t *testing.T) {
 		}
 
 		polyring.GetLagrangeCoefficients(2*F, knownIndexes, ecparam.PBC256.Ngmp, gmp.NewInt(0), lambda)
-		tmp := KZG.NewG1()
+		tmp := p[i].KZG.NewG1()
 		tmp.Set0()
 		for j := 1; uint32(j) <= 2*F+1; j++ {
-			tmp2 := KZG.NewG1()
+			tmp2 := p[i].KZG.NewG1()
 			// tmp2.Set1()
 			tmp2.MulBig(piTest.PiContents[j].gFj, conv.GmpInt2BigInt(lambda[j-1])) // the x value of index index-1 is index
 			// tmp2.PowBig(pi_test.Pi_contents[index].gFj, conv.GmpInt2BigInt(lambda[index-1])) // the x value of index index-1 is index
@@ -117,10 +117,10 @@ func TestDealer(t *testing.T) {
 		//KZG verification
 		for j := 1; uint32(j) <= 2*F+1; j++ {
 			Bij := gmp.NewInt(0)
-			WBij := KZG.NewG1()
+			WBij := p[i].KZG.NewG1()
 			Bij.SetBytes(content.BijList[j])
 			WBij.SetCompressedBytes(content.WBijList[j])
-			assert.True(t, KZG.VerifyEval(piTest.PiContents[j].CBj, gmp.NewInt(int64((i+1))), Bij, WBij), "[VSSReceive] KZG verification")
+			assert.True(t, p[i].KZG.VerifyEval(piTest.PiContents[j].CBj, gmp.NewInt(int64((i+1))), Bij, WBij), "[VSSReceive] KZG verification")
 		}
 	}
 }
@@ -135,7 +135,7 @@ func TestVSS(t *testing.T) {
 	F := uint32(4)
 	sk, pk := SigKeyGen(N, 2*F+2) // wrong usage, but it doesn't matter here
 
-	KZG.SetupFix(2 * int(F))
+	//KZG.SetupFix(2 * int(F))
 
 	var p []*HonestParty = make([]*HonestParty, N)
 	for i := uint32(0); i < N; i++ {

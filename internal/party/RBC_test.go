@@ -17,7 +17,7 @@ func TestRBC(t *testing.T) {
 	portListNext := []string{"10190", "10191", "10192", "10193", "10194", "10195", "10196", "10197", "10198", "10199", "10200", "10201", "10202"}
 	N := uint32(13)
 	F := uint32(4)
-	KZG.SetupFix(int(2 * F))
+	//KZG.SetupFix(int(2 * F))
 	sk, pk := SigKeyGen(N, N-F)
 
 	var p []*HonestParty = make([]*HonestParty, N)
@@ -35,7 +35,7 @@ func TestRBC(t *testing.T) {
 	var wg sync.WaitGroup
 	var ID = []byte("abc")
 	wg.Add(int(N))
-	for i := uint32(0); i < N; i++ { // there is one malicious node, who doesn't send any Message
+	for i := uint32(0); i < N; i++ {
 		go func(i uint32) {
 			m := p[i].RBCReceive(ID)
 			fmt.Println(i, " output RBC message: ", m)
@@ -59,7 +59,7 @@ func TestRBCExlude(t *testing.T) {
 	portListNext := []string{"10190", "10191", "10192", "10193", "10194", "10195", "10196", "10197", "10198", "10199", "10200", "10201", "10202"}
 	N := uint32(7)
 	F := uint32(1)
-	KZG.SetupFix(int(2 * F))
+	//KZG.SetupFix(int(2 * F))
 	sk, pk := SigKeyGen(N, N-F)
 
 	var p []*HonestParty = make([]*HonestParty, N)
@@ -102,7 +102,7 @@ func TestMultiRBC(t *testing.T) {
 	portListNext := []string{"10190", "10191", "10192", "10193", "10194", "10195", "10196", "10197", "10198", "10199", "10200", "10201", "10202"}
 	N := uint32(4)
 	F := uint32(1)
-	KZG.SetupFix(int(2 * F))
+	//KZG.SetupFix(int(2 * F))
 	sk, pk := SigKeyGen(N, 2*F+1)
 
 	var p []*HonestParty = make([]*HonestParty, N)

@@ -22,13 +22,13 @@ type Client struct {
 func (client *Client) Share(ID []byte) {
 
 	pi := new(Pi)
-	pi.Init(client.F)
+	pi.Init(client.F, client.KZG)
 	pi.PiContents = make([]PiContent, 2*client.F+2) // here we do not use pi.Pi_contents[0]
 	var p = ecparam.PBC256.Ngmp                     // the prime of Zp* (the type is *gmp.Int)
 	//pi <- g^s
 	sPoly, _ := polyring.New(0)
 	_ = sPoly.SetCoefficientBig(0, client.s)
-	KZG.Commit(pi.Gs, sPoly)
+	client.KZG.Commit(pi.Gs, sPoly)
 	fmt.Printf("[VSSSend] pi.Gs: %v\n", pi.Gs)
 
 	//generate a 2t-degree random polynomial F, where F(0) = s
@@ -56,9 +56,9 @@ func (client *Client) Share(ID []byte) {
 	var CZList = make([]*pbc.Element, 2*client.F+2)       // here we do not use CZList[0]
 	var WZ0List = make([]*pbc.Element, 2*client.F+2)
 	for i := 0; uint32(i) <= 2*client.F+1; i++ {
-		CBList[i] = KZG.NewG1()
-		CZList[i] = KZG.NewG1()
-		WZ0List[i] = KZG.NewG1()
+		CBList[i] = client.KZG.NewG1()
+		CZList[i] = client.KZG.NewG1()
+		WZ0List[i] = client.KZG.NewG1()
 	}
 
 	for i := 1; uint32(i) <= 2*client.F+1; i++ {
@@ -78,15 +78,15 @@ func (client *Client) Share(ID []byte) {
 		ZList[i].Sub(copiedZ, temp)
 		ZList[i].Mod(p) // don't forget mod p!!!
 		//commit R_list
-		KZG.Commit(CBList[i], BList[i])
+		client.KZG.Commit(CBList[i], BList[i])
 		//commit Z_list
-		KZG.Commit(CZList[i], ZList[i])
+		client.KZG.Commit(CZList[i], ZList[i])
 		//create witness of (Zj(x),0)
-		KZG.CreateWitness(WZ0List[i], ZList[i], gmp.NewInt(0))
+		client.KZG.CreateWitness(WZ0List[i], ZList[i], gmp.NewInt(0))
 
 		//add to pi
-		var FjCommit = KZG.NewG1()
-		KZG.Commit(FjCommit, temp)
+		var FjCommit = client.KZG.NewG1()
+		client.KZG.Commit(FjCommit, temp)
 		pi.PiContents[i] = PiContent{j: i, CBj: CBList[i], CZj: CZList[i], WZ0: WZ0List[i], gFj: FjCommit}
 	}
 
@@ -99,11 +99,11 @@ func (client *Client) Share(ID []byte) {
 		BijList[i] = make([]*gmp.Int, 2*client.F+2)  // start from 1
 		for j := 0; uint32(j) <= 2*client.F+1; j++ {
 			BijList[i][j] = gmp.NewInt(0)
-			WBij[i][j] = KZG.NewG1()
+			WBij[i][j] = client.KZG.NewG1()
 		}
 		//set W_Rji
 		for j := 1; uint32(j) <= 2*client.F+1; j++ {
-			KZG.CreateWitness(WBij[i][j], BList[j], gmp.NewInt(int64(i)))
+			client.KZG.CreateWitness(WBij[i][j], BList[j], gmp.NewInt(int64(i)))
 			BList[j].EvalMod(gmp.NewInt(int64(i)), p, BijList[i][j])
 		}
 		//encapsulate

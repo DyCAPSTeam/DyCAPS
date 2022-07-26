@@ -18,8 +18,8 @@ func (p *HonestParty) ShareReduceSend(ID []byte) {
 	var tmpCB = make([]*pbc.Element, p.N+1) //commitment of B(x,index), index start from 1
 	var tmpWB = make([]*pbc.Element, p.N+1) //witness of B(i,index), index start from 1
 	for i := uint32(0); i < p.N+1; i++ {
-		tmpCB[i] = KZG.NewG1()
-		tmpWB[i] = KZG.NewG1()
+		tmpCB[i] = p.KZG.NewG1()
+		tmpWB[i] = p.KZG.NewG1()
 	}
 
 	//get 2t+1 values from prior execution of DyCAPS.Handoff or DyCAPS.Share
@@ -29,12 +29,14 @@ func (p *HonestParty) ShareReduceSend(ID []byte) {
 	}
 
 	//interpolate the remaining commitments and witnesses
+	p.mutexKZG.Lock()
 	mutexPolyring.Lock()
 	for j := uint32(1); j < p.N+1; j++ {
-		tmpCB[j] = InterpolateComOrWit(2*p.F, j, tmpCB[1:2*p.F+2])
-		tmpWB[j] = InterpolateComOrWitByKnownIndexes(2*p.F, j, p.witnessIndexes[1:], p.witness[1:])
+		tmpCB[j] = InterpolateComOrWit(2*p.F, j, tmpCB[1:2*p.F+2], p.KZG)
+		tmpWB[j] = InterpolateComOrWitByKnownIndexes(2*p.F, j, p.witnessIndexes[1:], p.witness[1:], p.KZG)
 	}
 	mutexPolyring.Unlock()
+	p.mutexKZG.Unlock()
 
 	for j := uint32(0); j < p.N; j++ {
 		polyValue := gmp.NewInt(0)
@@ -60,12 +62,10 @@ func (p *HonestParty) ShareReduceReceive(ID []byte) {
 	var ComMap = make(map[string]uint32)                        //count the number of C
 	var MostCountedCom string                                   //C_B(x,i)
 
-	var vJ *gmp.Int
-	var C, wJ *pbc.Element
+	var vJ = gmp.NewInt(0)
 	var polyX, polyY []*gmp.Int
-	vJ = gmp.NewInt(0)
-	C = KZG.NewG1()
-	wJ = KZG.NewG1()
+	C := p.KZG.NewG1()
+	wJ := p.KZG.NewG1()
 
 	for {
 		m := <-p.GetMessage("ShareReduce", ID)
@@ -76,9 +76,9 @@ func (p *HonestParty) ShareReduceReceive(ID []byte) {
 		wJ.SetCompressedBytes(ShareReduceData.W)
 		vJ.SetBytes(ShareReduceData.V)
 
-		mutexKZG.Lock()
-		verified := KZG.VerifyEval(C, gmp.NewInt(int64(m.Sender+1)), vJ, wJ)
-		mutexKZG.Unlock()
+		p.mutexKZG.Lock()
+		verified := p.KZG.VerifyEval(C, gmp.NewInt(int64(m.Sender+1)), vJ, wJ)
+		p.mutexKZG.Unlock()
 		if verified {
 			cStr := string(ShareReduceData.C)
 			_, ok2 := ShareReduceMap[cStr]
@@ -86,7 +86,7 @@ func (p *HonestParty) ShareReduceReceive(ID []byte) {
 				ShareReduceMap[cStr] = append(ShareReduceMap[cStr], polypoint.PolyPoint{
 					X:       int32(m.Sender + 1),
 					Y:       gmp.NewInt(0).Set(vJ),
-					PolyWit: KZG.NewG1().Set(wJ),
+					PolyWit: p.KZG.NewG1().Set(wJ),
 				})
 				ComMap[cStr] += 1
 			} else {
@@ -94,7 +94,7 @@ func (p *HonestParty) ShareReduceReceive(ID []byte) {
 				ShareReduceMap[cStr] = append(ShareReduceMap[cStr], polypoint.PolyPoint{
 					X:       int32(m.Sender + 1),
 					Y:       gmp.NewInt(0).Set(vJ),
-					PolyWit: KZG.NewG1().Set(wJ),
+					PolyWit: p.KZG.NewG1().Set(wJ),
 				})
 				ComMap[cStr] = 1
 			}

@@ -20,7 +20,7 @@ func TestShareReduce(t *testing.T) {
 	F := uint32(2)
 	sk, pk := SigKeyGen(N+1, 2*F+2) // wrong usage, but it doesn't matter here
 	skNew, pkNew := SigKeyGen(N, 2*F+1)
-	KZG.SetupFix(int(2 * F))
+	//KZG.SetupFix(int(2 * F))
 
 	var p []*HonestParty = make([]*HonestParty, N)
 	var pNext []*HonestParty = make([]*HonestParty, N)
