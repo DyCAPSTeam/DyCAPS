@@ -107,6 +107,8 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 			var tmpPoly = polyring.NewEmpty()
 			Fj, _ := Q[p.PID+1][j].GetCoefficient(0)
 			tmpPoly.SetCoefficientBig(0, &Fj)
+
+			mutexKZG.Lock()
 			KZG.Commit(gFj, tmpPoly)
 
 			Z[j].Sub(Q[p.PID+1][j], tmpPoly) //Z_ij(x)=Q_i(x,index)-F_j(index), which means Z_ij(0)=0
@@ -120,6 +122,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				KZG.NewG1().Set(CZ[j]),
 				KZG.NewG1().Set(wZ[j]),
 				KZG.NewG1().Set(gFj)})
+			mutexKZG.Unlock()
 		}
 
 		var CommitMessage = new(protobuf.Commit)
@@ -147,13 +150,15 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 			var ReceivedData protobuf.Commit
 			proto.Unmarshal(m.Data, &ReceivedData)
 
+			GFjList := make([]*pbc.Element, 2*p.F+1)
+			// mutexKZG.Lock()
 			cmpOne := KZG.NewG1().Set0()
 			interRes := KZG.NewG1()
-			GFjList := make([]*pbc.Element, 2*p.F+1)
 			for i := uint32(0); i < 2*p.F+1; i++ {
 				GFjList[i] = KZG.NewG1()
 				GFjList[i].SetCompressedBytes(ReceivedData.Pi[i].GFj)
 			}
+			// mutexKZG.Unlock()
 
 			mutexKZG.Lock()
 			mutexPolyring.Lock()
@@ -164,9 +169,10 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 			if !interRes.Equals(cmpOne) {
 				revertFlag = true
 				fmt.Printf("[Proactivize Verify][New party %v] Verify \\prod {gFj}=1 FAIL, sender: %v interRes=%s\n", p.PID, m.Sender, interRes.String())
-			} else {
-				// fmt.Printf("[Proactivize Verify][New party %v] Verify \\prod {gFj}=1 SUCCESS, sender: %v\n", p.PID, m.Sender)
 			}
+			// else {
+			// fmt.Printf("[Proactivize Verify][New party %v] Verify \\prod {gFj}=1 SUCCESS, sender: %v\n", p.PID, m.Sender)
+			// }
 
 			//parse piJ from RBC1J
 			for k := uint32(0); k < 2*p.F+1; k++ {
@@ -231,7 +237,10 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				var tmpQkj = gmp.NewInt(0)
 				var tmpwQ = KZG.NewG1()
 				Q[p.PID+1][j].EvalMod(gmp.NewInt(int64(k)), ecparamN, tmpQkj)
-				KZG.CreateWitness(tmpwQ, Q[p.PID+1][j], gmp.NewInt(int64(k))) // changed.
+
+				mutexKZG.Lock()
+				KZG.CreateWitness(tmpwQ, Q[p.PID+1][j], gmp.NewInt(int64(k)))
+				mutexKZG.Unlock()
 
 				reshareMessage.WQk[j-1] = tmpwQ.CompressedBytes()
 				reshareMessage.Qk[j-1] = tmpQkj.Bytes()
@@ -297,24 +306,27 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 					lambda[k] = gmp.NewInt(int64(k + 1))
 				}
 				for l := uint32(1); l <= p.N; l++ {
+					mutexKZG.Lock()
+					mutexPolyring.Lock()
 					polyring.GetLagrangeCoefficients(2*p.F, knownIndexes, ecparamN, gmp.NewInt(int64(l)), lambda)
+					mutexPolyring.Unlock()
 					vQ[indexJ][l][p.PID+1].SetInt64(int64(0))
 					wQ[indexJ][l][p.PID+1].Set1()
 					for k := uint32(1); k <= 2*p.F+1; k++ {
-						vjki.SetBytes(ReceivedReshareData.Qk[k-1])
-						wjki.SetCompressedBytes(ReceivedReshareData.WQk[k-1])
-						var copyFijl = gmp.NewInt(0)
-						var copyWijl = KZG.NewG1()
 						var tt1 = gmp.NewInt(0) // temp mul result
 						var tt2 = KZG.NewG1()   // temp mul result
+						vjki.SetBytes(ReceivedReshareData.Qk[k-1])
+						wjki.SetCompressedBytes(ReceivedReshareData.WQk[k-1])
+						var copyFijl = gmp.NewInt(0).Set(vQ[indexJ][l][p.PID+1])
+						var copyWijl = KZG.NewG1().Set(wQ[indexJ][l][p.PID+1])
 
-						copyFijl.Set(vQ[indexJ][l][p.PID+1])
-						copyWijl.Set(wQ[indexJ][l][p.PID+1])
 						tt1.Mul(lambda[k-1], vjki)
 						vQ[indexJ][l][p.PID+1].Add(copyFijl, tt1)
 						tt2.MulBig(wjki, conv.GmpInt2BigInt(lambda[k-1]))
 						wQ[indexJ][l][p.PID+1].Mul(copyWijl, tt2)
 					}
+
+					mutexKZG.Unlock()
 					// send Recover
 					var RecoverMessage protobuf.Recover
 					RecoverMessage.Index = indexJ
@@ -509,7 +521,9 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 
 		for j := uint32(1); j <= p.N; j++ {
 			p.reducedShare.EvalMod(gmp.NewInt(int64(j)), ecparamN, Bij)
+			mutexKZG.Lock()
 			KZG.CreateWitness(wBij, p.reducedShare, gmp.NewInt(int64(j)))
+			mutexKZG.Unlock()
 			var ShareDistMessage protobuf.ShareDist
 			ShareDistMessage.B = Bij.Bytes()
 			ShareDistMessage.WB = wBij.CompressedBytes()
@@ -521,8 +535,10 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 
 	//Commit
 	go func() {
+		mutexKZG.Lock()
 		CB := KZG.NewG1()
 		KZG.Commit(CB, p.reducedShare)
+		mutexKZG.Unlock()
 		var NewcommitMessage protobuf.NewCommit
 		NewcommitMessage.CB = CB.CompressedBytes()
 		p.RBCSend(&protobuf.Message{Type: "NewCommit", Id: ID, Sender: p.PID, Data: NewcommitMessage.CB}, []byte(string(ID)+"ShareDist"+strconv.FormatUint(uint64(p.PID+1), 10)))
@@ -588,9 +604,10 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 			currentCB := SCom[j].CB
 			var vjShareDist = gmp.NewInt(0).SetBytes(ReceivedShareDistData.B)
 			var wjShareDist = KZG.NewG1().SetCompressedBytes(ReceivedShareDistData.WB)
+			var i = gmp.NewInt(int64(p.PID + 1))
 
 			mutexKZG.Lock()
-			verifyKZGOk := KZG.VerifyEval(currentCB, gmp.NewInt(int64(p.PID+1)), vjShareDist, wjShareDist)
+			verifyKZGOk := KZG.VerifyEval(currentCB, i, vjShareDist, wjShareDist)
 			mutexKZG.Unlock()
 			if verifyKZGOk {
 				fmt.Printf("[ShareDist Interpolate][New party %v] Verify ShareDist message from new party %v SUCCESS\n", p.PID, j)
@@ -641,11 +658,11 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 			SuccessCount++
 
 			if SuccessCount >= 2*p.F+1 {
-				fmt.Printf("[ShareDist][New party %v] Enter the normal state\n", p.PID)
-				EnterNormalChan <- true
 				break
 			}
 		}
+		fmt.Printf("[ShareDist][New party %v] Enter the normal state\n", p.PID)
+		EnterNormalChan <- true
 	}()
 	<-EnterNormalChan
 }
