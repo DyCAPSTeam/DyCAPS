@@ -121,3 +121,8 @@ func (client *Client) Share(ID []byte) {
 		}
 	}
 }
+
+func (client *Client) SetSecret(s *gmp.Int) {
+	client.s = gmp.NewInt(0)
+	client.s.Set(s)
+}

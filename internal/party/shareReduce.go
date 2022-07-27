@@ -123,3 +123,23 @@ func (p *HonestParty) ShareReduceReceive(ID []byte) {
 	fmt.Printf("[ShareReduce][New party %v] have recovered reducedShare B(x,i):\n", p.PID)
 	p.reducedShare.Print(fmt.Sprintf("B(x,%v)", p.PID+1))
 }
+
+//PrepareSend sends p.Proof to the corresponding node in the next commitee.i.e.p[i].Proof -> pNext[i].Proof
+func (p *HonestParty) PrepareSend(ID []byte) {
+	//VSSEcho only contains Pi, so here we use EncapsulateVSSEcho().
+	data := EncapsulateVSSEcho(p.Proof, p.F)
+	p.SendToNextCommittee(&protobuf.Message{
+		Type:   "Prepare",
+		Id:     ID,
+		Sender: p.PID,
+		Data:   data,
+	}, p.PID)
+}
+
+//PrepareReceive receives Prepare message which contains Pi from the previous commitee  and sets p.Proof.
+func (p *HonestParty) PrepareReceive(ID []byte) {
+	msg := <-p.GetMessage("Prepare", ID)
+	ProofMsg := new(protobuf.VSSEcho) //VSSEcho only contains protobuf.Pi
+	proto.Unmarshal(msg.Data, ProofMsg)
+	p.Proof.SetFromVSSMessage(ProofMsg.Pi, p.F)
+}

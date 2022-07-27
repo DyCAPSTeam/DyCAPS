@@ -71,12 +71,14 @@ func TestShareReduce(t *testing.T) {
 	wg.Add(int(N))
 	for i := uint32(0); i < N; i++ {
 		go func(i uint32) {
+			pNext[i].PrepareReceive([]byte("shareReduce"))
 			pNext[i].ShareReduceReceive([]byte("shareReduce"))
 			wg.Done()
 		}(i)
 	}
 	for i := uint32(0); i < N; i++ {
 		go func(i uint32) {
+			p[i].PrepareSend([]byte("shareReduce"))
 			p[i].ShareReduceSend([]byte("shareReduce"))
 		}(i)
 	}

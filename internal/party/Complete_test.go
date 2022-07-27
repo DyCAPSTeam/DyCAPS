@@ -17,8 +17,8 @@ func TestCompleteProcess(t *testing.T) {
 	portListNext := []string{"8890", "8891", "8892", "8893", "8894", "8895", "8896", "8897", "8898", "8899"}
 	N := uint32(4)
 	F := uint32(1)
-	sk, pk := SigKeyGen(N, 2*F+1)
-	skNew, pkNew := SigKeyGen(N, 2*F+1)
+	sk, pk := SigKeyGenFix(N, 2*F+1)
+	skNew, pkNew := SigKeyGenFix(N, 2*F+1)
 	// KZG.SetupFix(int(2 * F))
 
 	var p []*HonestParty = make([]*HonestParty, N)
@@ -48,66 +48,30 @@ func TestCompleteProcess(t *testing.T) {
 		fmt.Printf("[VSS] Client InitSendChannel err: %v\n", err)
 	}
 
-	client.Share([]byte("vssshare"))
-	fmt.Printf("[VSS] VSSshare done\n")
-
 	var wg sync.WaitGroup
 
 	wg.Add(int(N))
+
 	for i := uint32(0); i < N; i++ {
 		go func(i uint32) {
-			fmt.Printf("[VSS] Party %v starting...\n", i)
-			p[i].VSSShareReceive([]byte("vssshare"))
-			wg.Done()
-		}(i)
-	}
-	wg.Wait()
-
-	fmt.Printf("[VSS] VSS finished\n")
-
-	//transfer the Proofs, equivalent to Prepare phase
-	fmt.Printf("[Prepare] Prepare starts, transfering proofs to the new committee\n")
-	for i := uint32(0); i < N; i++ {
-		pNext[i].Proof.Gs.Set(p[i].Proof.Gs)
-		for j := uint32(0); j < 2*F+2; j++ {
-			pNext[i].Proof.PiContents[j].gFj.Set(p[i].Proof.PiContents[j].gFj)
-			pNext[i].Proof.PiContents[j].CBj.Set(p[i].Proof.PiContents[j].CBj)
-			pNext[i].Proof.PiContents[j].CZj.Set(p[i].Proof.PiContents[j].CZj)
-			pNext[i].Proof.PiContents[j].WZ0.Set(p[i].Proof.PiContents[j].WZ0)
-			pNext[i].Proof.PiContents[j].j = p[i].Proof.PiContents[j].j
-		}
-	}
-	fmt.Printf("[Prepare] Prepare finished\n")
-
-	fmt.Printf("[ShstreReduce] ShareReduce starting...\n")
-
-	wg.Add(int(N))
-	for i := uint32(0); i < N; i++ {
-		go func(i uint32) {
+			pNext[i].PrepareReceive([]byte("shareReduce"))
 			pNext[i].ShareReduceReceive([]byte("shareReduce"))
-			wg.Done()
-		}(i)
-	}
-
-	for i := uint32(0); i < N; i++ {
-		go func(i uint32) {
-			p[i].ShareReduceSend([]byte("shareReduce"))
-		}(i)
-	}
-	wg.Wait()
-
-	fmt.Printf("[ShstreReduce] ShareReduce finished\n")
-	fmt.Printf("[Proactivize] Proactivize starting\n")
-
-	wg.Add(int(N))
-	for i := uint32(0); i < N; i++ {
-		go func(i uint32) {
 			pNext[i].ProactivizeAndShareDist([]byte("ProactivizeAndShareReduce"))
 			wg.Done()
 		}(i)
 	}
+
+	for i := uint32(0); i < N; i++ {
+		go func(i uint32) {
+			p[i].VSSShareReceive([]byte("vssshare"))
+			p[i].PrepareSend([]byte("shareReduce"))
+			p[i].ShareReduceSend([]byte("shareReduce"))
+		}(i)
+	}
+
+	client.Share([]byte("vssshare"))
+
 	wg.Wait()
-	fmt.Printf("[ShareDist] ShareDist finished\n")
 
 	var reducedShareAtZero = make([]*gmp.Int, 2*F+1)
 	var fullShareAtZero = make([]*gmp.Int, F+1)
