@@ -37,7 +37,9 @@ func main() {
 		p.PrepareSend([]byte("shareReduce"))
 		p.ShareReduceSend([]byte("shareReduce"))
 		fmt.Printf("[ShareReduce] ShareReduce done\n")
-
+		fmt.Println("enter any number to finish")
+		var finishNum int // the finishing signal
+		fmt.Scanf("%d", &finishNum)
 	case "newCommitee":
 		p := new(party.HonestParty)
 		fmt.Println("the id of the node")
@@ -56,7 +58,9 @@ func main() {
 		fmt.Printf("[Proactivize] Proactivize starting\n")
 		p.ProactivizeAndShareDist([]byte("ProactivizeAndShareDist"))
 		fmt.Printf("[ShareDist] ShareDist finished\n")
-
+		fmt.Println("enter any number to finish")
+		var finishNum int // the finishing signal
+		fmt.Scanf("%d", &finishNum)
 	case "client":
 		var client party.Client
 		s := new(gmp.Int)
@@ -72,5 +76,8 @@ func main() {
 		}
 		client.Share([]byte("vssshare"))
 		fmt.Printf("[VSS] VSSshare done\n")
+		fmt.Println("enter any number to finish")
+		var finishNum int // the finishing signal
+		fmt.Scanf("%d", &finishNum)
 	}
 }
