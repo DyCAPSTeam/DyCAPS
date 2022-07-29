@@ -17,8 +17,8 @@ func TestCompleteProcess_New(t *testing.T) {
 	portListNext := []string{"18890", "18891", "18892", "18893", "18894", "18895", "18896", "18897", "18898", "18899"}
 	N := uint32(4)
 	F := uint32(1)
-	sk, pk := SigKeyGenFix(N, 2*F+1)
-	skNew, pkNew := SigKeyGenFix(N, 2*F+1)
+	sk, pk := SigKeyGen(N, 2*F+1)
+	skNew, pkNew := SigKeyGen(N, 2*F+1)
 	// KZG.SetupFix(int(2 * F))
 
 	var p []*HonestParty = make([]*HonestParty, N)
