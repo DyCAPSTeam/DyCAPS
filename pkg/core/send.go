@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"log"
 	"net"
 
@@ -27,7 +28,7 @@ func MakeSendChannel(hostIP string, hostPort string) chan *protobuf.Message {
 		if err1 != nil || err2 != nil {
 			log.Fatalln(err1)
 			log.Fatalln(err2)
-			retry = true
+			// retry = true
 		} else {
 			retry = false
 		}
@@ -41,14 +42,20 @@ func MakeSendChannel(hostIP string, hostPort string) chan *protobuf.Message {
 			//Do Marshal
 			byt, err1 := proto.Marshal(m)
 			if err1 != nil {
+				fmt.Printf("Send message ERROR:%v\n", err1)
 				log.Fatalln(err1)
 			}
 			//Send bytes
 			length := len(byt)
 			_, err2 := conn.Write(utils.IntToBytes(length))
 			_, err3 := conn.Write(byt)
-			if err2 != nil || err3 != nil {
-				log.Fatalln("The send channel has bread down!", err2)
+			if err2 != nil {
+				fmt.Printf("Send message ERROR:%v\n", err2)
+				log.Fatalln("The send channel has broken down!", err2)
+			}
+			if err3 != nil {
+				fmt.Printf("Send message ERROR:%v\n", err3)
+				log.Fatalln("The send channel has broken down!", err3)
 			}
 		}
 	}(conn, sendChannel)
