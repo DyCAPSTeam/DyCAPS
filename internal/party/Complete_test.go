@@ -102,7 +102,7 @@ func TestCompleteProcess(t *testing.T) {
 	wg.Add(int(N))
 	for i := uint32(0); i < N; i++ {
 		go func(i uint32) {
-			pNext[i].ProactivizeAndShareDist([]byte("ProactivizeAndShareReduce"))
+			pNext[i].ProactivizeAndShareDist([]byte("ProactivizeAndShareDist"))
 			wg.Done()
 		}(i)
 	}

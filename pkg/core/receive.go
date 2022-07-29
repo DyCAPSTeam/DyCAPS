@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -24,7 +25,7 @@ func MakeReceiveChannel(port string) chan *protobuf.Message {
 		if err1 != nil || err2 != nil {
 			log.Fatalln(err1)
 			log.Fatalln(err2)
-			retry = true
+			// retry = true
 		} else {
 			retry = false
 		}
@@ -39,6 +40,7 @@ func MakeReceiveChannel(port string) chan *protobuf.Message {
 			conn, err3 = lis.AcceptTCP()
 			conn.SetKeepAlive(true)
 			if err3 != nil {
+				fmt.Printf("receiveChannel ERROR: %v\n", err3)
 				log.Fatalln(err3)
 			}
 			//Once connect to a node, make a sub-handle func to handle this connection
@@ -51,12 +53,14 @@ func MakeReceiveChannel(port string) chan *protobuf.Message {
 					buf := make([]byte, length)
 					_, err2 := io.ReadFull(conn, buf)
 					if err1 != nil || err2 != nil {
+						fmt.Printf("The receive channel has bread down, err1: %v, err2:%v\n", err1, err2)
 						log.Fatalln("The receive channel has bread down", err1, err2)
 					}
 					//Do Unmarshal
 					var m protobuf.Message
 					err3 := proto.Unmarshal(buf, &m)
 					if err3 != nil {
+						fmt.Printf("Unmarshal error: %v\n", err3)
 						log.Fatalln(err3)
 					}
 					//Push protobuf.Message to receivechannel
