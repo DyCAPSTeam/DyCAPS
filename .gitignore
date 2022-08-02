@@ -10,3 +10,6 @@ launch.json
 *.out
 
 .idea/*
+
+cmd/DyCAPs/coefficients
+cmd/DyCAPs/coefficients_new
