@@ -5,10 +5,14 @@ import (
 	"fmt"
 	"github.com/DyCAPSTeam/DyCAPS/internal/party"
 	"github.com/ncw/gmp"
+	"os"
+	"strconv"
 	"time"
 )
 
 func main() {
+	metadataPath := "metadata"
+
 	N := flag.Int("n", 4, "the size of the commitee")
 	F := flag.Int("f", 4, "the maximum of faults")
 	id := flag.Int("id", 0, "the id of the node")
@@ -79,6 +83,14 @@ func main() {
 			fmt.Printf("[Proactivize] Proactivize starting\n")
 			p.ProactivizeAndShareDist([]byte("ProactivizeAndShareDist"))
 			fmt.Printf("[ShareDist] ShareDist finished\n")
+
+			f, _ := os.OpenFile(metadataPath+"/log"+strconv.Itoa(int(p.PID)), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			defer f.Close()
+			fmt.Fprintf(f, "VSSLatency,%d\n", p.VSSEnd.Sub(p.VSSStart).Nanoseconds())
+			fmt.Fprintf(f, "ShareReduceLatency,%d\n", p.ShareReduceEnd.Sub(p.ShareReduceStart).Nanoseconds())
+			fmt.Fprintf(f, "ProactivizeLatency,%d\n", p.ProactivizeEnd.Sub(p.ProactivizeStart).Nanoseconds())
+			fmt.Fprintf(f, "ShareDistLatency,%d\n", p.ShareDistEnd.Sub(p.ShareDistStart).Nanoseconds())
+
 			time.Sleep(100000000000) //FIXME:temp solution
 
 		case "client":

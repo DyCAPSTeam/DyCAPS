@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/DyCAPSTeam/DyCAPS/internal/conv"
 	"github.com/DyCAPSTeam/DyCAPS/internal/ecparam"
@@ -87,6 +88,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 		//We assume VSS sender only sends VSSSend message once (whether the sender is honest or not)
 		//So there is no for-loop here: each party only processes VSSSend once
 		m := <-p.GetMessage("VSSSend", ID)
+		p.VSSStart = time.Now()
 		fmt.Printf("[VSSEcho][Party %v] Received VSSSend Message\n", p.PID)
 		var payloadMessage protobuf.VSSSend
 		err := proto.Unmarshal(m.Data, &payloadMessage)
@@ -552,6 +554,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 
 	<-VSSShareFinished
 	fmt.Printf("[VSS][Party %v] Exist VSS now\n", p.PID)
+	p.VSSEnd = time.Now()
 }
 
 func (p *HonestParty) VerifyVSSSendReceived(polyValue []*gmp.Int, witness []*pbc.Element, piReceived *Pi) bool {

@@ -2,6 +2,7 @@ package party
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/DyCAPSTeam/DyCAPS/internal/ecparam"
 	"github.com/DyCAPSTeam/DyCAPS/internal/interpolation"
@@ -122,10 +123,12 @@ func (p *HonestParty) ShareReduceReceive(ID []byte) {
 	p.reducedShare, _ = interpolation.LagrangeInterpolate(int(p.F), polyX, polyY, ecparamN)
 	fmt.Printf("[ShareReduce][New party %v] have recovered reducedShare B(x,i):\n", p.PID)
 	p.reducedShare.Print(fmt.Sprintf("B(x,%v)", p.PID+1))
+	p.ShareReduceEnd = time.Now()
 }
 
 //PrepareSend sends p.Proof to the corresponding node in the next commitee.i.e.p[i].Proof -> pNext[i].Proof
 func (p *HonestParty) PrepareSend(ID []byte) {
+	p.ShareReduceStart = time.Now()
 	//VSSEcho only contains Pi, so here we use EncapsulateVSSEcho().
 	data := EncapsulateVSSEcho(p.Proof, p.F)
 	p.SendToNextCommittee(&protobuf.Message{

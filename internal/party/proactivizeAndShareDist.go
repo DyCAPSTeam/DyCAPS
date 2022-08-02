@@ -19,6 +19,7 @@ import (
 )
 
 func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
+	p.ProactivizeStart = time.Now()
 	ecparamN := ecparam.PBC256.Ngmp
 	var flgCom = make([]bool, p.N+1)
 	var flgRec = make([]bool, p.N+1)
@@ -497,10 +498,11 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	fmt.Printf("[Proactivize Refresh][New party %v] New reducedShare B'(x,i):\n", p.PID)
 	p.reducedShare.Print(fmt.Sprintf("B'(x,%v)", p.PID+1))
 	fmt.Printf("[Proactivize Refresh][New party %v] Refresh done\n", p.PID)
-
+	p.ProactivizeEnd = time.Now()
 	//-------------------------------------ShareDist-------------------------------------
 	//Init
 	// fmt.Printf("[ShareDist][New party %v] Start ShareDist\n", p.PID)
+	p.ShareDistStart = time.Now()
 	var startCommitChan = make(chan bool, 1)
 	var startDistributeChan = make(chan bool, 1)
 	var SCom = make(map[uint32]SComElement)
@@ -665,4 +667,5 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 		EnterNormalChan <- true
 	}()
 	<-EnterNormalChan
+	p.ShareDistEnd = time.Now()
 }
