@@ -1,7 +1,7 @@
 package party
 
 import (
-	"fmt"
+	"log"
 	"sync"
 	"testing"
 
@@ -44,7 +44,7 @@ func TestCompleteProcess_New(t *testing.T) {
 	client.HonestParty = NewHonestParty(0, N, F, 0x7fffffff, ipList, portList, ipListNext, portListNext, pk, nil)
 	err := client.InitSendChannel()
 	if err != nil {
-		fmt.Printf("[VSS] Client InitSendChannel err: %v\n", err)
+		log.Printf("[VSS] Client InitSendChannel err: %v\n", err)
 	}
 
 	var wg sync.WaitGroup
@@ -89,10 +89,10 @@ func TestCompleteProcess_New(t *testing.T) {
 
 	sPolyReduced, _ := interpolation.LagrangeInterpolate(int(2*F), knownIndexes, reducedShareAtZero, ecparam.PBC256.Ngmp)
 	sReducedRecovered, _ := sPolyReduced.GetCoefficient(0)
-	fmt.Println("[Proactivize] Recovered secret from new reducedShares:", sReducedRecovered.String())
+	log.Println("[Proactivize] Recovered secret from new reducedShares:", sReducedRecovered.String())
 
 	sPolyFull, _ := interpolation.LagrangeInterpolate(int(F), knownIndexes, fullShareAtZero, ecparam.PBC256.Ngmp)
 	// sPolyFull.Print("F(x)")
 	sFullRecovered, _ := sPolyFull.GetCoefficient(0)
-	fmt.Println("[ShareDist] Recovered secret from new fullShares:", sFullRecovered.String())
+	log.Println("[ShareDist] Recovered secret from new fullShares:", sFullRecovered.String())
 }

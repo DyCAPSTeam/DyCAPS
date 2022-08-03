@@ -1,7 +1,7 @@
 package party
 
 import (
-	"fmt"
+	"log"
 	"strconv"
 	"sync"
 	"testing"
@@ -38,7 +38,7 @@ func TestRBC(t *testing.T) {
 	for i := uint32(0); i < N; i++ {
 		go func(i uint32) {
 			m := p[i].RBCReceive(ID)
-			fmt.Println(i, " output RBC message: ", m)
+			log.Println(i, " output RBC message: ", m)
 			wg.Done()
 		}(i)
 	}
@@ -48,7 +48,7 @@ func TestRBC(t *testing.T) {
 	}()
 
 	wg.Wait()
-	fmt.Println("RBC Finish")
+	log.Println("RBC Finish")
 }
 
 func TestRBCExlude(t *testing.T) {
@@ -80,7 +80,7 @@ func TestRBCExlude(t *testing.T) {
 	for i := uint32(0); i < N; i++ { // there is one malicious node, who doesn't send any Message
 		go func(i uint32) {
 			m := p[i].RBCReceive(ID)
-			fmt.Println(i, " output RBC message: ", m)
+			log.Println(i, " output RBC message: ", m)
 			wg.Done()
 		}(i)
 	}
@@ -91,7 +91,7 @@ func TestRBCExlude(t *testing.T) {
 	}()
 
 	wg.Wait()
-	fmt.Println("RBC Finish")
+	log.Println("RBC Finish")
 }
 
 func TestMultiRBC(t *testing.T) {
@@ -124,7 +124,7 @@ func TestMultiRBC(t *testing.T) {
 		for j := uint32(0); j < N; j++ {
 			go func(i uint32, j uint32) {
 				m := p[j].RBCReceive([]byte(string(ID) + strconv.Itoa(int(i))))
-				fmt.Println(j, " output RBC message from ", i, ": ", m)
+				log.Println(j, " output RBC message from ", i, ": ", m)
 				wg.Done()
 			}(i, j)
 			// time.Sleep(250000000)
@@ -138,5 +138,5 @@ func TestMultiRBC(t *testing.T) {
 	}
 
 	wg.Wait()
-	fmt.Println("RBC Finish")
+	log.Println("RBC Finish")
 }

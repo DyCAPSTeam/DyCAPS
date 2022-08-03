@@ -3,7 +3,7 @@ package party
 import (
 	"bytes"
 	"crypto/sha256"
-	"fmt"
+	"log"
 	"sync"
 
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
@@ -29,16 +29,16 @@ func (p *HonestParty) RBCSend(M *protobuf.Message, ID []byte) {
 	data, _ := proto.Marshal(M)
 	err := p.Broadcast(&protobuf.Message{Type: "RBCPropose", Sender: p.PID, Id: ID, Data: data})
 	if err != nil {
-		fmt.Printf("[party %v] multicast RBCPropose error: %v, RBC instance ID: %s", p.PID, err, ID)
+		log.Printf("[party %v] multicast RBCPropose error: %v, RBC instance ID: %s", p.PID, err, ID)
 	}
-	fmt.Printf("[RBC][Party %v] broadcast RBCPropose message, instance ID: %s\n", p.PID, string(ID))
+	log.Printf("[RBC][Party %v] broadcast RBCPropose message, instance ID: %s\n", p.PID, string(ID))
 }
 
 func (p *HonestParty) RBCSendExclude(M *protobuf.Message, ID []byte, pid uint32) {
 	//encapsulate
 	data, _ := proto.Marshal(M)
 	p.BroadcastExclude(&protobuf.Message{Type: "RBCPropose", Sender: p.PID, Id: ID, Data: data}, pid)
-	fmt.Printf("[RBC][Party %v] broadcast RBCPropose message (excluding party %v), instance ID: %s\n", p.PID, pid, string(ID))
+	log.Printf("[RBC][Party %v] broadcast RBCPropose message (excluding party %v), instance ID: %s\n", p.PID, pid, string(ID))
 }
 
 func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
@@ -66,7 +66,7 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 	//handle RBCPropose message
 	go func() {
 		m := <-p.GetMessage("RBCPropose", ID)
-		// fmt.Printf("[party %v] receive RBCPropose message from [party %v], RBC instance ID: %s", p.PID, m.Sender+1, ID)
+		// log.Printf("[party %v] receive RBCPropose message from [party %v], RBC instance ID: %s", p.PID, m.Sender+1, ID)
 		M := m.Data
 		mLen = len(M) // the length of M is used to remove the padding zeros after RS decoding
 		hLocal := sha256.New()
@@ -82,7 +82,7 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 			//encapsulate, append the length of M at the end of hash
 			EchoData, _ := proto.Marshal(&protobuf.RBCEcho{Hash: append(hLocal.Sum(nil), utils.IntToBytes(mLen)...), M: shards[j]})
 			p.Send(&protobuf.Message{Type: "RBCEcho", Sender: p.PID, Id: ID, Data: EchoData}, j)
-			// fmt.Printf("[party %v] sends RBCEcho to [party %v], RBC instance ID: %s", p.PID, j, ID)
+			// log.Printf("[party %v] sends RBCEcho to [party %v], RBC instance ID: %s", p.PID, j, ID)
 
 			/*
 				// This block is used for RBC_test when a party does not receive 2t+1 ECHO messages
@@ -105,7 +105,7 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 	go func() {
 		for {
 			m := <-p.GetMessage("RBCEcho", ID)
-			// fmt.Printf("[party %v] receive RBCEcho message from [party %v], RBC instance ID: %s", p.PID, m.Sender, ID)
+			// log.Printf("[party %v] receive RBCEcho message from [party %v], RBC instance ID: %s", p.PID, m.Sender, ID)
 			var payloadMessage protobuf.RBCEcho
 			proto.Unmarshal(m.Data, &payloadMessage)
 			hash := string(payloadMessage.Hash)
@@ -136,14 +136,14 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 				readyData, _ := proto.Marshal(&protobuf.RBCReady{Hash: []byte(hash), M: []byte(mi)})
 				err := p.Broadcast(&protobuf.Message{Type: "RBCReady", Sender: p.PID, Id: ID, Data: readyData})
 				if err != nil {
-					fmt.Printf("[party %v] multicast RBCReady message error: %v, RBC instance ID: %s", p.PID, err, ID)
+					log.Printf("[party %v] multicast RBCReady message error: %v, RBC instance ID: %s", p.PID, err, ID)
 				}
-				// fmt.Printf("[party %v] multicast RBCReady in the 2t+1 Echo case, RBC instance ID: %s", p.PID, ID)
+				// log.Printf("[party %v] multicast RBCReady in the 2t+1 Echo case, RBC instance ID: %s", p.PID, ID)
 			}
 
 			if uint32(EchoMessageMap[hash][mi]) >= p.F+1 {
 				//ready to send RBCReady when receive t+1 RBCReady messages from the others
-				// fmt.Printf("[party %v] has received t+1 RBCEcho messages, send to readyChan, RBC instance ID:%s", p.PID, ID)
+				// log.Printf("[party %v] has received t+1 RBCEcho messages, send to readyChan, RBC instance ID:%s", p.PID, ID)
 				readyChan <- hm{hash, mi}
 			}
 			mutex.Unlock() //TODO: move this unlock into if statement
@@ -159,7 +159,7 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 	go func() {
 		for {
 			m := <-p.GetMessage("RBCReady", ID)
-			// fmt.Printf("[party %v] receive RBCReady message from [party %v], RBC instance ID: %s", p.PID, m.Sender, ID)
+			// log.Printf("[party %v] receive RBCReady message from [party %v], RBC instance ID: %s", p.PID, m.Sender, ID)
 			var payloadMessage protobuf.RBCReady
 			proto.Unmarshal(m.Data, &payloadMessage)
 			hash := payloadMessage.Hash
@@ -185,25 +185,25 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 			mutex.Lock()
 			if !isReadySent && uint32(len(T[hashString])) >= p.F+1 {
 				mutex.Unlock()
-				// fmt.Printf("[party %v] receive t+1 RBCReady message, RBC instance ID: %s\n", p.label, ID)
+				// log.Printf("[party %v] receive t+1 RBCReady message, RBC instance ID: %s\n", p.label, ID)
 				//wait for t+1 matching RBCEcho messages
 				var res hm
 				for {
 					res = <-readyChan
-					// fmt.Printf("[party %v] waiting for t+1 matching RBCEcho messages, RBC instance ID: %s", p.label, ID)
+					// log.Printf("[party %v] waiting for t+1 matching RBCEcho messages, RBC instance ID: %s", p.label, ID)
 					mutexEchoMap.Lock()
 					if uint32(EchoMessageMap[res.h][res.m]) >= p.F+1 {
 						mutexEchoMap.Unlock()
-						// fmt.Printf("[party %v] finish waiting for t+1 matching RBCEcho messages, RBC instance ID: %s", p.label, ID)
+						// log.Printf("[party %v] finish waiting for t+1 matching RBCEcho messages, RBC instance ID: %s", p.label, ID)
 						mutex.Lock()
 						isReadySent = true
 						mutex.Unlock()
 						readyData, _ := proto.Marshal(&protobuf.RBCReady{Hash: hash, M: []byte(res.m)})
 						err := p.Broadcast(&protobuf.Message{Type: "RBCReady", Sender: p.PID, Id: ID, Data: readyData})
 						if err != nil {
-							fmt.Printf("[party %v] multicast RBCReady error: %v, RBC instance ID: %s", p.PID, err, ID)
+							log.Printf("[party %v] multicast RBCReady error: %v, RBC instance ID: %s", p.PID, err, ID)
 						}
-						// fmt.Printf("[party %v] multicast RBCReady in the t+1 Ready case, RBC instance ID: %s\n", p.label, ID)
+						// log.Printf("[party %v] multicast RBCReady in the t+1 Ready case, RBC instance ID: %s\n", p.label, ID)
 						break
 					}
 					mutexEchoMap.Unlock()
@@ -229,7 +229,7 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 
 	// wait for at least 2t+1 = n-t RS shards in T_h, i.e., T[string(hash)]
 	<-RSDecStartChan
-	// fmt.Printf("[party %v] start reconstruction, RBC instance ID: %s\n", p.PID, ID)
+	//log.Printf("[party %v] start reconstruction, RBC instance ID: %s\n", p.PID, ID)
 	for r := uint32(0); r <= p.F; r++ {
 		for {
 			if uint32(MaxReadyNumber) >= p.N-p.F+r {
@@ -271,10 +271,10 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 		if bytes.Equal(hNew.Sum(nil), MaxReadyHash) {
 			var replyMessage protobuf.Message
 			proto.Unmarshal(mReconstructed, &replyMessage)
-			// fmt.Printf("[party %v] have reconstructed message, RBC instance ID: %s\n", p.PID, ID)
+			// log.Printf("[party %v] have reconstructed message, RBC instance ID: %s\n", p.PID, ID)
 			return &replyMessage
 		}
 	}
-	fmt.Printf("ERROR: [party %v] cannot reconstruct the message, RBC instance ID: %s", p.PID, ID)
+	log.Printf("ERROR: [party %v] cannot reconstruct the message, RBC instance ID: %s", p.PID, ID)
 	return nil
 }

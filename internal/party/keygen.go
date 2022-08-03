@@ -3,11 +3,11 @@ package party
 import (
 	"bytes"
 	"encoding/gob"
-	"fmt"
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/pairing"
 	"go.dedis.ch/kyber/v3/share"
 	"io/ioutil"
+	"log"
 )
 
 //SigKeyGen return pk and sks for threshold signature
@@ -90,9 +90,9 @@ func GenCoefficientsFile(N int, T int) {
 	// pripoly
 	pripoly := share.NewPriPoly(suit.G2(), T, x, suit.RandomStream())
 	npoints := pripoly.Shares(N)
-	fmt.Println("the coefficients written to file \"coefficients\" are:")
+	log.Println("the coefficients written to file \"coefficients\" are:")
 	for i := 0; i < N; i++ {
-		fmt.Println(npoints[i].V)
+		log.Println(npoints[i].V)
 	}
 	coeff := make([]kyber.Scalar, T)
 	coeff_bytes := make([][]byte, T)
@@ -106,9 +106,9 @@ func GenCoefficientsFile(N int, T int) {
 	x_new := suit.G1().Scalar().Pick(random)
 	pripoly_new := share.NewPriPoly(suit.G2(), T, x_new, suit.RandomStream())
 	npoints_new := pripoly_new.Shares(N)
-	fmt.Println("the coefficients written to file \"coefficients_new\" are:")
+	log.Println("the coefficients written to file \"coefficients_new\" are:")
 	for i := 0; i < N; i++ {
-		fmt.Println(npoints_new[i].V)
+		log.Println(npoints_new[i].V)
 	}
 	coeff_new := make([]kyber.Scalar, T)
 	coeff_bytes_new := make([][]byte, T)

@@ -1,7 +1,7 @@
 package party
 
 import (
-	"fmt"
+	"log"
 	"sync"
 	"testing"
 
@@ -45,28 +45,28 @@ func TestCompleteProcess(t *testing.T) {
 	client.HonestParty = NewHonestParty(0, N, F, 0x7fffffff, ipList, portList, ipListNext, portListNext, pk, nil)
 	err := client.InitSendChannel()
 	if err != nil {
-		fmt.Printf("[VSS] Client InitSendChannel err: %v\n", err)
+		log.Printf("[VSS] Client InitSendChannel err: %v\n", err)
 	}
 
 	client.Share([]byte("vssshare"))
-	fmt.Printf("[VSS] VSSshare done\n")
+	log.Printf("[VSS] VSSshare done\n")
 
 	var wg sync.WaitGroup
 
 	wg.Add(int(N))
 	for i := uint32(0); i < N; i++ {
 		go func(i uint32) {
-			fmt.Printf("[VSS] Party %v starting...\n", i)
+			log.Printf("[VSS] Party %v starting...\n", i)
 			p[i].VSSShareReceive([]byte("vssshare"))
 			wg.Done()
 		}(i)
 	}
 	wg.Wait()
 
-	fmt.Printf("[VSS] VSS finished\n")
+	log.Printf("[VSS] VSS finished\n")
 
 	//transfer the Proofs, equivalent to Prepare phase
-	fmt.Printf("[Prepare] Prepare starts, transfering proofs to the new committee\n")
+	log.Printf("[Prepare] Prepare starts, transfering proofs to the new committee\n")
 	for i := uint32(0); i < N; i++ {
 		pNext[i].Proof.Gs.Set(p[i].Proof.Gs)
 		for j := uint32(0); j < 2*F+2; j++ {
@@ -77,9 +77,9 @@ func TestCompleteProcess(t *testing.T) {
 			pNext[i].Proof.PiContents[j].j = p[i].Proof.PiContents[j].j
 		}
 	}
-	fmt.Printf("[Prepare] Prepare finished\n")
+	log.Printf("[Prepare] Prepare finished\n")
 
-	fmt.Printf("[ShstreReduce] ShareReduce starting...\n")
+	log.Printf("[ShstreReduce] ShareReduce starting...\n")
 
 	wg.Add(int(N))
 	for i := uint32(0); i < N; i++ {
@@ -96,8 +96,8 @@ func TestCompleteProcess(t *testing.T) {
 	}
 	wg.Wait()
 
-	fmt.Printf("[ShstreReduce] ShareReduce finished\n")
-	fmt.Printf("[Proactivize] Proactivize starting\n")
+	log.Printf("[ShstreReduce] ShareReduce finished\n")
+	log.Printf("[Proactivize] Proactivize starting\n")
 
 	wg.Add(int(N))
 	for i := uint32(0); i < N; i++ {
@@ -107,7 +107,7 @@ func TestCompleteProcess(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
-	fmt.Printf("[ShareDist] ShareDist finished\n")
+	log.Printf("[ShareDist] ShareDist finished\n")
 
 	var reducedShareAtZero = make([]*gmp.Int, 2*F+1)
 	var fullShareAtZero = make([]*gmp.Int, F+1)
@@ -126,10 +126,10 @@ func TestCompleteProcess(t *testing.T) {
 
 	sPolyReduced, _ := interpolation.LagrangeInterpolate(int(2*F), knownIndexes, reducedShareAtZero, ecparam.PBC256.Ngmp)
 	sReducedRecovered, _ := sPolyReduced.GetCoefficient(0)
-	fmt.Println("[Proactivize] Recovered secret from new reducedShares:", sReducedRecovered.String())
+	log.Println("[Proactivize] Recovered secret from new reducedShares:", sReducedRecovered.String())
 
 	sPolyFull, _ := interpolation.LagrangeInterpolate(int(F), knownIndexes, fullShareAtZero, ecparam.PBC256.Ngmp)
 	// sPolyFull.Print("F(x)")
 	sFullRecovered, _ := sPolyFull.GetCoefficient(0)
-	fmt.Println("[ShareDist] Recovered secret from new fullShares:", sFullRecovered.String())
+	log.Println("[ShareDist] Recovered secret from new fullShares:", sFullRecovered.String())
 }

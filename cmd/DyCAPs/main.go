@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/DyCAPSTeam/DyCAPS/internal/party"
 	"github.com/ncw/gmp"
+	"log"
 	"os"
 	"strconv"
 	"time"
@@ -39,12 +40,12 @@ func main() {
 
 			p.InitSendChannel()
 			p.InitSendToNextChannel()
-			fmt.Printf("[VSS] Party %v starting...\n", id)
+			log.Printf("[VSS] Party %v starting...\n", id)
 			p.VSSShareReceive([]byte("vssshare"))
-			fmt.Printf("[VSS] VSS finished\n")
+			log.Printf("[VSS] VSS finished\n")
 			p.PrepareSend([]byte("shareReduce"))
 			p.ShareReduceSend([]byte("shareReduce"))
-			fmt.Printf("[ShareReduce] ShareReduce done\n")
+			log.Printf("[ShareReduce] ShareReduce done\n")
 			time.Sleep(100000000000) //FIXME:temp solution
 		case "newCommitee":
 			p := new(party.HonestParty)
@@ -54,13 +55,13 @@ func main() {
 			time.Sleep(1000000000) //waiting for all nodes to initialize their ReceiveChannel
 
 			p.InitSendChannel()
-			fmt.Printf("[ShareReduce] ShareReduce starting...\n")
+			log.Printf("[ShareReduce] ShareReduce starting...\n")
 			p.PrepareReceive([]byte("shareReduce"))
 			p.ShareReduceReceive([]byte("shareReduce"))
-			fmt.Printf("[ShareReduce] ShareReduce finished\n")
-			fmt.Printf("[Proactivize] Proactivize starting\n")
+			log.Printf("[ShareReduce] ShareReduce finished\n")
+			log.Printf("[Proactivize] Proactivize starting\n")
 			p.ProactivizeAndShareDist([]byte("ProactivizeAndShareDist"))
-			fmt.Printf("[ShareDist] ShareDist finished\n")
+			log.Printf("[ShareDist] ShareDist finished\n")
 			time.Sleep(100000000000) //FIXME:temp solution
 		case "onlyOneCommitee":
 			p := new(party.HonestParty)
@@ -71,18 +72,18 @@ func main() {
 
 			p.InitSendChannel()
 			p.InitSendToNextChannel()
-			fmt.Printf("[VSS] Party %v starting...\n", id)
+			log.Printf("[VSS] Party %v starting...\n", id)
 			p.VSSShareReceive([]byte("vssshare"))
-			fmt.Printf("[VSS] VSS finished\n")
+			log.Printf("[VSS] VSS finished\n")
 			p.PrepareSend([]byte("shareReduce"))
 			p.ShareReduceSend([]byte("shareReduce"))
-			fmt.Printf("[ShareReduce] ShareReduce done\n")
+			log.Printf("[ShareReduce] ShareReduce done\n")
 			p.PrepareReceive([]byte("shareReduce"))
 			p.ShareReduceReceive([]byte("shareReduce"))
-			fmt.Printf("[ShareReduce] ShareReduce finished\n")
-			fmt.Printf("[Proactivize] Proactivize starting\n")
+			log.Printf("[ShareReduce] ShareReduce finished\n")
+			log.Printf("[Proactivize] Proactivize starting\n")
 			p.ProactivizeAndShareDist([]byte("ProactivizeAndShareDist"))
-			fmt.Printf("[ShareDist] ShareDist finished\n")
+			log.Printf("[ShareDist] ShareDist finished\n")
 
 			f, _ := os.OpenFile(metadataPath+"/log"+strconv.Itoa(int(p.PID)), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			defer f.Close()
@@ -104,10 +105,10 @@ func main() {
 
 			err := client.InitSendChannel()
 			if err != nil {
-				fmt.Printf("[VSS] Client InitSendChannel err: %v\n", err)
+				log.Printf("[VSS] Client InitSendChannel err: %v\n", err)
 			}
 			client.Share([]byte("vssshare"))
-			fmt.Printf("[VSS] VSSshare done\n")
+			log.Printf("[VSS] VSSshare done\n")
 			time.Sleep(100000000000) //FIXME:temp solution
 		}
 	}

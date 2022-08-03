@@ -1,7 +1,7 @@
 package party
 
 import (
-	"fmt"
+	"log"
 	"sync"
 	"testing"
 
@@ -46,27 +46,27 @@ func TestShareReduce(t *testing.T) {
 	client.HonestParty = NewHonestParty(0, N, F, 0x7fffffff, ipList, portList, ipListNext, portListNext, pk, sk[2*F+1])
 	err := client.InitSendChannel()
 	if err != nil {
-		fmt.Printf("[VSS] Client InitSendChannel err: %v\n", err)
+		log.Printf("[VSS] Client InitSendChannel err: %v\n", err)
 	}
 
 	client.Share([]byte("VSSshare"))
-	fmt.Printf("[VSS] VSSshare done\n")
+	log.Printf("[VSS] VSSshare done\n")
 
 	var wg sync.WaitGroup
 
 	wg.Add(int(N))
 	for i := uint32(0); i < N; i++ {
 		go func(i uint32) {
-			fmt.Printf("[VSS] Party %v starting...\n", i)
+			log.Printf("[VSS] Party %v starting...\n", i)
 			p[i].VSSShareReceive([]byte("VSSshare"))
 			wg.Done()
-			fmt.Printf("[VSS] Party %v done\n", i)
+			log.Printf("[VSS] Party %v done\n", i)
 		}(i)
 	}
 	wg.Wait()
 
-	fmt.Printf("[VSS] VSS finished\n")
-	fmt.Printf("[ShstreReduce] ShareReduce starting...\n")
+	log.Printf("[VSS] VSS finished\n")
+	log.Printf("[ShstreReduce] ShareReduce starting...\n")
 
 	wg.Add(int(N))
 	for i := uint32(0); i < N; i++ {
@@ -96,5 +96,5 @@ func TestShareReduce(t *testing.T) {
 	sPoly.Print("F(x)")
 	sRecovered := gmp.NewInt(0)
 	sPoly.EvalMod(gmp.NewInt(0), ecparam.PBC256.Ngmp, sRecovered)
-	fmt.Println("[ShareReduce] Finally recovered secret:", sRecovered)
+	log.Println("[ShareReduce] Finally recovered secret:", sRecovered)
 }

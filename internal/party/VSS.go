@@ -3,6 +3,7 @@ package party
 import (
 	"crypto/sha256"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -89,11 +90,11 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 		//So there is no for-loop here: each party only processes VSSSend once
 		m := <-p.GetMessage("VSSSend", ID)
 		p.VSSStart = time.Now()
-		fmt.Printf("[VSSEcho][Party %v] Received VSSSend Message\n", p.PID)
+		log.Printf("[VSSEcho][Party %v] Received VSSSend Message\n", p.PID)
 		var payloadMessage protobuf.VSSSend
 		err := proto.Unmarshal(m.Data, &payloadMessage)
 		if err != nil {
-			fmt.Printf("[VSSEcho][Party %v] Unmarshal err: %v\n", p.PID, err)
+			log.Printf("[VSSEcho][Party %v] Unmarshal err: %v\n", p.PID, err)
 		}
 		piFromSend.SetFromVSSMessage(payloadMessage.Pi, p.F)
 
@@ -106,9 +107,9 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 
 			verifyOK = p.VerifyVSSSendReceived(polyValueFromSend, witnessFromSend, piFromSend)
 			if !verifyOK {
-				fmt.Printf("[VSSEcho][Party %v] Verify VSSSend FAIL\n", p.PID)
+				log.Printf("[VSSEcho][Party %v] Verify VSSSend FAIL\n", p.PID)
 			} else {
-				fmt.Printf("[VSSEcho][Party %v] Verify VSSSend SUCCESS\n", p.PID)
+				log.Printf("[VSSEcho][Party %v] Verify VSSSend SUCCESS\n", p.PID)
 				p.Proof.Set(piFromSend, p.F)
 
 				//prepare for interpolation
@@ -132,7 +133,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 				}
 				tmpPoly, _ := interpolation.LagrangeInterpolate(int(2*p.F), x, y, ecparamN)
 				fullShareFromSend.ResetTo(tmpPoly)
-				fmt.Printf("[VSSEcho][Party %v] Interpolate B*(i,x) polynomial from VSSSend messages:\n", p.PID)
+				log.Printf("[VSSEcho][Party %v] Interpolate B*(i,x) polynomial from VSSSend messages:\n", p.PID)
 				fullShareFromSend.Print(fmt.Sprintf("B*(%v,x)", p.PID+1))
 
 				//sendEcho
@@ -145,9 +146,9 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 				}
 				err := p.Broadcast(EchoMessage)
 				if err != nil {
-					fmt.Printf("[VSSEcho][Party %v] Broadcast VSSEcho error:%v\n", p.PID, err)
+					log.Printf("[VSSEcho][Party %v] Broadcast VSSEcho error:%v\n", p.PID, err)
 				}
-				fmt.Printf("[VSSEcho][Party %v] Broadcast Echo message, handle VSSSend done\n", p.PID)
+				log.Printf("[VSSEcho][Party %v] Broadcast Echo message, handle VSSSend done\n", p.PID)
 			}
 		}
 		mutexPi.Unlock()
@@ -161,7 +162,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 			var payloadMessage protobuf.VSSEcho
 			err := proto.Unmarshal(m.Data, &payloadMessage)
 			if err != nil {
-				fmt.Printf("[VSSReady][Party %v] Unmarshal err: %v\n", p.PID, err)
+				log.Printf("[VSSReady][Party %v] Unmarshal err: %v\n", p.PID, err)
 			}
 			var piFromEcho = new(Pi)
 			piFromEcho.Init(p.F, p.KZG)
@@ -180,11 +181,11 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 				EchoMap[piHashStr] = 1
 			}
 
-			fmt.Printf("[VSSReady][Party %v] Receive VSSEcho message from %v, collected %v VSSEcho messages now\n", p.PID, m.Sender, counter)
+			log.Printf("[VSSReady][Party %v] Receive VSSEcho message from %v, collected %v VSSEcho messages now\n", p.PID, m.Sender, counter)
 
 			mutexPi.Lock()
 			if !PiChecked && uint32(counter) >= p.N-p.F {
-				fmt.Printf("[VSSReady][Party %v] Have entered the case Echo >= n-t\n", p.PID)
+				log.Printf("[VSSReady][Party %v] Have entered the case Echo >= n-t\n", p.PID)
 				if p.Proof.Equals(piFromEcho, p.F) {
 					//in this case (pi = pi'), this party must have received a valid VSSSend message
 					w := p.KZG.NewG1()
@@ -201,21 +202,21 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 						ReadyData := EncapsulateVSSReady(piFromEcho, "SHARE", v, w, p.F)
 						err := p.Send(&protobuf.Message{Type: "VSSReady", Id: ID, Sender: p.PID, Data: ReadyData}, l)
 						if err != nil {
-							fmt.Printf("[VSSReady][Party %v] Send VSSReady err: %v\n", p.PID, err)
+							log.Printf("[VSSReady][Party %v] Send VSSReady err: %v\n", p.PID, err)
 						}
 					}
-					fmt.Printf("[VSSReady][Party %v] Collected n-t=%v VSSEcho messages, VSSReady sent, ReadyType: SHARE\n", p.PID, counter)
+					log.Printf("[VSSReady][Party %v] Collected n-t=%v VSSEcho messages, VSSReady sent, ReadyType: SHARE\n", p.PID, counter)
 
 					//PiChecked == true  <=> p has sent (or will send) VSSReady messages
 					PiChecked = true
 					PiCheckedChannel <- true
-					// fmt.Printf("[VSSReady][Party %v] Pichecked by %v VSSEcho messages\n", p.PID, counter)
+					// log.Printf("[VSSReady][Party %v] Pichecked by %v VSSEcho messages\n", p.PID, counter)
 					mutexPi.Unlock()
 
 					//break after sending VSSReady message
 					break
 				} else {
-					fmt.Printf("[VSSReady][Party %v] Reset Pi as Pi'\n", p.PID)
+					log.Printf("[VSSReady][Party %v] Reset Pi as Pi'\n", p.PID)
 					p.Proof.Set(piFromEcho, p.F)
 
 					//discard full share
@@ -238,14 +239,14 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 					ReadyData := EncapsulateVSSReady(piFromEcho, "NOSHARE", nil, nil, p.F)
 					err := p.Broadcast(&protobuf.Message{Type: "VSSReady", Id: ID, Sender: p.PID, Data: ReadyData})
 					if err != nil {
-						fmt.Printf("[VSSReady][Party %v] broadcast VSSReady error: %v\n", p.PID, err)
+						log.Printf("[VSSReady][Party %v] broadcast VSSReady error: %v\n", p.PID, err)
 					}
-					fmt.Printf("[VSSReady][Party %v] Collected n-t=%v VSSEcho message, VSSReady sent, ReadyType: NOSHARE\n", p.PID, counter)
+					log.Printf("[VSSReady][Party %v] Collected n-t=%v VSSEcho message, VSSReady sent, ReadyType: NOSHARE\n", p.PID, counter)
 
 					//PiChecked == true  <=> p has sent (or will send) VSSReady messages
 					PiChecked = true
 					PiCheckedChannel <- true
-					// fmt.Printf("[VSSReady] Party %v Pichecked by %v VSSEcho messages\n", p.PID, counter)
+					// log.Printf("[VSSReady] Party %v Pichecked by %v VSSEcho messages\n", p.PID, counter)
 
 					mutexPi.Unlock()
 					//break after sending VSSReady message
@@ -267,9 +268,9 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 			m := <-p.GetMessage("VSSReady", ID)
 			err := proto.Unmarshal(m.Data, &payloadMessage)
 			if err != nil {
-				fmt.Printf("[VSSReady][Party %v] Unmarshal err: %v\n", p.PID, err)
+				log.Printf("[VSSReady][Party %v] Unmarshal err: %v\n", p.PID, err)
 			}
-			fmt.Printf("[VSSReady][Party %v] Has received VSSReady from %v, ReadyType: %v\n", p.PID, m.Sender, payloadMessage.ReadyType)
+			log.Printf("[VSSReady][Party %v] Has received VSSReady from %v, ReadyType: %v\n", p.PID, m.Sender, payloadMessage.ReadyType)
 			piFromReady.SetFromVSSMessage(payloadMessage.Pi, p.F)
 			piHash := sha256.New()
 			piByte, _ := proto.Marshal(payloadMessage.Pi)
@@ -304,7 +305,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 				p.mutexKZG.Unlock()
 
 				if verified {
-					fmt.Printf("[VSSReady][Party %v] Verify VSSReady-SHARE message from party %v SUCCESS\n", p.PID, mSender)
+					log.Printf("[VSSReady][Party %v] Verify VSSReady-SHARE message from party %v SUCCESS\n", p.PID, mSender)
 					mutexReadyMap.Lock()
 					counter, ok := ReadyMap[piHashStr]
 					if ok {
@@ -312,7 +313,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 					} else {
 						ReadyMap[piHashStr] = 1
 					}
-					// fmt.Printf("[VSSReady] ReadyMap[piHashStr]: %v, PID: %v\n", ReadyMap[piHashStr], p.PID)
+					// log.Printf("[VSSReady] ReadyMap[piHashStr]: %v, PID: %v\n", ReadyMap[piHashStr], p.PID)
 					mutexReadyMap.Unlock()
 
 					//record the value and witness
@@ -334,7 +335,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 					}
 					mutexReadyContent.Unlock()
 				} else {
-					fmt.Printf("[VSSReady][Party %v] Verify VSSReady-SHARE message from party %v FAIL, C=%s, v_l=%s, w_l=%s\n", p.PID, mSender, C.String(), vL.String(), wL.String())
+					log.Printf("[VSSReady][Party %v] Verify VSSReady-SHARE message from party %v FAIL, C=%s, v_l=%s, w_l=%s\n", p.PID, mSender, C.String(), vL.String(), wL.String())
 				}
 			} else if payloadMessage.ReadyType == "NOSHARE" {
 				mutexReadyMap.Lock()
@@ -352,7 +353,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 			mutexReadyMap.RLock()
 			if !PiChecked && uint32(ReadyMap[piHashStr]) >= p.F+1 {
 				mutexReadyMap.RUnlock()
-				fmt.Printf("[VSSReady][Party %v] Enter the case Ready >= t+1\n", p.PID)
+				log.Printf("[VSSReady][Party %v] Enter the case Ready >= t+1\n", p.PID)
 
 				if p.Proof.Equals(piFromReady, p.F) {
 					// in this case, p.Proof has been set by VSSSend message
@@ -371,14 +372,14 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 						ReadyData := EncapsulateVSSReady(piFromReady, "SHARE", v, w, p.F)
 						err := p.Send(&protobuf.Message{Type: "VSSReady", Id: ID, Sender: p.PID, Data: ReadyData}, l)
 						if err != nil {
-							fmt.Printf("[VSSReady][Party %v] Send VSSReady err: %v\n", p.PID, err)
+							log.Printf("[VSSReady][Party %v] Send VSSReady err: %v\n", p.PID, err)
 						}
 					}
-					fmt.Printf("[VSSReady][Party %v] Collected t+1 VSSReady message, VSSReady sent, ReadyType: SHARE\n", p.PID)
+					log.Printf("[VSSReady][Party %v] Collected t+1 VSSReady message, VSSReady sent, ReadyType: SHARE\n", p.PID)
 
 					PiChecked = true
 					PiCheckedChannel <- true
-					// fmt.Printf("[VSSReady][Party %v] Pichecked by t+1 VSSReady messages\n", p.PID)
+					// log.Printf("[VSSReady][Party %v] Pichecked by t+1 VSSReady messages\n", p.PID)
 				} else {
 					p.Proof.Set(piFromReady, p.F)
 
@@ -403,13 +404,13 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 					ReadyData := EncapsulateVSSReady(piFromReady, "NOSHARE", nil, nil, p.F)
 					err := p.Broadcast(&protobuf.Message{Type: "VSSReady", Id: ID, Sender: p.PID, Data: ReadyData})
 					if err != nil {
-						fmt.Printf("[VSSReady][Party %v] Broadcast VSSReady err: %v\n", p.PID, err)
+						log.Printf("[VSSReady][Party %v] Broadcast VSSReady err: %v\n", p.PID, err)
 					}
-					fmt.Printf("[VSSReady][Party %v] Collected t+1 VSSReady message, VSSReady sent, ReadyType: NOSHARE\n", p.PID)
+					log.Printf("[VSSReady][Party %v] Collected t+1 VSSReady message, VSSReady sent, ReadyType: NOSHARE\n", p.PID)
 
 					PiChecked = true
 					PiCheckedChannel <- true
-					// fmt.Printf("[VSSReady][Party %v] Pichecked by t+1 VSSReady messages\n", p.PID)
+					// log.Printf("[VSSReady][Party %v] Pichecked by t+1 VSSReady messages\n", p.PID)
 
 				}
 			} else {
@@ -422,7 +423,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 			mutexReadyContent.Lock()
 			//send Distribute Message
 			if !DistSent && uint32(ReadyMap[piHashStr]) >= p.N-p.F && uint32(len(ReadyContent[piHashStr])) >= p.F+1 {
-				fmt.Printf("[VSSDistribute][Party %v] Have collected n-t=%v Ready messages, and there are %v >= t+1 valid contents\n", p.PID, ReadyMap[piHashStr], len(ReadyContent[piHashStr]))
+				log.Printf("[VSSDistribute][Party %v] Have collected n-t=%v Ready messages, and there are %v >= t+1 valid contents\n", p.PID, ReadyMap[piHashStr], len(ReadyContent[piHashStr]))
 				var witnessFromReady = make([]*pbc.Element, p.F+1)
 				var reducedShareX = make([]*gmp.Int, p.F+1)
 				var reducedShareY = make([]*gmp.Int, p.F+1)
@@ -436,9 +437,9 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 				}
 				reducedShare, err := interpolation.LagrangeInterpolate(int(p.F), reducedShareX, reducedShareY, ecparamN)
 				if err != nil {
-					fmt.Printf("[VSSDistribute][Party %v] Error when interpolates B(x,i): %v\n", p.PID, err)
+					log.Printf("[VSSDistribute][Party %v] Error when interpolates B(x,i): %v\n", p.PID, err)
 				} else {
-					fmt.Printf("[VSSDistribute][Party %v] Have reconstructed reducedShare B(x,i) from t+1 Ready messages:\n", p.PID)
+					log.Printf("[VSSDistribute][Party %v] Have reconstructed reducedShare B(x,i) from t+1 Ready messages:\n", p.PID)
 				}
 				reducedShare.Print(fmt.Sprintf("B(x,%v)", p.PID+1))
 
@@ -460,10 +461,10 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 						Data:   DistData,
 					}, l)
 					if err != nil {
-						fmt.Printf("[VSSDistribute][Party %v] Send VSSDistribute err: %v\n", p.PID, err)
+						log.Printf("[VSSDistribute][Party %v] Send VSSDistribute err: %v\n", p.PID, err)
 					}
 				}
-				// fmt.Printf("Party %v has sent VSSDistribute message\n", p.PID)
+				// log.Printf("Party %v has sent VSSDistribute message\n", p.PID)
 				DistSent = true
 
 			}
@@ -471,7 +472,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 			mutexReadyMap.RUnlock()
 
 			if DistSent {
-				// fmt.Printf("[VSSDistribute][Party %v] Have sent VSSDistribute, breaking now\n", p.PID)
+				// log.Printf("[VSSDistribute][Party %v] Have sent VSSDistribute, breaking now\n", p.PID)
 				break
 			}
 		}
@@ -490,15 +491,15 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 		}
 
 	handleVSSDistribute:
-		fmt.Printf("[VSSRecover][Party %v] Ready to handle VSSDistribute Message\n", p.PID)
+		log.Printf("[VSSRecover][Party %v] Ready to handle VSSDistribute Message\n", p.PID)
 		for {
 			msg := <-p.GetMessage("VSSDistribute", ID)
 			var payloadMessage protobuf.VSSDistribute
 			err := proto.Unmarshal(msg.Data, &payloadMessage)
 			if err != nil {
-				fmt.Printf("[VSSRecover][Party %v] Unmarshal err: %v\n", p.PID, err)
+				log.Printf("[VSSRecover][Party %v] Unmarshal err: %v\n", p.PID, err)
 			}
-			fmt.Printf("[VSSRecover][Party %v] Have received VSSDistribute from %v \n", p.PID, msg.Sender)
+			log.Printf("[VSSRecover][Party %v] Have received VSSDistribute from %v \n", p.PID, msg.Sender)
 
 			valueFromDist := gmp.NewInt(0)
 			valueFromDist.SetBytes(payloadMessage.Bli)
@@ -521,7 +522,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 			p.mutexKZG.Unlock()
 
 			if distVerifyOK {
-				fmt.Printf("[VSSRecover][Party %v] Verify Distribute message from %v SUCCESS\n", p.PID, msg.Sender)
+				log.Printf("[VSSRecover][Party %v] Verify Distribute message from %v SUCCESS\n", p.PID, msg.Sender)
 				SFullPolyValue = append(SFullPolyValue, valueFromDist)
 				SFullIndexes = append(SFullIndexes, gmp.NewInt(int64(msg.Sender+1)))
 				length := uint32(len(SFullPolyValue))
@@ -530,19 +531,19 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 					p.witnessIndexes[length].Set(gmp.NewInt(int64(msg.Sender + 1)))
 				}
 			} else {
-				fmt.Printf("[VSSRecover][Party %v] Verify Distribute message from %v FAIL, C_B[%v]=%v, valueFromDist=%v, witnessFromDist=%v\n", p.PID, msg.Sender, msg.Sender+1, CB[msg.Sender+1], valueFromDist, witnessFromDist)
+				log.Printf("[VSSRecover][Party %v] Verify Distribute message from %v FAIL, C_B[%v]=%v, valueFromDist=%v, witnessFromDist=%v\n", p.PID, msg.Sender, msg.Sender+1, CB[msg.Sender+1], valueFromDist, witnessFromDist)
 			}
 			mutexCW.Unlock()
 
 			if uint32(len(SFullPolyValue)) > 2*p.F && !fullShareInterpolated {
 				fullShare, err := interpolation.LagrangeInterpolate(int(2*p.F), SFullIndexes, SFullPolyValue, ecparamN)
 				if err != nil {
-					fmt.Printf("[VSSRecover][Party %v] Interpolation error: %v\n", p.PID, err)
+					log.Printf("[VSSRecover][Party %v] Interpolation error: %v\n", p.PID, err)
 					// continue
 				} else {
 					//set the final reduceShare and witnesses, then break
 					p.fullShare.ResetTo(fullShare)
-					fmt.Printf("[VSSRecover][Party %v] Get full share B(i,y):\n", p.PID)
+					log.Printf("[VSSRecover][Party %v] Get full share B(i,y):\n", p.PID)
 					p.fullShare.Print(fmt.Sprintf("B(%v,y)", p.PID+1))
 					fullShareInterpolated = true
 					VSSShareFinished <- true
@@ -553,7 +554,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 	}()
 
 	<-VSSShareFinished
-	fmt.Printf("[VSS][Party %v] Exist VSS now\n", p.PID)
+	log.Printf("[VSS][Party %v] Exist VSS now\n", p.PID)
 	p.VSSEnd = time.Now()
 }
 
@@ -582,7 +583,7 @@ func (p *HonestParty) VerifyVSSSendReceived(polyValue []*gmp.Int, witness []*pbc
 		// tmp.ThenMul(tmp2)
 	}
 	if !tmp.Equals(piReceived.Gs) {
-		fmt.Printf("[VSSEcho][Party %v] VSSSend Verify FAIL, g_s=%v, but prod(g^F(index))=%v \n", p.PID, piReceived.Gs.String(), tmp.String())
+		log.Printf("[VSSEcho][Party %v] VSSSend Verify FAIL, g_s=%v, but prod(g^F(index))=%v \n", p.PID, piReceived.Gs.String(), tmp.String())
 		return false
 	}
 	//Verify KZG.VerifyEval(CZjk,0,0,WZjk0) == 1 && CBjk == CZjk * g^Fj(k) for k in [1,2t+1]
@@ -597,7 +598,7 @@ func (p *HonestParty) VerifyVSSSendReceived(polyValue []*gmp.Int, witness []*pbc
 		tmp3.Add(piReceived.PiContents[k].CZj, piReceived.PiContents[k].gFj)
 		verifyCBj = tmp3.Equals(piReceived.PiContents[k].CBj)
 		if !verifyEval || !verifyCBj {
-			fmt.Printf("[VSSEcho][Party %v] VSSSend Verify FAIL, k=%v\n", p.PID, k)
+			log.Printf("[VSSEcho][Party %v] VSSSend Verify FAIL, k=%v\n", p.PID, k)
 			return false
 		}
 	}
@@ -610,7 +611,7 @@ func (p *HonestParty) VerifyVSSSendReceived(polyValue []*gmp.Int, witness []*pbc
 		p.mutexKZG.Unlock()
 
 		if !verifyPoint {
-			fmt.Printf("[VSSEcho][Party %v] VSSSend KZGVerify FAIL when verify v'ji and w'ji, i=%v, CBj[%v]=%v, polyValue[%v]=%v, witness[%v]=%v\n", p.PID, p.PID+1, j, piReceived.PiContents[j].CBj, j, polyValue[j], j, witness[j])
+			log.Printf("[VSSEcho][Party %v] VSSSend KZGVerify FAIL when verify v'ji and w'ji, i=%v, CBj[%v]=%v, polyValue[%v]=%v, witness[%v]=%v\n", p.PID, p.PID+1, j, piReceived.PiContents[j].CBj, j, polyValue[j], j, witness[j])
 			return false
 		}
 	}

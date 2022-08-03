@@ -2,6 +2,7 @@ package party
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/DyCAPSTeam/DyCAPS/internal/ecparam"
@@ -70,7 +71,7 @@ func (p *HonestParty) ShareReduceReceive(ID []byte) {
 
 	for {
 		m := <-p.GetMessage("ShareReduce", ID)
-		fmt.Printf("[ShareReduce][New party %v] Receive ShareReduce message from %v\n", p.PID, m.Sender)
+		log.Printf("[ShareReduce][New party %v] Receive ShareReduce message from %v\n", p.PID, m.Sender)
 		var ShareReduceData protobuf.ShareReduce
 		proto.Unmarshal(m.Data, &ShareReduceData)
 		C.SetCompressedBytes(ShareReduceData.C)
@@ -103,11 +104,11 @@ func (p *HonestParty) ShareReduceReceive(ID []byte) {
 			if ComMap[cStr] >= p.F+1 {
 				MostCountedCom = cStr
 
-				fmt.Printf("[ShareReduce][New party %v]ShareReduce done\n", p.PID)
+				log.Printf("[ShareReduce][New party %v]ShareReduce done\n", p.PID)
 				break
 			}
 		} else {
-			fmt.Printf("[ShareReduce][New party %v] Verify Reduce message from old party %v FAIL. C: %s, v: %v, w: %s\n", p.PID, m.Sender, C.String(), vJ, wJ.String())
+			log.Printf("[ShareReduce][New party %v] Verify Reduce message from old party %v FAIL. C: %s, v: %v, w: %s\n", p.PID, m.Sender, C.String(), vJ, wJ.String())
 		}
 	}
 
@@ -121,7 +122,7 @@ func (p *HonestParty) ShareReduceReceive(ID []byte) {
 	}
 
 	p.reducedShare, _ = interpolation.LagrangeInterpolate(int(p.F), polyX, polyY, ecparamN)
-	fmt.Printf("[ShareReduce][New party %v] have recovered reducedShare B(x,i):\n", p.PID)
+	log.Printf("[ShareReduce][New party %v] have recovered reducedShare B(x,i):\n", p.PID)
 	p.reducedShare.Print(fmt.Sprintf("B(x,%v)", p.PID+1))
 	p.ShareReduceEnd = time.Now()
 }

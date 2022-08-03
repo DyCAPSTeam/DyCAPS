@@ -1,7 +1,7 @@
 package party
 
 import (
-	"fmt"
+	"log"
 	"math/rand"
 	"time"
 
@@ -29,7 +29,7 @@ func (client *Client) Share(ID []byte) {
 	sPoly, _ := polyring.New(0)
 	_ = sPoly.SetCoefficientBig(0, client.s)
 	client.KZG.Commit(pi.Gs, sPoly)
-	fmt.Printf("[VSSSend] pi.Gs: %v\n", pi.Gs)
+	log.Printf("[VSSSend] pi.Gs: %v\n", pi.Gs)
 
 	//generate a 2t-degree random polynomial F, where F(0) = s
 	var rnd = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
@@ -71,7 +71,7 @@ func (client *Client) Share(ID []byte) {
 		temp, _ := polyring.New(0) // temp means the 0-degree polynomial f(x) = F_ValueAt[i]
 		err := temp.SetCoefficientBig(0, vF[i])
 		if err != nil {
-			fmt.Printf("[VSSSend] Client SetCoefficientBig error at i=%v: %v", i, err)
+			log.Printf("[VSSSend] Client SetCoefficientBig error at i=%v: %v", i, err)
 		}
 		copiedZ := polyring.NewEmpty()
 		copiedZ.ResetTo(ZList[i])
@@ -115,9 +115,9 @@ func (client *Client) Share(ID []byte) {
 			Data:   data,
 		}, uint32(i-1)) // pid = i - 1
 		if err != nil {
-			fmt.Printf("[VSSSend] Client send VSSSend error: %v\n", err)
+			log.Printf("[VSSSend] Client send VSSSend error: %v\n", err)
 		} else {
-			fmt.Printf("[VSSSend] Client has sent VSSSend to party %v\n", i-1)
+			log.Printf("[VSSSend] Client has sent VSSSend to party %v\n", i-1)
 		}
 	}
 }
