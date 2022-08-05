@@ -12,8 +12,8 @@ import (
 func TestCompleteProcess_OneCommitee(t *testing.T) {
 	ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
 	portList := []string{"18880", "18881", "18882", "18883", "18884", "18885", "18886", "18887", "18888", "18889"}
-	N := uint32(4)
-	F := uint32(1)
+	N := uint32(10)
+	F := uint32(3)
 	sk, pk := SigKeyGen(N, 2*F+1)
 	// KZG.SetupFix(int(2 * F))
 

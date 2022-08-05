@@ -63,6 +63,11 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 	var RSDecStartChan = make(chan bool, 1)
 	var RSDecStart = false
 
+	var hasReceivedReady = make(map[uint32]bool) //avoid replay attack
+	for i := uint32(0); i < p.N; i++ {
+		hasReceivedReady[i] = false
+	}
+
 	//handle RBCPropose message
 	go func() {
 		m := <-p.GetMessage("RBCPropose", ID)
@@ -88,7 +93,6 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 				// This block is used for RBC_test when a party does not receive 2t+1 ECHO messages
 				// In this case, the algorithm sends RBCReady message through line 15 upon receiving
 				// t+1 RBCReady messages and t+1 matching RBCEcho messages
-
 				if p.PID == 0 || p.PID == 1 {
 					if index != uint32(2) {
 						p.Send(&protobuf.Message{Type: "RBCEcho", Sender: p.PID, Id: ID, Data: EchoData}, index)
@@ -159,6 +163,11 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 	go func() {
 		for {
 			m := <-p.GetMessage("RBCReady", ID)
+			if hasReceivedReady[m.Sender] {
+				continue
+			} else {
+				hasReceivedReady[m.Sender] = true
+			}
 			// log.Printf("[party %v] receive RBCReady message from [party %v], RBC instance ID: %s", p.PID, m.Sender, ID)
 			var payloadMessage protobuf.RBCReady
 			proto.Unmarshal(m.Data, &payloadMessage)
@@ -168,6 +177,9 @@ func (p *HonestParty) RBCReceive(ID []byte) *protobuf.Message {
 			j := m.Sender //sender's pid, i.e., the index of the sender
 
 			mutexReadyMap.Lock()
+			//avoid the replay attack
+
+			//
 			_, ok := T[hashString]
 			if ok {
 				T[hashString] = append(T[hashString], mReceived{int(j), mJ})

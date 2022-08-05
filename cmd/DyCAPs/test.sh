@@ -3,11 +3,16 @@
 COUNTER=$1
 FAULT=$2
 
+if [ ! -d "metadata" ]; then
+  mkdir metadata
+fi
+
 #calculate the necessary coefficients and store them in files.
 go run main.go -n $COUNTER -f $FAULT -op1 1 &&
 echo "coefficients generated successfully."
 # start a thread representing the client
 echo "protocol start"
+
 go run main.go -n $COUNTER -f $FAULT -op1 2 -op2 client &
 
 # start threads representing nodes in the currentCommitee
@@ -23,4 +28,4 @@ do
   echo "newCommitee $i established"
 done
 
-sleep 100
+sleep 10000
