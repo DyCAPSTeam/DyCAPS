@@ -26,7 +26,7 @@ func main() {
 	} else if *option1 == "2" {
 		ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
 		portList := []string{"18880", "18881", "18882", "18883", "18884", "18885", "18886", "18887", "18888", "18889", "18890", "18891", "18892"}
-		ipListNext := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1u", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
+		ipListNext := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
 		portListNext := []string{"18893", "18894", "18895", "18896", "18897", "18898", "18899", "18900", "18901", "18902", "18903", "18904", "18905"}
 		sk, pk := party.SigKeyGenFix(uint32(*N), uint32(2**F+1))
 		skNew, pkNew := party.SigKeyGenFix_New(uint32(*N), uint32(2**F+1))
@@ -36,7 +36,7 @@ func main() {
 			p = party.NewHonestParty(0, uint32(*N), uint32(*F), uint32(*id), ipList, portList, ipListNext, portListNext, pk, sk[*id])
 			p.InitReceiveChannel()
 
-			time.Sleep(1000000000) //waiting for all nodes to initialize their ReceiveChannel
+			time.Sleep(100000000) //waiting for all nodes to initialize their ReceiveChannel
 
 			p.InitSendChannel()
 			p.InitSendToNextChannel()
@@ -52,7 +52,7 @@ func main() {
 			p = party.NewHonestParty(1, uint32(*N), uint32(*F), uint32(*id), ipListNext, portListNext, nil, nil, pkNew, skNew[*id])
 			p.InitReceiveChannel()
 
-			time.Sleep(1000000000) //waiting for all nodes to initialize their ReceiveChannel
+			time.Sleep(100000000) //waiting for all nodes to initialize their ReceiveChannel
 
 			p.InitSendChannel()
 			log.Printf("[ShareReduce] ShareReduce starting...\n")
@@ -68,7 +68,7 @@ func main() {
 			p = party.NewHonestParty(1, uint32(*N), uint32(*F), uint32(*id), ipList, portList, ipList, portList, pk, sk[*id])
 			p.InitReceiveChannel()
 
-			time.Sleep(10000000000) //waiting for all nodes to initialize their ReceiveChannel
+			time.Sleep(1000000000) //waiting for all nodes to initialize their ReceiveChannel
 
 			p.InitSendChannel()
 			p.InitSendToNextChannel()
@@ -101,7 +101,7 @@ func main() {
 			client.SetSecret(s)
 			client.HonestParty = party.NewHonestParty(0, uint32(*N), uint32(*F), 0x7fffffff, ipList, portList, ipListNext, portListNext, nil, nil)
 
-			time.Sleep(2000000000) //waiting for all nodes to initialize their ReceiveChannel.The Client starts at last.
+			time.Sleep(200000000) //waiting for all nodes to initialize their ReceiveChannel.The Client starts at last.
 
 			err := client.InitSendChannel()
 			if err != nil {
