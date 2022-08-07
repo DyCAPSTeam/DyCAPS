@@ -3,12 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/DyCAPSTeam/DyCAPS/internal/party"
-	"github.com/ncw/gmp"
 	"log"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/DyCAPSTeam/DyCAPS/internal/party"
+	"github.com/ncw/gmp"
 )
 
 func main() {
@@ -32,11 +33,10 @@ func main() {
 		skNew, pkNew := party.SigKeyGenFix_New(uint32(*N), uint32(2**F+1))
 		switch *option2 {
 		case "currentCommitee":
-			p := new(party.HonestParty)
-			p = party.NewHonestParty(0, uint32(*N), uint32(*F), uint32(*id), ipList, portList, ipListNext, portListNext, pk, sk[*id])
+			p := party.NewHonestParty(0, uint32(*N), uint32(*F), uint32(*id), ipList, portList, ipListNext, portListNext, pk, sk[*id])
 			p.InitReceiveChannel()
 
-			time.Sleep(100000000) //waiting for all nodes to initialize their ReceiveChannel
+			time.Sleep(1 * time.Second) //waiting for all nodes to initialize their ReceiveChannel
 
 			p.InitSendChannel()
 			p.InitSendToNextChannel()
@@ -46,13 +46,12 @@ func main() {
 			p.PrepareSend([]byte("shareReduce"))
 			p.ShareReduceSend([]byte("shareReduce"))
 			log.Printf("[ShareReduce] ShareReduce done\n")
-			time.Sleep(200000000000) //FIXME:temp solution
+			time.Sleep(200 * time.Second)
 		case "newCommitee":
-			p := new(party.HonestParty)
-			p = party.NewHonestParty(1, uint32(*N), uint32(*F), uint32(*id), ipListNext, portListNext, nil, nil, pkNew, skNew[*id])
+			p := party.NewHonestParty(1, uint32(*N), uint32(*F), uint32(*id), ipListNext, portListNext, nil, nil, pkNew, skNew[*id])
 			p.InitReceiveChannel()
 
-			time.Sleep(100000000) //waiting for all nodes to initialize their ReceiveChannel
+			time.Sleep(1 * time.Second) //waiting for all nodes to initialize their ReceiveChannel
 
 			p.InitSendChannel()
 			log.Printf("[ShareReduce] ShareReduce starting...\n")
@@ -62,46 +61,59 @@ func main() {
 			log.Printf("[Proactivize] Proactivize starting\n")
 			p.ProactivizeAndShareDist([]byte("ProactivizeAndShareDist"))
 			log.Printf("[ShareDist] ShareDist finished\n")
-			time.Sleep(200000000000) //FIXME:temp solution
+			time.Sleep(20 * time.Second)
 		case "onlyOneCommitee":
-			p := new(party.HonestParty)
-			p = party.NewHonestParty(1, uint32(*N), uint32(*F), uint32(*id), ipList, portList, ipList, portList, pk, sk[*id])
+			OutputLog, err := os.OpenFile(metadataPath+"/executingLog"+strconv.Itoa(*id), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+			if err != nil {
+				log.Fatalf("error opening file: %v", err)
+			}
+			defer OutputLog.Close()
+			log.SetOutput(OutputLog)
+
+			p := party.NewHonestParty(1, uint32(*N), uint32(*F), uint32(*id), ipList, portList, ipList, portList, pk, sk[*id])
 			p.InitReceiveChannel()
 
-			time.Sleep(1000000000) //waiting for all nodes to initialize their ReceiveChannel
+			time.Sleep(1 * time.Second) //waiting for all nodes to initialize their ReceiveChannel
 
 			p.InitSendChannel()
 			p.InitSendToNextChannel()
-			log.Printf("[VSS] Party %v starting...\n", id)
+			log.Printf("[VSS][Party %v] VSS starting...\n", *id)
 			p.VSSShareReceive([]byte("vssshare"))
-			log.Printf("[VSS] VSS finished\n")
+			log.Printf("[VSS][Party %v] VSS finished\n", *id)
+			fmt.Printf("[VSS][Party %v] VSS finished\n", *id)
+
 			p.PrepareSend([]byte("shareReduce"))
 			p.ShareReduceSend([]byte("shareReduce"))
-			log.Printf("[ShareReduce] ShareReduce done\n")
+			log.Printf("[ShareReduce][Party %v] ShareReduce send done\n", *id)
+			fmt.Printf("[ShareReduce][Party %v] ShareReduce send done\n", *id)
+
 			p.PrepareReceive([]byte("shareReduce"))
 			p.ShareReduceReceive([]byte("shareReduce"))
-			log.Printf("[ShareReduce] ShareReduce finished\n")
-			log.Printf("[Proactivize] Proactivize starting\n")
+			log.Printf("[ShareReduce][Party %v] ShareReduce receive done\n", *id)
+			fmt.Printf("[ShareReduce][Party %v] ShareReduce receive done\n", *id)
+
+			log.Printf("[Proactivize][Party %v] Proactivize starting\n", *id)
+			fmt.Printf("[Proactivize][Party %v] Proactivize starting\n", *id)
 			p.ProactivizeAndShareDist([]byte("ProactivizeAndShareDist"))
-			log.Printf("[ShareDist] ShareDist finished\n")
+			log.Printf("[ShareDist][Party %v] ShareDist done\n", *id)
+			fmt.Printf("[ShareDist][Party %v] ShareDist done\n", *id)
 
 			f, _ := os.OpenFile(metadataPath+"/log"+strconv.Itoa(int(p.PID)), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			defer f.Close()
-			fmt.Fprintf(f, "VSSLatency,%d\n", p.VSSEnd.Sub(p.VSSStart).Nanoseconds())
-			fmt.Fprintf(f, "ShareReduceLatency,%d\n", p.ShareReduceEnd.Sub(p.ShareReduceStart).Nanoseconds())
-			fmt.Fprintf(f, "ProactivizeLatency,%d\n", p.ProactivizeEnd.Sub(p.ProactivizeStart).Nanoseconds())
-			fmt.Fprintf(f, "ShareDistLatency,%d\n", p.ShareDistEnd.Sub(p.ShareDistStart).Nanoseconds())
+			fmt.Fprintf(f, "VSSLatency, %d\n", p.VSSEnd.Sub(p.VSSStart).Nanoseconds())
+			fmt.Fprintf(f, "ShareReduceLatency, %d\n", p.ShareReduceEnd.Sub(p.ShareReduceStart).Nanoseconds())
+			fmt.Fprintf(f, "ProactivizeLatency, %d\n", p.ProactivizeEnd.Sub(p.ProactivizeStart).Nanoseconds())
+			fmt.Fprintf(f, "ShareDistLatency, %d\n", p.ShareDistEnd.Sub(p.ShareDistStart).Nanoseconds())
 
-			time.Sleep(200000000000) //FIXME:temp solution
+			time.Sleep(200 * time.Second)
 
 		case "client":
 			var client party.Client
-			s := new(gmp.Int)
-			s.SetInt64(int64(111111111111111))
+			s := new(gmp.Int).SetInt64(int64(111111111111111))
 			client.SetSecret(s)
 			client.HonestParty = party.NewHonestParty(0, uint32(*N), uint32(*F), 0x7fffffff, ipList, portList, ipListNext, portListNext, nil, nil)
 
-			time.Sleep(200000000) //waiting for all nodes to initialize their ReceiveChannel.The Client starts at last.
+			time.Sleep(1 * time.Second) //waiting for all nodes to initialize their ReceiveChannel. The Client starts at last.
 
 			err := client.InitSendChannel()
 			if err != nil {
@@ -109,7 +121,7 @@ func main() {
 			}
 			client.Share([]byte("vssshare"))
 			log.Printf("[VSS] VSSshare done\n")
-			time.Sleep(200000000000) //FIXME:temp solution
+			time.Sleep(200 * time.Second)
 		}
 	}
 

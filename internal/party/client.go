@@ -29,7 +29,7 @@ func (client *Client) Share(ID []byte) {
 	sPoly, _ := polyring.New(0)
 	_ = sPoly.SetCoefficientBig(0, client.s)
 	client.KZG.Commit(pi.Gs, sPoly)
-	log.Printf("[VSSSend] pi.Gs: %v\n", pi.Gs)
+	// log.Printf("[VSSSend] pi.Gs: %v\n", pi.Gs)
 
 	//generate a 2t-degree random polynomial F, where F(0) = s
 	var rnd = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))

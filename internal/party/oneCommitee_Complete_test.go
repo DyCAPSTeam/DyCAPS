@@ -1,12 +1,13 @@
 package party
 
 import (
-	"github.com/DyCAPSTeam/DyCAPS/internal/ecparam"
-	"github.com/DyCAPSTeam/DyCAPS/internal/interpolation"
-	"github.com/ncw/gmp"
 	"log"
 	"sync"
 	"testing"
+
+	"github.com/DyCAPSTeam/DyCAPS/internal/ecparam"
+	"github.com/DyCAPSTeam/DyCAPS/internal/interpolation"
+	"github.com/ncw/gmp"
 )
 
 func TestCompleteProcess_OneCommitee(t *testing.T) {

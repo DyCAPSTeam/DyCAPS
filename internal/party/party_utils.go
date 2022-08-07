@@ -2,9 +2,9 @@ package party
 
 import (
 	"errors"
-	"github.com/DyCAPSTeam/DyCAPS/internal/commitment"
 	"sync"
 
+	"github.com/DyCAPSTeam/DyCAPS/internal/commitment"
 	"github.com/DyCAPSTeam/DyCAPS/internal/conv"
 	"github.com/DyCAPSTeam/DyCAPS/internal/ecparam"
 	"github.com/DyCAPSTeam/DyCAPS/internal/polyring"

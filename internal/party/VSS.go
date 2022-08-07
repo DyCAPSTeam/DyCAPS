@@ -195,9 +195,11 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 						if l < 2*p.F+1 {
 							w.Set(witnessInterpolated[l+1])
 						} else {
+							p.mutexKZG.Lock()
 							mutexPolyring.Lock()
 							w.Set(InterpolateComOrWit(2*p.F, l+1, witnessInterpolated[1:2*p.F+2], p.KZG))
 							mutexPolyring.Unlock()
+							p.mutexKZG.Unlock()
 						}
 						ReadyData := EncapsulateVSSReady(piFromEcho, "SHARE", v, w, p.F)
 						err := p.Send(&protobuf.Message{Type: "VSSReady", Id: ID, Sender: p.PID, Data: ReadyData}, l)
@@ -295,9 +297,11 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 				if p.PID < 2*p.F+1 {
 					C.Set(CBFromReady[p.PID+1])
 				} else {
+					p.mutexKZG.Lock()
 					mutexPolyring.Lock()
 					C.Set(InterpolateComOrWit(2*p.F, p.PID+1, CBFromReady[1:2*p.F+2], p.KZG))
 					mutexPolyring.Unlock()
+					p.mutexKZG.Unlock()
 				}
 
 				p.mutexKZG.Lock()
@@ -365,9 +369,11 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 						if l < 2*p.F+1 {
 							w = witnessInterpolated[l+1]
 						} else {
+							p.mutexKZG.Lock()
 							mutexPolyring.Lock()
 							w.Set(InterpolateComOrWit(2*p.F, l+1, witnessInterpolated[1:2*p.F+2], p.KZG))
 							mutexPolyring.Unlock()
+							p.mutexKZG.Unlock()
 						}
 						ReadyData := EncapsulateVSSReady(piFromReady, "SHARE", v, w, p.F)
 						err := p.Send(&protobuf.Message{Type: "VSSReady", Id: ID, Sender: p.PID, Data: ReadyData}, l)
@@ -512,9 +518,11 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 			if msg.Sender < 2*p.F+1 {
 				C = CB[msg.Sender+1]
 			} else {
+				p.mutexKZG.Lock()
 				mutexPolyring.Lock()
 				C.Set(InterpolateComOrWit(2*p.F, msg.Sender+1, CB[1:2*p.F+2], p.KZG))
 				mutexPolyring.Unlock()
+				p.mutexKZG.Unlock()
 			}
 
 			p.mutexKZG.Lock()

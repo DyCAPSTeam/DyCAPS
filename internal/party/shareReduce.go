@@ -15,6 +15,7 @@ import (
 )
 
 func (p *HonestParty) ShareReduceSend(ID []byte) {
+	p.ShareReduceStart = time.Now()
 	ecparamN := ecparam.PBC256.Ngmp
 
 	var tmpCB = make([]*pbc.Element, p.N+1) //commitment of B(x,index), index start from 1
@@ -129,7 +130,6 @@ func (p *HonestParty) ShareReduceReceive(ID []byte) {
 
 //PrepareSend sends p.Proof to the corresponding node in the next commitee.i.e.p[i].Proof -> pNext[i].Proof
 func (p *HonestParty) PrepareSend(ID []byte) {
-	p.ShareReduceStart = time.Now()
 	//VSSEcho only contains Pi, so here we use EncapsulateVSSEcho().
 	data := EncapsulateVSSEcho(p.Proof, p.F)
 	p.SendToNextCommittee(&protobuf.Message{

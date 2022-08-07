@@ -2,10 +2,11 @@ package party
 
 import (
 	"fmt"
+	"testing"
+
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/pairing"
 	"go.dedis.ch/kyber/v3/share"
-	"testing"
 )
 
 func TestSuite(t *testing.T) {

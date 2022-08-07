@@ -1,4 +1,6 @@
 COUNTER=18980
+rm -rf metadata
+mkdir metadata
 for i in `seq 18880 $COUNTER`;
 do
   ans=`lsof -t -i tcp:$i`

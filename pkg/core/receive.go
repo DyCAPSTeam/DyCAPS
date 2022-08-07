@@ -53,8 +53,8 @@ func MakeReceiveChannel(port string) chan *protobuf.Message {
 					buf := make([]byte, length)
 					_, err2 := io.ReadFull(conn, buf)
 					if err1 != nil || err2 != nil {
-						fmt.Printf("The receive channel has bread down, err1: %v, err2:%v\n", err1, err2)
-						log.Fatalln("The receive channel has bread down", err1, err2)
+						fmt.Printf("The receive channel has broken down, err1: %v, err2:%v\n", err1, err2)
+						log.Fatalln("The receive channel has broken down", err1, err2)
 					}
 					//Do Unmarshal
 					var m protobuf.Message

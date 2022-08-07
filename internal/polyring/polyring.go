@@ -6,6 +6,7 @@ forked from https://github.com/CHURPTeam/CHURP
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 	"strings"
 
@@ -276,7 +277,7 @@ func (poly *Polynomial) Rand(rand *rand.Rand, mod *gmp.Int) {
 	highest := len(poly.coeff) - 1
 
 	for {
-		if 0 == poly.coeff[highest].CmpInt32(0) {
+		if poly.coeff[highest].CmpInt32(0) == 0 {
 			poly.coeff[highest].Rand(rand, mod)
 		} else {
 			break
@@ -311,7 +312,7 @@ func (poly Polynomial) ToString() string {
 			s += fmt.Sprintf("%s x^%d + ", poly.coeff[i].String(), i)
 		} else {
 			// constant term
-			s += fmt.Sprintf("%s", poly.coeff[i].String())
+			s += poly.coeff[i].String()
 		}
 	}
 
@@ -325,7 +326,7 @@ func (poly Polynomial) Print(title ...string) {
 		name = title[0]
 	}
 
-	fmt.Printf("%s = %s\n", name, poly.ToString())
+	log.Printf("%s = %s\n", name, poly.ToString())
 }
 
 // Print the degree
