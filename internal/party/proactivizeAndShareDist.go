@@ -47,6 +47,8 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 		startRecover[i] = make(chan bool, 1)
 		startRefresh[i] = make(chan bool, 1)
 	}
+	var ProactivizeDone = make(chan bool, 1)
+
 	var piI = make([]PiContent, 0)
 
 	var Z = make([]polyring.Polynomial, p.N+1) //Z_ij(x)=Q_i(x,index)-F_j(index), which means Z_ij(0)=0
@@ -149,7 +151,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 			CommitMessage.Pi[j].GFj = piI[j].gFj.CompressedBytes()
 		}
 		CommitMessageData, _ := proto.Marshal(CommitMessage)
-		RBCID := string(ID) + strconv.FormatUint(uint64(p.PID+1), 10)
+		RBCID := string(ID) + "_1," + strconv.FormatUint(uint64(p.PID+1), 10)
 		p.RBCSend(&protobuf.Message{Type: "Commit", Sender: p.PID, Id: ID, Data: CommitMessageData}, []byte(RBCID))
 		ComSent <- true
 		log.Printf("[Proactivize Commit][New party %v] Have broadcasted the COM message, RBCID: %s \n", p.PID, RBCID)
@@ -159,7 +161,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	//Verify
 	for j := uint32(1); j <= p.N; j++ {
 		go func(j uint32) {
-			m := p.RBCReceive([]byte(string(ID) + strconv.FormatUint(uint64(j), 10)))
+			m := p.RBCReceive([]byte(string(ID) + "_1," + strconv.FormatUint(uint64(j), 10)))
 			log.Printf("[Proactivize Verify][New party %v] Have received the COM message from new party %v, RBCID: %s\n", p.PID, m.Sender, string(ID)+strconv.FormatUint(uint64(j), 10))
 			var ReceivedData protobuf.Commit
 			proto.Unmarshal(m.Data, &ReceivedData)
@@ -167,7 +169,6 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 			GFjList := make([]*pbc.Element, 2*p.F+1)
 			// mutexKZG.Lock()
 			cmpOne := p.KZG.NewG1().Set0()
-			interRes := p.KZG.NewG1()
 			for i := uint32(0); i < 2*p.F+1; i++ {
 				GFjList[i] = p.KZG.NewG1()
 				GFjList[i].SetCompressedBytes(ReceivedData.Pi[i].GFj)
@@ -176,7 +177,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 
 			p.mutexKZG.Lock()
 			mutexPolyring.Lock()
-			interRes = InterpolateComOrWit(2*p.F, 0, GFjList, p.KZG)
+			interRes := InterpolateComOrWit(2*p.F, 0, GFjList, p.KZG)
 			mutexPolyring.Unlock()
 			p.mutexKZG.Unlock()
 			var revertFlag = false
@@ -523,9 +524,12 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	p.reducedShare.Print(fmt.Sprintf("B'(x,%v)", p.PID+1))
 	log.Printf("[Proactivize Refresh][New party %v] Refresh done\n", p.PID)
 
+	ProactivizeDone <- true
+
 	//-------------------------------------ShareDist-------------------------------------
 	//Init
 	// log.Printf("[ShareDist][New party %v] Start ShareDist\n", p.PID)
+	<-ProactivizeDone
 	p.ShareDistStart = time.Now()
 
 	var SCom = make(map[uint32]SComElement)
@@ -574,7 +578,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 		p.mutexKZG.Unlock()
 		var NewcommitMessage protobuf.NewCommit
 		NewcommitMessage.CB = CB.CompressedBytes()
-		p.RBCSend(&protobuf.Message{Type: "NewCommit", Id: ID, Sender: p.PID, Data: NewcommitMessage.CB}, []byte(string(ID)+"ShareDist"+strconv.FormatUint(uint64(p.PID+1), 10)))
+		p.RBCSend(&protobuf.Message{Type: "NewCommit", Id: ID, Sender: p.PID, Data: NewcommitMessage.CB}, []byte(string(ID)+"_2,"+strconv.FormatUint(uint64(p.PID+1), 10)))
 		CommitSent <- true
 		log.Printf("[ShareDist Commit][New party %v] Commit done\n", p.PID)
 	}()
@@ -582,7 +586,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	//Verify
 	for j := uint32(1); j <= p.N; j++ {
 		go func(j uint32) {
-			m := p.RBCReceive([]byte(string(ID) + "ShareDist" + strconv.FormatUint(uint64(j), 10)))
+			m := p.RBCReceive([]byte(string(ID) + "_2," + strconv.FormatUint(uint64(j), 10)))
 			NewCommitData := m.Data
 			var ReceivedCB = p.KZG.NewG1().SetCompressedBytes(NewCommitData)
 			oldCB := p.KZG.NewG1()
