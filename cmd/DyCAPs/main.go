@@ -3,9 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/DyCAPSTeam/DyCAPS/internal/party"
@@ -14,6 +16,7 @@ import (
 
 func main() {
 	metadataPath := "metadata"
+	ListPath := "list"
 
 	N := flag.Int("n", 4, "the size of the commitee")
 	F := flag.Int("f", 4, "the maximum of faults")
@@ -25,10 +28,11 @@ func main() {
 		party.GenCoefficientsFile(*N, 2**F+1)
 		return
 	} else if *option1 == "2" {
-		ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
-		portList := []string{"18880", "18881", "18882", "18883", "18884", "18885", "18886", "18887", "18888", "18889", "18890", "18891", "18892"}
-		ipListNext := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
-		portListNext := []string{"18893", "18894", "18895", "18896", "18897", "18898", "18899", "18900", "18901", "18902", "18903", "18904", "18905"}
+		ipList := ReadIpList(ListPath)[0:*N]
+		portList := ReadPortList(ListPath)[0:*N]
+		ipListNext := ReadIpList(ListPath)[0:*N]
+		portListNext := ReadPortList(ListPath)[0:*N]
+
 		sk, pk := party.SigKeyGenFix(uint32(*N), uint32(2**F+1))
 		skNew, pkNew := party.SigKeyGenFix_New(uint32(*N), uint32(2**F+1))
 		switch *option2 {
@@ -125,4 +129,19 @@ func main() {
 		}
 	}
 
+}
+
+func ReadIpList(ListPath string) []string {
+	ipData, err := ioutil.ReadFile(ListPath + "/ipList")
+	if err != nil {
+		log.Fatalf("node failed to read iplist %v\n", err)
+	}
+	return strings.Split(string(ipData), "\n")
+}
+func ReadPortList(ListPath string) []string {
+	portData, err := ioutil.ReadFile(ListPath + "/portList")
+	if err != nil {
+		log.Fatalf("node failed to read portlist %v\n", err)
+	}
+	return strings.Split(string(portData), "\n")
 }
