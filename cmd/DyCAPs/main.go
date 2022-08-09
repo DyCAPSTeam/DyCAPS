@@ -40,7 +40,7 @@ func main() {
 			p := party.NewHonestParty(0, uint32(*N), uint32(*F), uint32(*id), ipList, portList, ipListNext, portListNext, pk, sk[*id])
 			p.InitReceiveChannel()
 
-			time.Sleep(1 * time.Second) //waiting for all nodes to initialize their ReceiveChannel
+			time.Sleep(10 * time.Second) //waiting for all nodes to initialize their ReceiveChannel
 
 			p.InitSendChannel()
 			p.InitSendToNextChannel()
@@ -55,7 +55,7 @@ func main() {
 			p := party.NewHonestParty(1, uint32(*N), uint32(*F), uint32(*id), ipListNext, portListNext, nil, nil, pkNew, skNew[*id])
 			p.InitReceiveChannel()
 
-			time.Sleep(1 * time.Second) //waiting for all nodes to initialize their ReceiveChannel
+			time.Sleep(10 * time.Second) //waiting for all nodes to initialize their ReceiveChannel
 
 			p.InitSendChannel()
 			log.Printf("[ShareReduce] ShareReduce starting...\n")
@@ -67,7 +67,7 @@ func main() {
 			log.Printf("[ShareDist] ShareDist finished\n")
 			time.Sleep(20 * time.Second)
 		case "onlyOneCommitee":
-			OutputLog, err := os.OpenFile(metadataPath+"/executingLog"+strconv.Itoa(*id), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+			OutputLog, err := os.OpenFile(metadataPath+"/executingLog"+strconv.Itoa(*id), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
 			if err != nil {
 				log.Fatalf("error opening file: %v", err)
 			}
@@ -77,7 +77,7 @@ func main() {
 			p := party.NewHonestParty(1, uint32(*N), uint32(*F), uint32(*id), ipList, portList, ipList, portList, pk, sk[*id])
 			p.InitReceiveChannel()
 
-			time.Sleep(1 * time.Second) //waiting for all nodes to initialize their ReceiveChannel
+			time.Sleep(10 * time.Second) //waiting for all nodes to initialize their ReceiveChannel
 
 			p.InitSendChannel()
 			p.InitSendToNextChannel()
@@ -102,7 +102,7 @@ func main() {
 			log.Printf("[ShareDist][Party %v] ShareDist done\n", *id)
 			fmt.Printf("[ShareDist][Party %v] ShareDist done\n", *id)
 
-			f, _ := os.OpenFile(metadataPath+"/log"+strconv.Itoa(int(p.PID)), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			f, _ := os.OpenFile(metadataPath+"/log"+strconv.Itoa(int(p.PID)), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0777)
 			defer f.Close()
 			fmt.Fprintf(f, "VSSLatency, %d\n", p.VSSEnd.Sub(p.VSSStart).Nanoseconds())
 			fmt.Fprintf(f, "ShareReduceLatency, %d\n", p.ShareReduceEnd.Sub(p.ShareReduceStart).Nanoseconds())
@@ -117,7 +117,7 @@ func main() {
 			client.SetSecret(s)
 			client.HonestParty = party.NewHonestParty(0, uint32(*N), uint32(*F), 0x7fffffff, ipList, portList, ipListNext, portListNext, nil, nil)
 
-			time.Sleep(1 * time.Second) //waiting for all nodes to initialize their ReceiveChannel. The Client starts at last.
+			time.Sleep(20 * time.Second) //waiting for all nodes to initialize their ReceiveChannel. The Client starts at last.
 
 			err := client.InitSendChannel()
 			if err != nil {
