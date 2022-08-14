@@ -1,7 +1,6 @@
 package party
 
 import (
-	"fmt"
 	"log"
 	"math/rand"
 	"strconv"
@@ -20,7 +19,7 @@ import (
 )
 
 func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
-	p.ProactivizeStart = time.Now()
+
 	ecparamN := ecparam.PBC256.Ngmp
 	var flgCom = make([]bool, p.N+1)
 	var flgRec = make([]bool, p.N+1)
@@ -111,6 +110,8 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 		Q[p.PID+1][j].SetCoefficientBig(0, Fj) // Q_i(0,index)=F_i(index)
 	}
 
+	p.ProactivizeStart = time.Now()
+
 	startCom <- true
 	startReshare <- true
 
@@ -154,15 +155,15 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 		RBCID := string(ID) + "_1," + strconv.FormatUint(uint64(p.PID+1), 10)
 		p.RBCSend(&protobuf.Message{Type: "Commit", Sender: p.PID, Id: ID, Data: CommitMessageData}, []byte(RBCID))
 		ComSent <- true
-		log.Printf("[Proactivize Commit][New party %v] Have broadcasted the COM message, RBCID: %s \n", p.PID, RBCID)
-		log.Printf("[Proactivize Commit][New party %v] Commit done\n", p.PID)
+		//log.Printf("[Proactivize Commit][New party %v] Have broadcasted the COM message, RBCID: %s \n", p.PID, RBCID)
+		//log.Printf("[Proactivize Commit][New party %v] Commit done\n", p.PID)
 	}()
 
 	//Verify
 	for j := uint32(1); j <= p.N; j++ {
 		go func(j uint32) {
 			m := p.RBCReceive([]byte(string(ID) + "_1," + strconv.FormatUint(uint64(j), 10)))
-			log.Printf("[Proactivize Verify][New party %v] Have received the COM message from new party %v, RBCID: %s\n", p.PID, m.Sender, string(ID)+strconv.FormatUint(uint64(j), 10))
+			//log.Printf("[Proactivize Verify][New party %v] Have received the COM message from new party %v, RBCID: %s\n", p.PID, m.Sender, string(ID)+strconv.FormatUint(uint64(j), 10))
 			var ReceivedData protobuf.Commit
 			proto.Unmarshal(m.Data, &ReceivedData)
 
@@ -233,7 +234,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				startVote[j] <- true
 				startRecover[j] <- true
 				startRefresh[j] <- true
-				log.Printf("[Proactivize Verify][New party %v] Verify Com message from RBC_1,%v done\n", p.PID, j)
+				//log.Printf("[Proactivize Verify][New party %v] Verify Com message from RBC_1,%v done\n", p.PID, j)
 			}
 		}(j)
 	}
@@ -241,7 +242,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	//Reshare
 	go func() {
 		<-startReshare
-		log.Printf("[Proactivize Reshare][New party %v] Reshare starts\n", p.PID)
+		//log.Printf("[Proactivize Reshare][New party %v] Reshare starts\n", p.PID)
 
 		// var wQ = make([][]*pbc.Element, p.N+1)
 		for k := uint32(1); k <= p.N; k++ {
@@ -269,7 +270,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 			p.Send(&protobuf.Message{Type: "Reshare", Id: ID, Sender: p.PID, Data: reshareData}, k-1)
 		}
 		ReshareSent <- true
-		log.Printf("[Proactivize Reshare][New party %v] Reshare done\n", p.PID)
+		//log.Printf("[Proactivize Reshare][New party %v] Reshare done\n", p.PID)
 	}()
 
 	//Vote
@@ -311,7 +312,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				}
 			}
 			if verifyReshareOK {
-				log.Printf("[Proactivize Vote][New party %v] Verify Reshare message from party %v ok\n", p.PID, m.Sender)
+				//log.Printf("[Proactivize Vote][New party %v] Verify Reshare message from party %v ok\n", p.PID, m.Sender)
 
 				//sign sig share for indexJ (index 0 is not used)
 				SigShare, _ := tbls.Sign(p.SysSuite, p.SigSK, []byte(strconv.FormatUint(uint64(indexJ), 10)))
@@ -358,7 +359,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 					p.Send(&protobuf.Message{Type: "Recover", Id: ID, Sender: p.PID, Data: RecoverMessageData}, l-1)
 				}
 				VoteSent[indexJ] <- true
-				log.Printf("[Proactivize Vote][New party %v] Have sent the Recover message, derived from Reshare from party %v\n", p.PID, m.Sender)
+				//log.Printf("[Proactivize Vote][New party %v] Have sent the Recover message, derived from Reshare from party %v\n", p.PID, m.Sender)
 			}
 		}(ctr)
 	}
@@ -392,7 +393,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 			var ReceivedRecoverData protobuf.Recover
 			proto.Unmarshal(m.Data, &ReceivedRecoverData)
 			k := ReceivedRecoverData.Index
-			log.Printf("[Proactivize Recover][New party %v] Have received Recover message from party %v, k=%v\n", p.PID, m.Sender, k)
+			//log.Printf("[Proactivize Recover][New party %v] Have received Recover message from party %v, k=%v\n", p.PID, m.Sender, k)
 			v := gmp.NewInt(0).SetBytes(ReceivedRecoverData.V)
 			w := p.KZG.NewG1().SetCompressedBytes(ReceivedRecoverData.W)
 			RecoverMsgChan[k] <- RecoverMsg{m.Sender, k, v, w, ReceivedRecoverData.SigShare}
@@ -430,7 +431,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				if KZGVerifyOk && (SigShareVerifyOk == nil) {
 					mutexSRec.Lock()
 					SRec[k] = append(SRec[k], SRecElement{mSender + 1, vkij})
-					log.Printf("[Proactivize Recover][New party %v] Verify Recover message from party %v SUCCESS, k=%v. Current Srec[%v] lenth: %v\n", p.PID, mSender, k, k, len(SRec[k]))
+					//log.Printf("[Proactivize Recover][New party %v] Verify Recover message from party %v SUCCESS, k=%v. Current Srec[%v] lenth: %v\n", p.PID, mSender, k, k, len(SRec[k]))
 					if !flgRec[k] && uint32(len(SRec[k])) >= p.F+1 {
 						for i := 0; i < len(SRec[k]); i++ {
 							InterpolatePolyX[i] = gmp.NewInt(int64(SRec[k][i].index))
@@ -451,7 +452,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 						//converting uint32 to int is dangerous
 						CombinedSig[k], _ = tbls.Recover(p.SysSuite, p.SigPK, []byte(strconv.FormatUint(uint64(k), 10)), tmpSig, int(2*p.F), int(p.N))
 						CombinedFlag[k] = true
-						log.Printf("[Proactivize Recover][New party %v] Have combined a full signature for party %v, holding %v signatures now\n", p.PID, k, len(MVBAIn.Sig)+1)
+						//log.Printf("[Proactivize Recover][New party %v] Have combined a full signature for party %v, holding %v signatures now\n", p.PID, k, len(MVBAIn.Sig)+1)
 
 						//MVBA
 						mutexMVBAIn.Lock()
@@ -468,7 +469,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 					mutexSRec.Unlock()
 				}
 				if MVBASent {
-					log.Printf("[Proactivize Recover][New party %v] Recover done\n", p.PID)
+					//log.Printf("[Proactivize Recover][New party %v] Recover done\n", p.PID)
 					// break
 				}
 			}
@@ -512,17 +513,17 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 
 	p.ProactivizeEnd = time.Now()
 
-	log.Printf("[Proactivize Refresh][New party %v] Have recovered Qsum:\n", p.PID)
-	Qsum.Print("Qsum(x)")
+	//log.Printf("[Proactivize Refresh][New party %v] Have recovered Qsum:\n", p.PID)
+	//Qsum.Print("Qsum(x)")
 	// log.Printf("[Proactivize Refresh][New party %v] Previous reducedShare B(x,i):\n", p.PID)
 	// p.reducedShare.Print(log.Sprintf("B(x,%v)", p.PID+1))
 	copyedHalfShare := polyring.NewEmpty()
 	copyedHalfShare.ResetTo(p.reducedShare)
 	p.reducedShare.Add(Qsum, copyedHalfShare)
 	p.reducedShare.Mod(ecparamN)
-	log.Printf("[Proactivize Refresh][New party %v] New reducedShare B'(x,i):\n", p.PID)
-	p.reducedShare.Print(fmt.Sprintf("B'(x,%v)", p.PID+1))
-	log.Printf("[Proactivize Refresh][New party %v] Refresh done\n", p.PID)
+	//log.Printf("[Proactivize Refresh][New party %v] New reducedShare B'(x,i):\n", p.PID)
+	//p.reducedShare.Print(fmt.Sprintf("B'(x,%v)", p.PID+1))
+	//log.Printf("[Proactivize Refresh][New party %v] Refresh done\n", p.PID)
 
 	ProactivizeDone <- true
 
@@ -567,7 +568,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 			p.Send(&protobuf.Message{Type: "ShareDist", Id: ID, Sender: p.PID, Data: ShareDistMessageData}, j-1)
 		}
 		DistributeSent <- true
-		log.Printf("[ShareDist Distribute][New party %v] Distribute done\n", p.PID)
+		//log.Printf("[ShareDist Distribute][New party %v] Distribute done\n", p.PID)
 	}()
 
 	//Commit
@@ -580,7 +581,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 		NewcommitMessage.CB = CB.CompressedBytes()
 		p.RBCSend(&protobuf.Message{Type: "NewCommit", Id: ID, Sender: p.PID, Data: NewcommitMessage.CB}, []byte(string(ID)+"_2,"+strconv.FormatUint(uint64(p.PID+1), 10)))
 		CommitSent <- true
-		log.Printf("[ShareDist Commit][New party %v] Commit done\n", p.PID)
+		//log.Printf("[ShareDist Commit][New party %v] Commit done\n", p.PID)
 	}()
 
 	//Verify
@@ -615,7 +616,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				}
 				SComMutex.Unlock()
 				SComChan[j] <- true
-				log.Printf("[ShareDist Verify][New party %v] %v-th Verify NewCom done\n", p.PID, j)
+				//log.Printf("[ShareDist Verify][New party %v] %v-th Verify NewCom done\n", p.PID, j)
 			} else {
 				log.Printf("[ShareDist Verify][New party %v] Verify NewCom from RBC_2j FAIL, j=%v, receivedCB:%s, addResult:%s\n", p.PID, j, ReceivedCB.String(), addResult.String())
 			}
@@ -648,7 +649,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 			verifyKZGOk := p.KZG.VerifyEval(currentCB, i, vjShareDist, wjShareDist)
 			p.mutexKZG.Unlock()
 			if verifyKZGOk {
-				log.Printf("[ShareDist Interpolate][New party %v] Verify ShareDist message from new party %v SUCCESS\n", p.PID, j)
+				//log.Printf("[ShareDist Interpolate][New party %v] Verify ShareDist message from new party %v SUCCESS\n", p.PID, j)
 				SB = append(SB, SBElement{
 					index: j,
 					CB:    p.KZG.NewG1().Set(currentCB),
@@ -666,18 +667,18 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 					}
 
 					p.fullShare, _ = interpolation.LagrangeInterpolate(2*int(p.F), DistX, DistY, ecparamN)
-					log.Printf("[ShareDist Interpolate][New party %v] Recover the fullShare B'(i,y):\n", p.PID)
-					p.fullShare.Print(fmt.Sprintf("B'(%v,y)", p.PID+1))
+					//log.Printf("[ShareDist Interpolate][New party %v] Recover the fullShare B'(i,y):\n", p.PID)
+					//p.fullShare.Print(fmt.Sprintf("B'(%v,y)", p.PID+1))
 					var SuccessMessage protobuf.Success
 					SuccessMessage.Nothing = []byte("s") // Send whatever you want
 					SuccessData, _ := proto.Marshal(&SuccessMessage)
 					p.Broadcast(&protobuf.Message{Type: "Success", Id: ID, Sender: p.PID, Data: SuccessData})
 					SuccessSent = true
 					SuccessSentChan <- true
-					log.Printf("[ShareDist Interpolate][New party %v] Interpolate done\n", p.PID)
+					//log.Printf("[ShareDist Interpolate][New party %v] Interpolate done\n", p.PID)
 				}
 			} else {
-				log.Printf("[ShareDist Interpolate][New party %v] Verify ShareDist message from new party %v FAIL\n", p.PID, j)
+				//log.Printf("[ShareDist Interpolate][New party %v] Verify ShareDist message from new party %v FAIL\n", p.PID, j)
 			}
 		}(index)
 	}

@@ -20,7 +20,6 @@ type Client struct {
 //Share shares a secret client.s to the other parties
 //Assuming KZG setup has done, and public parameters are available
 func (client *Client) Share(ID []byte) {
-
 	pi := new(Pi)
 	pi.Init(client.F, client.KZG)
 	pi.PiContents = make([]PiContent, 2*client.F+2) // here we do not use pi.Pi_contents[0]
@@ -35,6 +34,7 @@ func (client *Client) Share(ID []byte) {
 	var rnd = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	//TODO: use crypto/rand instead
 	var F, _ = polyring.NewRand(int(2*client.F), rnd, p)
+
 	var vF = make([]*gmp.Int, 2*client.F+2) // here we do not use F_ValueAt[0]
 	for i := 0; uint32(i) < 2*client.F+2; i++ {
 		vF[i] = gmp.NewInt(0)

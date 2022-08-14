@@ -31,7 +31,7 @@ func (p *HonestParty) RBCSend(M *protobuf.Message, ID []byte) {
 	if err != nil {
 		log.Printf("[party %v] multicast RBCPropose error: %v, RBC instance ID: %s", p.PID, err, ID)
 	}
-	log.Printf("[RBC][Party %v] broadcast RBCPropose message, instance ID: %s\n", p.PID, string(ID))
+	//log.Printf("[RBC][Party %v] broadcast RBCPropose message, instance ID: %s\n", p.PID, string(ID))
 }
 
 func (p *HonestParty) RBCSendExclude(M *protobuf.Message, ID []byte, pid uint32) {

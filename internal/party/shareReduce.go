@@ -1,7 +1,6 @@
 package party
 
 import (
-	"fmt"
 	"log"
 	"time"
 
@@ -15,7 +14,7 @@ import (
 )
 
 func (p *HonestParty) ShareReduceSend(ID []byte) {
-	p.ShareReduceStart = time.Now()
+
 	ecparamN := ecparam.PBC256.Ngmp
 
 	var tmpCB = make([]*pbc.Element, p.N+1) //commitment of B(x,index), index start from 1
@@ -30,6 +29,8 @@ func (p *HonestParty) ShareReduceSend(ID []byte) {
 		tmpCB[j].Set(p.Proof.PiContents[j].CBj)
 		tmpWB[p.witnessIndexes[j].Int64()].Set(p.witness[j])
 	}
+
+	p.ShareReduceStart = time.Now()
 
 	//interpolate the remaining commitments and witnesses
 	p.mutexKZG.Lock()
@@ -72,7 +73,7 @@ func (p *HonestParty) ShareReduceReceive(ID []byte) {
 
 	for {
 		m := <-p.GetMessage("ShareReduce", ID)
-		log.Printf("[ShareReduce][New party %v] Receive ShareReduce message from %v\n", p.PID, m.Sender)
+		//log.Printf("[ShareReduce][New party %v] Receive ShareReduce message from %v\n", p.PID, m.Sender)
 		var ShareReduceData protobuf.ShareReduce
 		proto.Unmarshal(m.Data, &ShareReduceData)
 		C.SetCompressedBytes(ShareReduceData.C)
@@ -123,8 +124,8 @@ func (p *HonestParty) ShareReduceReceive(ID []byte) {
 	}
 
 	p.reducedShare, _ = interpolation.LagrangeInterpolate(int(p.F), polyX, polyY, ecparamN)
-	log.Printf("[ShareReduce][New party %v] have recovered reducedShare B(x,i):\n", p.PID)
-	p.reducedShare.Print(fmt.Sprintf("B(x,%v)", p.PID+1))
+	//log.Printf("[ShareReduce][New party %v] have recovered reducedShare B(x,i):\n", p.PID)
+	//p.reducedShare.Print(fmt.Sprintf("B(x,%v)", p.PID+1))
 	p.ShareReduceEnd = time.Now()
 }
 
