@@ -14,12 +14,12 @@ echo "coefficients generated successfully."
 
 # start a thread representing the client
 echo "protocol start"
-go run main.go -n $COUNTER -f $FAULT -op1 2 -op2 client &
+go run main.go -n $COUNTER -f $FAULT -op1 2 -op2 client -mp metadata -lp list&
 
 # start threads representing nodes in the Commitee
 for i in `seq 0 $(($COUNTER-1))`;
 do
-  go run main.go -n $COUNTER -f $FAULT -op1 2 -op2 onlyOneCommitee -id $i &
+  go run main.go -n $COUNTER -f $FAULT -op1 2 -op2 onlyOneCommitee -id $i -mp metadata -lp list&
   echo "Commitee $i established"
 done
 
