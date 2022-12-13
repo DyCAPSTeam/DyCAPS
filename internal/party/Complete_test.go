@@ -1,16 +1,17 @@
 package party
 
 import (
-	"log"
-	"sync"
-	"testing"
-
 	"github.com/DyCAPSTeam/DyCAPS/internal/ecparam"
 	"github.com/DyCAPSTeam/DyCAPS/internal/interpolation"
 	"github.com/ncw/gmp"
+	"log"
+	"sync"
+	"testing"
 )
 
 func TestCompleteProcess(t *testing.T) {
+
+
 	ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
 	portList := []string{"8880", "8881", "8882", "8883", "8884", "8885", "8886", "8887", "8888", "8889", "8890", "8891", "8892"}
 	ipListNext := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
@@ -81,6 +82,7 @@ func TestCompleteProcess(t *testing.T) {
 
 	log.Printf("[ShstreReduce] ShareReduce starting...\n")
 
+
 	wg.Add(int(N))
 	for i := uint32(0); i < N; i++ {
 		go func(i uint32) {
@@ -132,4 +134,6 @@ func TestCompleteProcess(t *testing.T) {
 	// sPolyFull.Print("F(x)")
 	sFullRecovered, _ := sPolyFull.GetCoefficient(0)
 	log.Println("[ShareDist] Recovered secret from new fullShares:", sFullRecovered.String())
+
+
 }

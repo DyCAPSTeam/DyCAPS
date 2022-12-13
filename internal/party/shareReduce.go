@@ -1,6 +1,7 @@
 package party
 
 import (
+	"crypto/sha256"
 	"log"
 	"time"
 
@@ -30,7 +31,7 @@ func (p *HonestParty) ShareReduceSend(ID []byte) {
 		tmpWB[p.witnessIndexes[j].Int64()].Set(p.witness[j])
 	}
 
-	p.ShareReduceStart = time.Now()
+	p.ShareReduceStart_old = time.Now()
 
 	//interpolate the remaining commitments and witnesses
 	p.mutexKZG.Lock()
@@ -58,6 +59,7 @@ func (p *HonestParty) ShareReduceSend(ID []byte) {
 			Data:   data,
 		}, j)
 	}
+	p.ShareReduceEnd_old = time.Now()
 }
 
 func (p *HonestParty) ShareReduceReceive(ID []byte) {
@@ -71,8 +73,13 @@ func (p *HonestParty) ShareReduceReceive(ID []byte) {
 	C := p.KZG.NewG1()
 	wJ := p.KZG.NewG1()
 
+	var cnt = 0 //used to judge whether to execute p.ShareReduceStart_new = time.Now()
+
 	for {
 		m := <-p.GetMessage("ShareReduce", ID)
+		if cnt == 0 {
+			p.ShareReduceStart_new = time.Now()
+		}
 		//log.Printf("[ShareReduce][New party %v] Receive ShareReduce message from %v\n", p.PID, m.Sender)
 		var ShareReduceData protobuf.ShareReduce
 		proto.Unmarshal(m.Data, &ShareReduceData)
@@ -112,6 +119,7 @@ func (p *HonestParty) ShareReduceReceive(ID []byte) {
 		} else {
 			log.Printf("[ShareReduce][New party %v] Verify Reduce message from old party %v FAIL. C: %s, v: %v, w: %s\n", p.PID, m.Sender, C.String(), vJ, wJ.String())
 		}
+		cnt++
 	}
 
 	polyX = make([]*gmp.Int, p.F+1)
@@ -126,25 +134,64 @@ func (p *HonestParty) ShareReduceReceive(ID []byte) {
 	p.reducedShare, _ = interpolation.LagrangeInterpolate(int(p.F), polyX, polyY, ecparamN)
 	//log.Printf("[ShareReduce][New party %v] have recovered reducedShare B(x,i):\n", p.PID)
 	//p.reducedShare.Print(fmt.Sprintf("B(x,%v)", p.PID+1))
-	p.ShareReduceEnd = time.Now()
+	p.ShareReduceEnd_new = time.Now()
 }
 
 //PrepareSend sends p.Proof to the corresponding node in the next commitee.i.e.p[i].Proof -> pNext[i].Proof
 func (p *HonestParty) PrepareSend(ID []byte) {
+	p.PrepareStart_old = time.Now()
 	//VSSEcho only contains Pi, so here we use EncapsulateVSSEcho().
 	data := EncapsulateVSSEcho(p.Proof, p.F)
-	p.SendToNextCommittee(&protobuf.Message{
+	/*
+		p.SendToNextCommittee(&protobuf.Message{
+			Type:   "Prepare",
+			Id:     ID,
+			Sender: p.PID,
+			Data:   data,
+		}, p.PID)*/
+	p.BroadcastToNextCommittee(&protobuf.Message{
 		Type:   "Prepare",
 		Id:     ID,
 		Sender: p.PID,
 		Data:   data,
-	}, p.PID)
+	})
+	p.PrepareEnd_old = time.Now()
 }
 
 //PrepareReceive receives Prepare message which contains Pi from the previous commitee  and sets p.Proof.
 func (p *HonestParty) PrepareReceive(ID []byte) {
-	msg := <-p.GetMessage("Prepare", ID)
-	ProofMsg := new(protobuf.VSSEcho) //VSSEcho only contains protobuf.Pi
-	proto.Unmarshal(msg.Data, ProofMsg)
-	p.Proof.SetFromVSSMessage(ProofMsg.Pi, p.F)
+
+	/*
+		msg := <-p.GetMessage("Prepare", ID)
+		ProofMsg := new(protobuf.VSSEcho) //VSSEcho only contains protobuf.Pi
+		proto.Unmarshal(msg.Data, ProofMsg)
+		p.Proof.SetFromVSSMessage(ProofMsg.Pi, p.F)
+	*/
+	ProofMap := make(map[string]int)
+
+	var cnt = 0 //used to judge whether to execute p.PrepareStart_new = time.Now()
+
+	for {
+		msg := <-p.GetMessage("Prepare", ID)
+		if cnt == 0 {
+			p.PrepareStart_new = time.Now()
+		}
+		hash := sha256.New()
+		hash.Write(msg.Data)
+		hashToString := string(hash.Sum(nil))
+		counter, ok := ProofMap[hashToString]
+		if ok {
+			ProofMap[hashToString] = counter + 1
+		} else {
+			ProofMap[hashToString] = 1
+		}
+		if uint32(counter+1) == p.F+1 {
+			ProofMsg := new(protobuf.VSSEcho) //VSSEcho only contains protobuf.Pi
+			proto.Unmarshal(msg.Data, ProofMsg)
+			p.Proof.SetFromVSSMessage(ProofMsg.Pi, p.F)
+			p.PrepareEnd_new = time.Now()
+			break
+		}
+		cnt++
+	}
 }

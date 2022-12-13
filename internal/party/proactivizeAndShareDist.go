@@ -20,6 +20,8 @@ import (
 
 func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 
+	p.ProactivizeStart = time.Now()
+
 	ecparamN := ecparam.PBC256.Ngmp
 	var flgCom = make([]bool, p.N+1)
 	var flgRec = make([]bool, p.N+1)
@@ -109,8 +111,6 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 		Q[p.PID+1][j], _ = polyring.NewRand(int(p.F), rnd, ecparamN)
 		Q[p.PID+1][j].SetCoefficientBig(0, Fj) // Q_i(0,index)=F_i(index)
 	}
-
-	p.ProactivizeStart = time.Now()
 
 	startCom <- true
 	startReshare <- true

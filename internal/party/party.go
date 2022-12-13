@@ -69,14 +69,20 @@ type HonestParty struct {
 	witness        []*pbc.Element //witness[index] = w_B(i,*), each party has at least 2t+1 witness
 	witnessIndexes []*gmp.Int     //witnessIndexes[index] means the * value of witness[index]
 
-	VSSStart         time.Time
-	VSSEnd           time.Time
-	ShareReduceStart time.Time
-	ShareReduceEnd   time.Time
-	ProactivizeStart time.Time
-	ProactivizeEnd   time.Time
-	ShareDistStart   time.Time
-	ShareDistEnd     time.Time
+	VSSStart             time.Time
+	VSSEnd               time.Time
+	PrepareStart_old     time.Time
+	PrepareEnd_old       time.Time
+	PrepareStart_new     time.Time
+	PrepareEnd_new       time.Time
+	ShareReduceStart_old time.Time
+	ShareReduceEnd_old   time.Time
+	ShareReduceStart_new time.Time
+	ShareReduceEnd_new   time.Time
+	ProactivizeStart     time.Time
+	ProactivizeEnd       time.Time
+	ShareDistStart       time.Time
+	ShareDistEnd         time.Time
 }
 
 // SRecElement is the set of elements for recover
@@ -155,14 +161,20 @@ func NewHonestParty(e uint32, N uint32, F uint32, pid uint32, ipList []string, p
 		witness:        witness,
 		witnessIndexes: witnessIndexes,
 
-		VSSStart:         time.Now(),
-		VSSEnd:           time.Now(),
-		ShareReduceStart: time.Now(),
-		ShareReduceEnd:   time.Now(),
-		ProactivizeStart: time.Now(),
-		ProactivizeEnd:   time.Now(),
-		ShareDistStart:   time.Now(),
-		ShareDistEnd:     time.Now(),
+		VSSStart:             time.Now(),
+		VSSEnd:               time.Now(),
+		PrepareStart_old:     time.Now(),
+		PrepareEnd_old:       time.Now(),
+		PrepareStart_new:     time.Now(),
+		PrepareEnd_new:       time.Now(),
+		ShareReduceStart_old: time.Now(),
+		ShareReduceEnd_old:   time.Now(),
+		ShareReduceStart_new: time.Now(),
+		ShareReduceEnd_new:   time.Now(),
+		ProactivizeStart:     time.Now(),
+		ProactivizeEnd:       time.Now(),
+		ShareDistStart:       time.Now(),
+		ShareDistEnd:         time.Now(),
 	}
 	return &p
 }
