@@ -53,7 +53,7 @@ func integrationTestSetup(scale uint8, seed int64) (data []byte, extended []bls.
 	if err != nil {
 		panic(err)
 	}
-	debugFrs("poly", coeffs)
+	DebugFrs("poly", coeffs)
 	extendedAsPoly = coeffs
 	// the 2nd half is all zeroes, can ignore it for faster commitment.
 	commit = ks.CommitToPoly(coeffs[:points])
@@ -69,7 +69,7 @@ func TestFullDAS(t *testing.T) {
 	data, extended, extendedAsPoly, commit, ks := integrationTestSetup(10, 1234)
 	// undo the bit-reverse ordering of the extended data (which was prepared after reverse-bit ordering the input data)
 	reverseBitOrderFr(extended)
-	debugFrs("extended data (reordered to original)", extended)
+	DebugFrs("extended data (reordered to original)", extended)
 
 	cosetWidth := uint64(128)
 	fk := NewFK20MultiSettings(ks, ks.MaxWidth, cosetWidth)
@@ -87,7 +87,7 @@ func TestFullDAS(t *testing.T) {
 		for j := uint64(0); j < cosetWidth; j++ {
 			bls.CopyFr(&sample.sub[j], &extended[i*cosetWidth+j])
 		}
-		debugFrs("sample pre-order", sample.sub)
+		DebugFrs("sample pre-order", sample.sub)
 
 		// construct that same coset from the polynomial form, to make sure we have the correct points.
 		domainPos := reverseBitsLimited(uint32(sampleCount), uint32(i))
@@ -137,7 +137,7 @@ func TestFullDAS(t *testing.T) {
 
 	// apply reverse bit-ordering again to get original data into first half
 	reverseBitOrderFr(recovered)
-	debugFrs("recovered", recovered)
+	DebugFrs("recovered", recovered)
 
 	for i := 0; i < len(recovered); i++ {
 		if !bls.EqualFr(&extended[i], &recovered[i]) {

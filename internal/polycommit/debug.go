@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func debugFrPtrs(msg string, values []*bls.Fr) {
+func DebugFrPtrs(msg string, values []*bls.Fr) {
 	var out strings.Builder
 	out.WriteString("---")
 	out.WriteString(msg)
@@ -17,7 +17,7 @@ func debugFrPtrs(msg string, values []*bls.Fr) {
 	fmt.Println(out.String())
 }
 
-func debugFrs(msg string, values []bls.Fr) {
+func DebugFrs(msg string, values []bls.Fr) {
 	fmt.Println("---------------------------")
 	var out strings.Builder
 	for i := range values {

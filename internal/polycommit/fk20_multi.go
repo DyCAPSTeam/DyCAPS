@@ -79,7 +79,7 @@ func (ks *FK20MultiSettings) FK20MultiDAOptimized(polynomial []bls.Fr) []bls.G1P
 	var tmp bls.G1Point
 	for i := uint64(0); i < ks.chunkLen; i++ {
 		toeplitzCoeffs := ks.toeplitzCoeffsStepStrided(reducedPoly, i, ks.chunkLen)
-		//debugFrs(fmt.Sprintf("toeplitz_coefficients %d:", i), toeplitzCoeffs)
+		//DebugFrs(fmt.Sprintf("toeplitz_coefficients %d:", i), toeplitzCoeffs)
 		//DebugG1s(fmt.Sprintf("xext_fft file %d:", i), ks.xExtFFTFiles[i])
 		hExtFFTFile := ks.ToeplitzPart2(toeplitzCoeffs, ks.xExtFFTFiles[i])
 		//DebugG1s(fmt.Sprintf("hext_fft file %d:", i), hExtFFTFile)

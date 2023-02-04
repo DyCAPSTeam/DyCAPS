@@ -64,7 +64,7 @@ func (ks *KZGSettings) ToeplitzPart2(toeplitzCoeffs []bls.Fr, xExtFFT []bls.G1Po
 	if err != nil {
 		panic(fmt.Errorf("FFT failed in toeplitz part 2: %v", err))
 	}
-	//debugFrs("focus toeplitzCoeffsFFT", toeplitzCoeffsFFT)
+	//DebugFrs("focus toeplitzCoeffsFFT", toeplitzCoeffsFFT)
 	//DebugG1s("xExtFFT", xExtFFT)
 	n := uint64(len(toeplitzCoeffsFFT))
 	//print("mul n: ", n)

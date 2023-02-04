@@ -2,8 +2,10 @@ package party
 
 import (
 	"errors"
+	"github.com/DyCAPSTeam/DyCAPS/internal/bls"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/core"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
+	"google.golang.org/protobuf/proto"
 	"log"
 	"sync"
 )
@@ -150,4 +152,86 @@ func (pi *Pi) Init(F uint32) {
 	for i := uint32(0); i <= 2*F+1; i++ {
 		pi.PiContents[i].j = i
 	}
+}
+
+//pad a polynomial in coefficient form to MaxWidth
+func PadCoeff(poly_coeff []bls.Fr, MaxWidth uint64) []bls.Fr {
+	n := len(poly_coeff)
+	if uint64(n) > MaxWidth {
+		log.Fatalln("len(poly_coeff)>Maxwidth in function PadCoeff.n=", len(poly_coeff), "and MaxWidth=", MaxWidth)
+	}
+	ans := make([]bls.Fr, MaxWidth)
+	for i := 0; i < n; i++ {
+		bls.CopyFr(&ans[i], &poly_coeff[i])
+	}
+	for i := n; uint64(i) < MaxWidth; i++ {
+		ans[i] = bls.ZERO
+	}
+	return ans
+}
+
+//get the lagrange coefficients at index "targetIndex", with known indexes x[].
+//remenber to allocate memory for target[] before using this function.
+func GetLagrangeCoefficients(deg uint32, x []bls.Fr, targetIndex bls.Fr, lambda []bls.Fr) {
+	if uint32(len(x)) != deg+1 {
+		panic("number of known indexes != deg + 1")
+	}
+
+	for i := uint32(0); i <= deg; i++ {
+		res := bls.ONE
+		for j := uint32(0); j <= deg; j++ {
+			if j != i {
+				tmp := bls.ZERO
+				bls.SubModFr(&tmp, &targetIndex, &x[j])
+				tmp2 := bls.ZERO
+				bls.MulModFr(&tmp2, &res, &tmp)
+				bls.CopyFr(&res, &tmp2)
+
+				bls.SubModFr(&tmp, &x[i], &x[j])
+				bls.InvModFr(&tmp2, &tmp)
+				bls.MulModFr(&tmp, &tmp2, &res)
+				bls.CopyFr(&res, &tmp)
+			}
+		}
+		bls.CopyFr(&lambda[i], &res)
+	}
+}
+
+func EncapsulateVSSSend(pi *Pi, BijList []bls.Fr, WBijList []bls.G1Point, F uint32) []byte {
+	var msg = new(protobuf.VSSSend)
+	msg.Pi = new(protobuf.Pi)
+	msg.Pi.Gs = bls.ToCompressedG1(&pi.Gs)
+
+	for j := uint32(0); j <= 2*F+1; j++ {
+		if j == 0 {
+			msg.BijList = make([][]byte, 2*F+2) // 0 is not used.
+			msg.WBijList = make([][]byte, 2*F+2)
+			msg.WBijList[0] = []byte{}
+			msg.BijList[0] = []byte{}
+			msg.Pi.PiContents = make([]*protobuf.PiContent, 2*F+2)
+			for k := 0; uint32(k) <= 2*F+1; k++ {
+				msg.Pi.PiContents[k] = new(protobuf.PiContent)
+			}
+			msg.Pi.PiContents[0].J = 0
+			msg.Pi.PiContents[0].WZ0 = []byte{}
+			msg.Pi.PiContents[0].CBj = []byte{}
+			msg.Pi.PiContents[0].CZj = []byte{}
+			msg.Pi.PiContents[0].GFj = []byte{}
+		} else {
+			msg.WBijList[j] = bls.ToCompressedG1(&WBijList[j])
+
+			tmp1 := bls.FrTo32(&BijList[j]) //from array to slice
+			tmp2 := make([]byte, 32)
+			copy(tmp2, tmp1[:])
+			msg.BijList[j] = tmp2
+
+			msg.Pi.PiContents[j].J = j
+			msg.Pi.PiContents[j].CZj = bls.ToCompressedG1(&pi.PiContents[j].CZj)
+			msg.Pi.PiContents[j].CBj = bls.ToCompressedG1(&pi.PiContents[j].CBj)
+			msg.Pi.PiContents[j].WZ0 = bls.ToCompressedG1(&pi.PiContents[j].WZ0)
+			msg.Pi.PiContents[j].GFj = bls.ToCompressedG1(&pi.PiContents[j].gFj)
+		}
+	}
+	data, _ := proto.Marshal(msg)
+	return data
 }

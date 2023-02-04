@@ -68,6 +68,8 @@ type HonestParty struct {
 	witness        []bls.G1Point //witness[index] = w_B(w^i,*), each party has at least 2t+1 witness
 	witnessIndexes []bls.Fr      //witnessIndexes[index] means the * value of witness[index]
 
+	LagrangeCoefficients [][]bls.Fr //lagrange coefficients when using f(w^1),f(w^2),...,f(w^(2f+1)) to calculate f(w^k) for 1 <= k <= 3*f+1.Indices start from 1
+
 	VSSStart             time.Time
 	VSSEnd               time.Time
 	PrepareStart_old     time.Time
@@ -140,6 +142,14 @@ func NewHonestParty(e uint32, N uint32, F uint32, pid uint32, ipList []string, p
 		witness[i] = bls.ZeroG1
 		witnessIndexes[i] = bls.ZERO
 	}
+
+	LagrangeCoefficients := make([][]bls.Fr, N+1)
+	for i := 0; uint32(i) <= N; i++ {
+		LagrangeCoefficients[i] = make([]bls.Fr, 2*F+1)
+		target := FS.ExpandedRootsOfUnity[i]
+		GetLagrangeCoefficients(2*F, FS.ExpandedRootsOfUnity[1:2*F+1+1], target, LagrangeCoefficients[i])
+	}
+
 	p := HonestParty{
 		e:                  e,
 		N:                  N,

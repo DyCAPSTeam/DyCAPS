@@ -35,12 +35,12 @@ func TestInvFFT(t *testing.T) {
 	for i := uint64(0); i < fs.MaxWidth; i++ {
 		bls.AsFr(&data[i], i)
 	}
-	debugFrs("input data", data)
+	DebugFrs("input data", data)
 	res, err := fs.FFT(data, true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	debugFrs("result", res)
+	DebugFrs("result", res)
 	ToFr := func(v string) (out bls.Fr) {
 		bls.SetFr(&out, v)
 		return
@@ -92,7 +92,7 @@ func TestEvaluatePolyInEvaluationForm(t *testing.T) {
 		bls.EvaluatePolyInEvaluationForm(&y2, res, x, fs.ExpandedRootsOfUnity[:fs.MaxWidth], 0)
 
 		if !bls.EqualFr(&y1, &y2) {
-			debugFrs("y", []bls.Fr{y1, y2})
+			DebugFrs("y", []bls.Fr{y1, y2})
 			t.Fatal("expected to evaluate to the same value")
 		}
 	}

@@ -170,12 +170,12 @@ func (fs *FFTSettings) ErasureCodeRecover(vals []*bls.Fr) ([]bls.Fr, error) {
 	}
 	// TODO: handle len(positions)==0 case
 	z := fs._zPoly(positions, fs.MaxWidth/uint64(len(vals)))
-	//debugFrs("z", z)
+	//DebugFrs("z", z)
 	zVals, err := fs.FFT(z, false)
 	if err != nil {
 		return nil, err
 	}
-	//debugFrs("zvals", zVals)
+	//DebugFrs("zvals", zVals)
 
 	// Pointwise-multiply (vals filling in zero at missing spots) * z
 	// By construction, this equals vals * z
@@ -188,12 +188,12 @@ func (fs *FFTSettings) ErasureCodeRecover(vals []*bls.Fr) ([]bls.Fr, error) {
 			bls.MulModFr(&pTimesZVals[i], vals[i], &zVals[i])
 		}
 	}
-	//debugFrs("p_times_z_vals", pTimesZVals)
+	//DebugFrs("p_times_z_vals", pTimesZVals)
 	pTimesZ, err := fs.FFT(pTimesZVals, true)
 	if err != nil {
 		return nil, err
 	}
-	//debugFrs("p_times_z", pTimesZ)
+	//DebugFrs("p_times_z", pTimesZ)
 
 	// Keep choosing k values until the algorithm does not fail
 	// Check only with primitive roots of unity
@@ -213,33 +213,33 @@ func (fs *FFTSettings) ErasureCodeRecover(vals []*bls.Fr) ([]bls.Fr, error) {
 		// q1(x) = p_times_z(k*x) and q2(x) = z(k*x)
 		// These are likely to not be 0 at any of the evaluation points.
 		pTimesZOfKX := pOfKX(pTimesZ, &kFr)
-		//debugFrs("p_times_z_of_kx", pTimesZOfKX)
+		//DebugFrs("p_times_z_of_kx", pTimesZOfKX)
 		pTimesZOfKXVals, err := fs.FFT(pTimesZOfKX, false)
 		if err != nil {
 			return nil, err
 		}
-		//debugFrs("p_times_z_of_kx_vals", pTimesZOfKXVals)
+		//DebugFrs("p_times_z_of_kx_vals", pTimesZOfKXVals)
 		zOfKX := pOfKX(z, &kFr)
-		//debugFrs("z_of_kx", zOfKX)
+		//DebugFrs("z_of_kx", zOfKX)
 		zOfKXVals, err := fs.FFT(zOfKX, false)
 		if err != nil {
 			return nil, err
 		}
-		//debugFrs("z_of_kx_vals", zOfKXVals)
+		//DebugFrs("z_of_kx_vals", zOfKXVals)
 
 		// Compute q1(x) / q2(x) = p(k*x)
 		invZOfKXVals := multiInv(zOfKXVals)
-		//debugFrs("inv_z_of_kv_vals", invZOfKXVals)
+		//DebugFrs("inv_z_of_kv_vals", invZOfKXVals)
 		pOfKxVals := make([]bls.Fr, len(pTimesZOfKXVals), len(pTimesZOfKXVals))
 		for i := 0; i < len(pOfKxVals); i++ {
 			bls.MulModFr(&pOfKxVals[i], &pTimesZOfKXVals[i], &invZOfKXVals[i])
 		}
-		//debugFrs("p_of_kx_vals", pOfKxVals)
+		//DebugFrs("p_of_kx_vals", pOfKxVals)
 		pOfKx, err := fs.FFT(pOfKxVals, true)
 		if err != nil {
 			return nil, err
 		}
-		//debugFrs("p_of_kx", pOfKx)
+		//DebugFrs("p_of_kx", pOfKx)
 
 		// Given q3(x) = p(k*x), recover p(x)
 		pOfX := make([]bls.Fr, len(pOfKx), len(pOfKx))

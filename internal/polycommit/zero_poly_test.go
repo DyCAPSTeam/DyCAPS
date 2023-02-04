@@ -44,8 +44,8 @@ func TestFFTSettings_reduceLeaves(t *testing.T) {
 			t.Errorf("zero poly coeff %d is different. direct: %s, tree: %s", i, bls.FrStr(a), bls.FrStr(b))
 		}
 	}
-	//debugFrs("zero poly (tree reduction)", fromTreeReduction)
-	//debugFrs("zero poly (direct slow)", fromDirect)
+	//DebugFrs("zero poly (tree reduction)", fromTreeReduction)
+	//DebugFrs("zero poly (direct slow)", fromDirect)
 }
 
 func TestFFTSettings_reduceLeaves_parametrized(t *testing.T) {
@@ -126,8 +126,8 @@ func testReduceLeaves(scale uint8, missingRatio float64, seed int64, t *testing.
 			t.Errorf("zero poly coeff %d is different. direct: %s, tree: %s", i, bls.FrStr(a), bls.FrStr(b))
 		}
 	}
-	//debugFrs("zero poly (tree reduction)", fromTreeReduction)
-	//debugFrs("zero poly (direct slow)", fromDirect)
+	//DebugFrs("zero poly (tree reduction)", fromTreeReduction)
+	//DebugFrs("zero poly (direct slow)", fromDirect)
 }
 
 func TestFFTSettings_ZeroPolyViaMultiplication_Python(t *testing.T) {
@@ -217,8 +217,8 @@ func testZeroPoly(t *testing.T, scale uint8, seed int64) {
 
 	zeroEval, zeroPoly := fs.ZeroPolyViaMultiplication(missingIndices, uint64(len(exists)))
 
-	//debugFrs("zero eval", zeroEval)
-	//debugFrs("zero poly", zeroPoly)
+	//DebugFrs("zero eval", zeroEval)
+	//DebugFrs("zero poly", zeroPoly)
 
 	for i, v := range exists {
 		if !v {

@@ -54,7 +54,7 @@ func TestKZGSettings_DAUsingFK20Multi(t *testing.T) {
 		t.Fatal(err)
 	}
 	reverseBitOrderFr(extendedData)
-	debugFrs("extended_data", extendedData)
+	DebugFrs("extended_data", extendedData)
 
 	n2 := n * 2
 	domainStride := fk.MaxWidth / n2

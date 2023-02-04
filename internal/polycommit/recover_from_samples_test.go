@@ -17,24 +17,24 @@ func TestFFTSettings_RecoverPolyFromSamples_Simple(t *testing.T) {
 	for i := fs.MaxWidth / 2; i < fs.MaxWidth; i++ {
 		poly[i] = bls.ZERO
 	}
-	debugFrs("poly", poly)
+	DebugFrs("poly", poly)
 	// Get data for polynomial SLOW_INDICES
 	data, err := fs.FFT(poly, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	debugFrs("data", data)
+	DebugFrs("data", data)
 
 	subset := make([]*bls.Fr, fs.MaxWidth, fs.MaxWidth)
 	subset[0] = &data[0]
 	subset[3] = &data[3]
 
-	debugFrPtrs("subset", subset)
+	DebugFrPtrs("subset", subset)
 	recovered, err := fs.RecoverPolyFromSamples(subset, fs.ZeroPolyViaMultiplication)
 	if err != nil {
 		t.Fatal(err)
 	}
-	debugFrs("recovered", recovered)
+	DebugFrs("recovered", recovered)
 	for i := range recovered {
 		if got := &recovered[i]; !bls.EqualFr(got, &data[i]) {
 			t.Errorf("recovery at index %d got %s but expected %s", i, bls.FrStr(got), bls.FrStr(&data[i]))
@@ -45,7 +45,7 @@ func TestFFTSettings_RecoverPolyFromSamples_Simple(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	debugFrs("back", back)
+	DebugFrs("back", back)
 	for i := uint64(0); i < fs.MaxWidth/2; i++ {
 		if got := &back[i]; !bls.EqualFr(got, &poly[i]) {
 			t.Errorf("coeff at index %d got %s but expected %s", i, bls.FrStr(got), bls.FrStr(&poly[i]))
@@ -68,13 +68,13 @@ func TestFFTSettings_RecoverPolyFromSamples(t *testing.T) {
 	for i := fs.MaxWidth / 2; i < fs.MaxWidth; i++ {
 		poly[i] = bls.ZERO
 	}
-	debugFrs("poly", poly)
+	DebugFrs("poly", poly)
 	// Get coefficients for polynomial SLOW_INDICES
 	data, err := fs.FFT(poly, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	debugFrs("data", data)
+	DebugFrs("data", data)
 
 	// Util to pick a random subnet of the values
 	randomSubset := func(known uint64, rngSeed uint64) []*bls.Fr {
@@ -103,12 +103,12 @@ func TestFFTSettings_RecoverPolyFromSamples(t *testing.T) {
 			t.Run(fmt.Sprintf("random_subset_%d_known_%d", i, known), func(t *testing.T) {
 				subset := randomSubset(known, uint64(i))
 
-				debugFrPtrs("subset", subset)
+				DebugFrPtrs("subset", subset)
 				recovered, err := fs.RecoverPolyFromSamples(subset, fs.ZeroPolyViaMultiplication)
 				if err != nil {
 					t.Fatal(err)
 				}
-				debugFrs("recovered", recovered)
+				DebugFrs("recovered", recovered)
 				for i := range recovered {
 					if got := &recovered[i]; !bls.EqualFr(got, &data[i]) {
 						t.Errorf("recovery at index %d got %s but expected %s", i, bls.FrStr(got), bls.FrStr(&data[i]))
@@ -119,7 +119,7 @@ func TestFFTSettings_RecoverPolyFromSamples(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				debugFrs("back", back)
+				DebugFrs("back", back)
 				half := uint64(len(back)) / 2
 				for i := uint64(0); i < half; i++ {
 					if got := &back[i]; !bls.EqualFr(got, &poly[i]) {

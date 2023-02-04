@@ -15,9 +15,9 @@ func TestDASFFTExtension(t *testing.T) {
 	for i := uint64(0); i < half; i++ {
 		bls.AsFr(&data[i], i)
 	}
-	debugFrs("even data", data)
+	DebugFrs("even data", data)
 	fs.DASFFTExtension(data)
-	debugFrs("odd data", data)
+	DebugFrs("odd data", data)
 	ToFr := func(v string) (out bls.Fr) {
 		bls.SetFr(&out, v)
 		return
@@ -47,14 +47,14 @@ func TestParametrizedDASFFTExtension(t *testing.T) {
 		for i := uint64(0); i < fs.MaxWidth/2; i++ {
 			bls.AsFr(&evenData[i], rng.Uint64()) // TODO could be a full random F_r instead of uint64
 		}
-		debugFrs("input data", evenData)
+		DebugFrs("input data", evenData)
 		// we don't want to modify the original input, and the inner function would modify it in-place, so make a copy.
 		oddData := make([]bls.Fr, fs.MaxWidth/2, fs.MaxWidth/2)
 		for i := 0; i < len(oddData); i++ {
 			bls.CopyFr(&oddData[i], &evenData[i])
 		}
 		fs.DASFFTExtension(oddData)
-		debugFrs("output data", oddData)
+		DebugFrs("output data", oddData)
 
 		// reconstruct data
 		data := make([]bls.Fr, fs.MaxWidth, fs.MaxWidth)
@@ -62,13 +62,13 @@ func TestParametrizedDASFFTExtension(t *testing.T) {
 			bls.CopyFr(&data[i], &evenData[i>>1])
 			bls.CopyFr(&data[i+1], &oddData[i>>1])
 		}
-		debugFrs("reconstructed data", data)
+		DebugFrs("reconstructed data", data)
 		// get coefficients of reconstructed data with inverse FFT
 		coeffs, err := fs.FFT(data, true)
 		if err != nil {
 			t.Fatal(err)
 		}
-		debugFrs("coeffs data", coeffs)
+		DebugFrs("coeffs data", coeffs)
 		// second half of all coefficients should be zero
 		for i := fs.MaxWidth / 2; i < fs.MaxWidth; i++ {
 			if !bls.EqualZero(&coeffs[i]) {
