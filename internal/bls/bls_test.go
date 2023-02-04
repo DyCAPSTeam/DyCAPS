@@ -1,263 +1,120 @@
-/**
- * File        : bls_test.go
- * Description : Unit tests.
- * Copyright   : Copyright (c) 2017-2018 DFINITY Stiftung. All rights reserved.
- * Maintainer  : Enzo Haussecker <enzo@dfinity.org>
- * Stability   : Stable
- *
- * This module provides unit tests for the Boneh-Lynn-Shacham signature scheme.
- */
+//go:build !bignum_pure && !bignum_hol256
+// +build !bignum_pure,!bignum_hol256
 
 package bls
 
 import (
-	"crypto/sha256"
-	"io/ioutil"
-	"math/rand"
+	"bytes"
 	"testing"
-	"time"
 )
 
-func TestSignVerify(test *testing.T) {
+func TestPointCompression(t *testing.T) {
+	var x Fr
+	SetFr(&x, "44689111813071777962210527909085028157792767057343609826799812096627770269092")
+	var point G1Point
+	MulG1(&point, &GenG1, &x)
+	got := ToCompressedG1(&point)
 
-	message := "This is a message."
+	expected := []byte{134, 87, 163, 76, 148, 138, 55, 228, 171, 85, 80, 116, 242, 13, 169, 151, 167, 6, 219, 183, 108, 254, 214, 99, 184, 231, 210, 201, 39, 69, 184, 188, 105, 194, 22, 32, 9, 57, 220, 81, 82, 164, 97, 236, 201, 116, 2, 83}
 
-	// Generate a key pair.
-	// params := GenParamsTypeA(160, 512)
-	body, err := ioutil.ReadFile("param/ecparam.param")
-	params, _ := ParamsFromBytes(body)
-	pairing := GenPairing(params)
-	system, err := GenSystem(pairing)
-	if err != nil {
-		test.Fatal(err)
+	if !bytes.Equal(expected, got) {
+		t.Fatalf("Invalid compression result, %v != %x", got, expected)
 	}
-	key, secret, err := GenKeys(system)
-	if err != nil {
-		test.Fatal(err)
-	}
-
-	// Sign the message.
-	hash := sha256.Sum256([]byte(message))
-	signature := Sign(hash, secret)
-
-	// Verify the signature.
-	if !Verify(signature, hash, key) {
-		test.Fatal("Failed to verify signature.")
-	}
-
-	// Clean up.
-	signature.Free()
-	key.Free()
-	secret.Free()
-	system.Free()
-	pairing.Free()
-	params.Free()
-
 }
 
-func TestAggregateVerify(test *testing.T) {
+func TestPointG1Marshalling(t *testing.T) {
+	var x Fr
+	SetFr(&x, "44689111813071777962210527909085028157792767057343609826799812096627770269092")
+	var point G1Point
+	MulG1(&point, &GenG1, &x)
 
-	messages := []string{
-		"This is a message.",
-		"This is another message.",
-		"This is yet another message.",
-		"These messages are unique.",
+	bytes, err := point.MarshalText()
+	if err != nil {
+		t.Fatal(err)
 	}
-	n := len(messages)
 
-	// Generate key pairs.
-	// params, err := GenParamsTypeD(9563, 512)
-	body, err := ioutil.ReadFile("param/ecparam.param")
-	params, _ := ParamsFromBytes(body)
+	var anotherPoint G1Point
+	err = anotherPoint.UnmarshalText(bytes)
 	if err != nil {
-		test.Fatal(err)
+		t.Fatal(err)
 	}
-	pairing := GenPairing(params)
-	system, err := GenSystem(pairing)
+
+	if !EqualG1(&point, &anotherPoint) {
+		t.Fatalf("G1 points did not match:\n%s\n%s", StrG1(&point), StrG1(&anotherPoint))
+	}
+}
+
+func TestPointG2Marshalling(t *testing.T) {
+	var x Fr
+	SetFr(&x, "44689111813071777962210527909085028157792767057343609826799812096627770269092")
+	var point G2Point
+	MulG2(&point, &GenG2, &x)
+
+	bytes, err := point.MarshalText()
 	if err != nil {
-		test.Fatal(err)
+		t.Fatal(err)
 	}
-	keys := make([]PublicKey, n)
-	secrets := make([]PrivateKey, n)
-	for i := 0; i < n; i++ {
-		keys[i], secrets[i], err = GenKeys(system)
-		if err != nil {
-			test.Fatal(err)
+
+	var anotherPoint G2Point
+	err = anotherPoint.UnmarshalText(bytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !EqualG2(&point, &anotherPoint) {
+		t.Fatalf("G2 points did not match:\n%s\n%s", StrG2(&point), StrG2(&anotherPoint))
+	}
+}
+
+func TestEmptyG1Lincomb(t *testing.T) {
+	out := LinCombG1([]G1Point{}, []Fr{})
+	if out == nil {
+		t.Fatal("got nil, expected result when given 0 points and 0 scalars should be the zero group element")
+	}
+
+	if !EqualG1(out, &ZeroG1) {
+		t.Fatalf("Expected zero group element, got:\n%s", StrG1(out))
+	}
+}
+func TestPolyLincomb(t *testing.T) {
+	var x1, x2, x3, x4 Fr
+	SetFr(&x1, "1")
+	SetFr(&x2, "2")
+	SetFr(&x3, "3")
+	SetFr(&x4, "4")
+	vec := []Fr{x1, x2, x3, x4}
+	degree := len(vec)
+
+	// Happy path: valid inputs
+	r, err := PolyLinComb([][]Fr{vec, vec, vec, vec}, vec, degree)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(r) != degree {
+		t.Fatalf("Expected result of length %v, got %v", degree, len(r))
+	}
+
+	// Error path: empty input
+	r, err = PolyLinComb([][]Fr{}, []Fr{}, degree)
+	if err != nil {
+		t.Fatalf("Expected the zero polynomial of degree %v \ngot an error: %v", degree, err)
+	}
+	for i := 0; i < degree; i++ {
+		if !EqualFr(&r[i], &ZERO) {
+			t.Fatal("Expected the zero polynomial")
 		}
 	}
 
-	// Sign the messages.
-	hashes := make([][sha256.Size]byte, n)
-	signatures := make([]Signature, n)
-	for i := 0; i < n; i++ {
-		hashes[i] = sha256.Sum256([]byte(messages[i]))
-		signatures[i] = Sign(hashes[i], secrets[i])
+	// Error path: vectors not same length
+	shortVec := []Fr{x1, x2, x3}
+	_, err = PolyLinComb([][]Fr{vec, vec, shortVec, vec}, vec, degree)
+	if err == nil {
+		t.Fatal("Expected error, got none")
 	}
 
-	// Aggregate the signatures.
-	aggregate, err := Aggregate(signatures, system)
-	if err != nil {
-		test.Fatal(err)
+	// Error path: Scalar vector size doesn't match
+	_, err = PolyLinComb([][]Fr{vec, vec, vec, vec}, shortVec, degree)
+	if err == nil {
+		t.Fatal("Expected error, got none")
 	}
-
-	// Verify the aggregate signature.
-	valid, err := AggregateVerify(aggregate, hashes, keys)
-	if err != nil {
-		test.Fatal(err)
-	}
-	if !valid {
-		test.Fatal("Failed to verify aggregate signature.")
-	}
-
-	// Clean up.
-	aggregate.Free()
-	for i := 0; i < n; i++ {
-		signatures[i].Free()
-		keys[i].Free()
-		secrets[i].Free()
-	}
-	system.Free()
-	pairing.Free()
-	params.Free()
-
-}
-
-func TestThresholdSignature(test *testing.T) {
-
-	message := "This is a message."
-
-	// Generate key shares.
-	// params := GenParamsTypeF(256)
-	body, _ := ioutil.ReadFile("param/ecparam.param")
-	params, _ := ParamsFromBytes(body)
-
-	pairing := GenPairing(params)
-	system, err := GenSystem(pairing)
-	if err != nil {
-		test.Fatal(err)
-	}
-	rand.Seed(time.Now().UnixNano())
-	n := rand.Intn(20) + 1
-	t := rand.Intn(n) + 1
-	groupKey, memberKeys, groupSecret, memberSecrets, err := GenKeyShares(t, n, system)
-	if err != nil {
-		test.Fatal(err)
-	}
-
-	// Select group members.
-	memberIds := rand.Perm(n)[:t]
-
-	// Sign the message.
-	hash := sha256.Sum256([]byte(message))
-	shares := make([]Signature, t)
-	for i := 0; i < t; i++ {
-		shares[i] = Sign(hash, memberSecrets[memberIds[i]])
-	}
-
-	// Recover the threshold signature.
-	signature, err := Threshold(shares, memberIds, system)
-	if err != nil {
-		test.Fatal(err)
-	}
-
-	// Verify the threshold signature.
-	if !Verify(signature, hash, groupKey) {
-		test.Fatal("Failed to verify signature.")
-	}
-
-	// Clean up.
-	signature.Free()
-	groupKey.Free()
-	groupSecret.Free()
-	for i := 0; i < t; i++ {
-		shares[i].Free()
-	}
-	for i := 0; i < n; i++ {
-		memberKeys[i].Free()
-		memberSecrets[i].Free()
-	}
-	system.Free()
-	pairing.Free()
-	params.Free()
-
-}
-
-func TestToFromBytes(test *testing.T) {
-
-	message := "This is a message."
-
-	// Generate a key pair.
-	// params := GenParamsTypeA(160, 512)
-	body, err := ioutil.ReadFile("param/ecparam.param")
-	params, _ := ParamsFromBytes(body)
-	pairing := GenPairing(params)
-	system, err := GenSystem(pairing)
-	if err != nil {
-		test.Fatal(err)
-	}
-	key, secret, err := GenKeys(system)
-	if err != nil {
-		test.Fatal(err)
-	}
-
-	// Sign the message and serialize the signature.
-	hash := sha256.Sum256([]byte(message))
-	signatureOut := Sign(hash, secret)
-	bytes := system.SigToBytes(signatureOut)
-
-	// Deserialize the signature and verify it.
-	signatureIn, err := system.SigFromBytes(bytes)
-	if err != nil {
-		test.Fatal(err)
-	}
-	if !Verify(signatureIn, hash, key) {
-		test.Fatal("Failed to verify signature.")
-	}
-
-	// Clean up.
-	signatureIn.Free()
-	signatureOut.Free()
-	key.Free()
-	secret.Free()
-	system.Free()
-	pairing.Free()
-	params.Free()
-
-}
-
-func BenchmarkVerify(benchmark *testing.B) {
-
-	message := "This is a message."
-
-	// Generate a key pair.
-	params := GenParamsTypeF(160)
-	pairing := GenPairing(params)
-	system, err := GenSystem(pairing)
-	if err != nil {
-		benchmark.Fatal(err)
-	}
-	key, secret, err := GenKeys(system)
-	if err != nil {
-		benchmark.Fatal(err)
-	}
-
-	// Sign the message.
-	hash := sha256.Sum256([]byte(message))
-	signature := Sign(hash, secret)
-
-	// Verify the signature.
-	benchmark.StartTimer()
-	for i := 0; i < benchmark.N; i++ {
-		Verify(signature, hash, key)
-	}
-	benchmark.StopTimer()
-
-	// Clean up.
-	signature.Free()
-	key.Free()
-	secret.Free()
-	system.Free()
-	pairing.Free()
-	params.Free()
-
 }
