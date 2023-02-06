@@ -30,11 +30,14 @@ func (client *Client) Share(ID []byte) {
 	for i := 0; uint32(i) < 2*client.F+1; i++ {
 		F_CoeffForm[i] = *bls.RandomFr()
 	}
+	var FValAtZero bls.Fr
+	bls.EvalPolyAt(&FValAtZero, F_CoeffForm, &client.FS.ExpandedRootsOfUnity[0])
+	bls.SubModFr(&F_CoeffForm[0], &F_CoeffForm[0], &FValAtZero)
+	bls.AddModFr(&F_CoeffForm[0], &F_CoeffForm[0], &client.s)
 	F_EvalFrom, err := client.FS.FFT(PadCoeff(F_CoeffForm, client.FS.MaxWidth), false)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	bls.CopyFr(&F_EvalFrom[0], &client.s)
 
 	//generate 2t+1 t-degree B(x,w^index) and Z(x,w^index) (Z(x,w^0)=0)
 	var ZList_CoeffForm = make([][]bls.Fr, 2*client.F+2) // here we do not use ZList_CoeffForm[0];ZList_CoeffForm[i][j] means the j-th coefficient of Z(x,w^i)(j starts from 0)
@@ -69,6 +72,7 @@ func (client *Client) Share(ID []byte) {
 	var CBList = make([]bls.G1Point, 2*client.F+2) // here we do not use CBList[0]
 	var CZList = make([]bls.G1Point, 2*client.F+2) // here we do not use CZList[0]
 	var WZ0List = make([]bls.G1Point, 2*client.F+2)
+	var gFjList = make([]bls.G1Point, 2*client.F+2)
 
 	for i := uint32(1); i <= 2*client.F+1; i++ {
 
@@ -76,11 +80,9 @@ func (client *Client) Share(ID []byte) {
 		CZList[i] = *client.KZG.CommitToPoly(ZList_CoeffForm[i])
 		WZ0List[i] = *client.KZG.ComputeProofSingle(ZList_CoeffForm[i], client.FS.ExpandedRootsOfUnity[0])
 
+		bls.MulG1(&gFjList[i], &bls.GenG1, &F_EvalFrom[i])
 		//add to pi
-		var FjCommit bls.G1Point
-		bls.MulG1(&FjCommit, &bls.GenG1, &F_EvalFrom[i])
-
-		pi.PiContents[i] = PiContent{j: i, CBj: CBList[i], CZj: CZList[i], WZ0: WZ0List[i], gFj: FjCommit}
+		pi.PiContents[i] = PiContent{j: i, CBj: CBList[i], CZj: CZList[i], WZ0: WZ0List[i], gFj: gFjList[i]}
 	}
 
 	//Send

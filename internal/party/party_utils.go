@@ -2,6 +2,7 @@ package party
 
 import (
 	"errors"
+	"fmt"
 	"github.com/DyCAPSTeam/DyCAPS/internal/bls"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/core"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
@@ -234,4 +235,73 @@ func EncapsulateVSSSend(pi *Pi, BijList []bls.Fr, WBijList []bls.G1Point, F uint
 	}
 	data, _ := proto.Marshal(msg)
 	return data
+}
+
+func (pi *Pi) SetFromVSSMessage(m *protobuf.Pi, F uint32) {
+
+	Gs_raw, _ := bls.FromCompressedG1(m.Gs)
+	bls.CopyG1(&pi.Gs, Gs_raw)
+
+	for j := uint32(1); j <= 2*F+1; j++ {
+
+		CBj_raw, _ := bls.FromCompressedG1(m.PiContents[j].CBj)
+		CZj_raw, _ := bls.FromCompressedG1(m.PiContents[j].CZj)
+		WZ0_raw, _ := bls.FromCompressedG1(m.PiContents[j].WZ0)
+		gFj_raw, _ := bls.FromCompressedG1(m.PiContents[j].GFj)
+
+		bls.CopyG1(&pi.PiContents[j].CBj, CBj_raw)
+		bls.CopyG1(&pi.PiContents[j].CZj, CZj_raw)
+		bls.CopyG1(&pi.PiContents[j].WZ0, WZ0_raw)
+		bls.CopyG1(&pi.PiContents[j].gFj, gFj_raw)
+
+		pi.PiContents[j].j = j
+	}
+}
+
+func (pi *Pi) Set(src *Pi, F uint32) {
+	bls.CopyG1(&pi.Gs, &src.Gs)
+	for j := 1; uint32(j) <= 2*F+1; j++ {
+		bls.CopyG1(&pi.PiContents[j].CBj, &src.PiContents[j].CBj)
+		bls.CopyG1(&pi.PiContents[j].CZj, &src.PiContents[j].CZj)
+		bls.CopyG1(&pi.PiContents[j].WZ0, &src.PiContents[j].WZ0)
+		bls.CopyG1(&pi.PiContents[j].gFj, &src.PiContents[j].gFj)
+		pi.PiContents[j].j = src.PiContents[j].j
+	}
+}
+
+func GetSamples(ExpIndexes []int, Values []bls.Fr, MaxWidth uint64) []*bls.Fr {
+	if !bls.IsPowerOfTwo(MaxWidth) {
+		log.Fatalln("maxWidth not power of 2 in function GetSamples().")
+	}
+	if len(ExpIndexes) != len(Values) {
+		log.Fatalln("len(ExpIndexes) != len(Values) in function GetSamples()")
+	}
+	if uint64(len(ExpIndexes)) > MaxWidth {
+		log.Fatalln("len(ExpIndexes) > MaxWidth in function GetSamples()")
+	}
+	ans := make([]*bls.Fr, MaxWidth)
+
+	for i := 0; i < len(ExpIndexes); i++ {
+		ans[ExpIndexes[i]] = &Values[i]
+	}
+
+	return ans
+}
+
+func PolyToString(poly_coeff []bls.Fr) string {
+	var s = ""
+
+	for i := len(poly_coeff) - 1; i >= 0; i-- {
+		// skip zero coefficients but the constant term
+		if i != 0 && bls.EqualZero(&poly_coeff[i]) == true {
+			continue
+		}
+		if i > 0 {
+			s += fmt.Sprintf("%s x^%d + ", poly_coeff[i].String(), i)
+		} else {
+			// constant term
+			s += fmt.Sprintf("%s", poly_coeff[i].String())
+		}
+	}
+	return s
 }

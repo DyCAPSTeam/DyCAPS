@@ -132,3 +132,7 @@ message MVBAIN{
   repeated bytes sig= 1;
   repeated uint32 j = 2;
 }
+
+message Prepare{
+  repeated bytes Commitments = 1;
+}

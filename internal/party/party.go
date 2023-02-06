@@ -127,8 +127,7 @@ func NewHonestParty(e uint32, N uint32, F uint32, pid uint32, ipList []string, p
 
 	scale := GetScaleByCommitteeSize(N)
 	FS := polycommit.NewFFTSettings(scale)
-	KZGSecret := bls.RandomFr().String()
-	secretG1, secretG2 := polycommit.GenerateTestingSetup(KZGSecret, FS.MaxWidth)
+	secretG1, secretG2 := polycommit.GenerateTestingSetup("46015081477078601964787943834255776126696019968430095991502055467779756761969", FS.MaxWidth)
 	KZG := polycommit.NewKZGSettings(FS, secretG1, secretG2)
 
 	var mutexKZG sync.Mutex
@@ -180,6 +179,8 @@ func NewHonestParty(e uint32, N uint32, F uint32, pid uint32, ipList []string, p
 
 		witness:        witness,
 		witnessIndexes: witnessIndexes,
+
+		LagrangeCoefficients: LagrangeCoefficients,
 
 		VSSStart:             time.Now(),
 		VSSEnd:               time.Now(),
