@@ -59,16 +59,13 @@ type HonestParty struct {
 
 	Proof *Pi //pi
 
-	fullShare_CoeffForm    []bls.Fr // B(w^i,y), i=p.PID+1
-	reducedShare_CoeffForm []bls.Fr // B(x,w^index), index=p.PID+1
+	fullShare_CoeffForm    []bls.Fr // B(i,y), i=p.PID+1
+	reducedShare_CoeffForm []bls.Fr // B(x,index), index=p.PID+1
 
-	fullShare_EvalForm    []bls.Fr //evaluation form of full shares
-	reducedShare_EvalForm []bls.Fr //evaluation form of reduced shares
+	witness        []bls.G1Point //witness[index] = w_B(i,*), each party has at least 2t+1 witness
+	witnessIndexes []int         //witnessIndexes[index] means the * value of witness[index]
 
-	witness        []bls.G1Point //witness[index] = w_B(w^i,*), each party has at least 2t+1 witness
-	witnessIndexes []bls.Fr      //witnessIndexes[index] means the * value of witness[index]
-
-	LagrangeCoefficients [][]bls.Fr //lagrange coefficients when using f(w^1),f(w^2),...,f(w^(2f+1)) to calculate f(w^k) for 1 <= k <= 3*f+1.Indices start from 1
+	LagrangeCoefficients [][]bls.Fr //lagrange coefficients when using f(1),f(2),...,f(2t+1) to calculate f(k) for 0 <= k <= 3*f+1.Indices start from 0
 
 	VSSStart             time.Time
 	VSSEnd               time.Time
@@ -135,11 +132,11 @@ func NewHonestParty(e uint32, N uint32, F uint32, pid uint32, ipList []string, p
 	piInit := new(Pi)
 	piInit.Init(F)
 	witness := make([]bls.G1Point, 2*F+2)
-	witnessIndexes := make([]bls.Fr, 2*F+2) //w_i, where w is the unity of root
+	witnessIndexes := make([]int, 2*F+2) //w_i, where w is the unity of root
 
 	for i := 0; uint32(i) < 2*F+2; i++ {
 		witness[i] = bls.ZeroG1
-		witnessIndexes[i] = bls.ZERO
+		witnessIndexes[i] = 0
 	}
 
 	LagrangeCoefficients := make([][]bls.Fr, N+1)
@@ -173,12 +170,8 @@ func NewHonestParty(e uint32, N uint32, F uint32, pid uint32, ipList []string, p
 
 		fullShare_CoeffForm:    make([]bls.Fr, 2*F+1),
 		reducedShare_CoeffForm: make([]bls.Fr, F+1),
-
-		fullShare_EvalForm:    make([]bls.Fr, FS.MaxWidth),
-		reducedShare_EvalForm: make([]bls.Fr, FS.MaxWidth),
-
-		witness:        witness,
-		witnessIndexes: witnessIndexes,
+		witness:                witness,
+		witnessIndexes:         witnessIndexes,
 
 		LagrangeCoefficients: LagrangeCoefficients,
 

@@ -49,7 +49,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 		for j := uint32(1); j < 2*p.F+2; j++ {
 
 			bls.CopyG1(&p.witness[j], &witnessFromSend[j])
-			bls.CopyFr(&p.witnessIndexes[j], &p.FS.ExpandedRootsOfUnity[j])
+			p.witnessIndexes[j] = int(j)
 		}
 
 		//interpolate 2t-degree polynomial B*(i,y)
