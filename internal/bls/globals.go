@@ -176,3 +176,19 @@ func PolyLinComb(vectors [][]Fr, scalars []Fr, polyDegree int) ([]Fr, error) {
 	}
 	return r, nil
 }
+
+func LinCombFr(numbers []Fr, factors []Fr) Fr {
+	if len(numbers) != len(factors) {
+		panic("got LinCombFr numbers/factors length mismatch")
+	}
+	var out Fr
+
+	for i := 0; i < len(numbers); i++ {
+		var tmp1, tmp2 Fr
+		MulModFr(&tmp1, &numbers[i], &factors[i])
+		CopyFr(&tmp2, &out)
+		AddModFr(&out, &tmp1, &tmp2)
+	}
+	return out
+
+}

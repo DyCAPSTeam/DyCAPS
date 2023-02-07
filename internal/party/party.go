@@ -83,40 +83,39 @@ type HonestParty struct {
 	ShareDistEnd         time.Time
 }
 
-//
-//// SRecElement is the set of elements for recover
-//type SRecElement struct {
-//	index uint32
-//	v     *gmp.Int
-//}
-//
-//// SSigElement is the set of signatures
-//type SSigElement struct {
-//	index uint32
-//	Sig   []byte
-//}
-//
-//// SComElement is the set of commitments
-//type SComElement struct {
-//	index uint32
-//	CB    *pbc.Element
-//}
-//
-//// SBElement is the set of elements for full shares
-//type SBElement struct {
-//	index uint32
-//	CB    *pbc.Element
-//	v     *gmp.Int
-//	w     *pbc.Element
-//}
-//
-//type RecoverMsg struct {
-//	sender   uint32
-//	index    uint32
-//	v        *gmp.Int
-//	w        *pbc.Element
-//	sigShare []byte
-//}
+// SRecElement is the set of elements for recover
+type SRecElement struct {
+	index uint32
+	v     bls.Fr
+}
+
+// SSigElement is the set of signatures
+type SSigElement struct {
+	index uint32
+	Sig   []byte
+}
+
+// SComElement is the set of commitments
+type SComElement struct {
+	index uint32
+	CB    bls.G1Point
+}
+
+// SBElement is the set of elements for full shares
+type SBElement struct {
+	index uint32
+	CB    bls.G1Point
+	v     bls.Fr
+	w     bls.G1Point
+}
+
+type RecoverMsg struct {
+	sender   uint32
+	index    uint32
+	v        bls.Fr
+	w        bls.G1Point
+	sigShare []byte
+}
 
 //NewHonestParty returns a new honest party object
 func NewHonestParty(e uint32, N uint32, F uint32, pid uint32, ipList []string, portList []string, ipListNext []string, portListNext []string, sigPK *share.PubPoly, sigSK *share.PriShare) *HonestParty {

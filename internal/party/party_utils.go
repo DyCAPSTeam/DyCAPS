@@ -313,10 +313,10 @@ func (p *HonestParty) InterpolateComOrWit(degree uint32, targetIndex uint32, Lis
 
 	// degree=2t
 
-	if targetIndex > 0 && targetIndex < degree+1 {
+	if targetIndex > 0 && targetIndex <= degree+1 {
 		return CWList[targetIndex-1]
 	} else {
-		if targetIndex == 0 || targetIndex <= 3*p.F+1 {
+		if (targetIndex >= 0 && targetIndex <= 3*p.F+1) && uint32(degree) == 2*p.F {
 			return *bls.LinCombG1(List, p.LagrangeCoefficients[targetIndex])
 		}
 
