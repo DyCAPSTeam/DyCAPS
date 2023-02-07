@@ -49,8 +49,8 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 		//prepare for polyring
 		for j := uint32(1); j < 2*p.F+2; j++ {
 
-			bls.CopyG1(&p.witness[j], &witnessFromSend[j])
-			p.witnessIndexes[j] = int(j)
+			bls.CopyG1(&p.witness[j-1], &witnessFromSend[j])
+			bls.AsFr(&p.witnessIndexes[j-1], uint64(j))
 		}
 
 		//interpolate 2t-degree polynomial B*(i,y)

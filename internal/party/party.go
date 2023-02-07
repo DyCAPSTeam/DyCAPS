@@ -63,7 +63,7 @@ type HonestParty struct {
 	reducedShare []bls.Fr // B(x,index), index=p.PID+1
 
 	witness        []bls.G1Point //witness[index] = w_B(i,*), each party has at least 2t+1 witness
-	witnessIndexes []int         //witnessIndexes[index] means the * value of witness[index]
+	witnessIndexes []bls.Fr      //witnessIndexes[index] means the * value of witness[index]
 
 	LagrangeCoefficients [][]bls.Fr //lagrange coefficients when using f(1),f(2),...,f(2t+1) to calculate f(k) for 0 <= k <= 3*f+1.Indices start from 0
 
@@ -129,12 +129,12 @@ func NewHonestParty(e uint32, N uint32, F uint32, pid uint32, ipList []string, p
 
 	piInit := new(Pi)
 	piInit.Init(F)
-	witness := make([]bls.G1Point, 2*F+2)
-	witnessIndexes := make([]int, 2*F+2) //w_i, where w is the unity of root
+	witness := make([]bls.G1Point, 2*F+1)
+	witnessIndexes := make([]bls.Fr, 2*F+1)
 
-	for i := 0; uint32(i) < 2*F+2; i++ {
+	for i := 0; uint32(i) < 2*F+1; i++ {
 		witness[i] = bls.ZeroG1
-		witnessIndexes[i] = 0
+		witnessIndexes[i] = bls.ZERO
 	}
 
 	LagrangeCoefficients := make([][]bls.Fr, N+1)

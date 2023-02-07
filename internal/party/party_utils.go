@@ -305,3 +305,55 @@ func PolyToString(poly_coeff []bls.Fr) string {
 	}
 	return s
 }
+
+//InterpolateComOrWit interpolates commitment or witness according to the first 2t+1 elements
+func (p *HonestParty) InterpolateComOrWit(degree uint32, targetIndex uint32, List []bls.G1Point) bls.G1Point {
+	CWList := make([]bls.G1Point, degree+1)
+	copy(CWList, List)
+
+	// degree=2t
+
+	if targetIndex > 0 && targetIndex < degree+1 {
+		return CWList[targetIndex-1]
+	} else {
+		if targetIndex == 0 || targetIndex <= 3*p.F+1 {
+			return *bls.LinCombG1(List, p.LagrangeCoefficients[targetIndex])
+		}
+
+		lambda := make([]bls.Fr, degree+1)
+		knownIndexes := make([]bls.Fr, degree+1)
+
+		for j := uint32(0); j < degree+1; j++ {
+			bls.AsFr(&knownIndexes[j], uint64(j+1)) //known indexes: 1, ..., deg+1
+		}
+
+		var target bls.Fr
+		bls.AsFr(&target, uint64(targetIndex))
+		GetLagrangeCoefficients(degree, knownIndexes, target, lambda)
+
+		return *bls.LinCombG1(List, lambda)
+	}
+}
+
+func (p *HonestParty) InterpolateComOrWitByKnownIndexes(degree uint32, targetIndex uint32, knownIndexes []bls.Fr, List []bls.G1Point) bls.G1Point {
+
+	//check whether to use InterpolateComOrWit()
+	var isSimple = true
+	for i := 0; uint32(i) < degree+1; i++ {
+		var tmp bls.Fr
+		bls.AsFr(&tmp, uint64(i+1))
+		if !bls.EqualFr(&knownIndexes[i], &tmp) {
+			isSimple = false
+			break
+		}
+	}
+	if isSimple {
+		return p.InterpolateComOrWit(degree, targetIndex, List)
+	} else {
+		lambda := make([]bls.Fr, degree+1)
+		var target bls.Fr
+		bls.AsFr(&target, uint64(targetIndex))
+		GetLagrangeCoefficients(degree, knownIndexes, target, lambda)
+		return *bls.LinCombG1(List, lambda)
+	}
+}
