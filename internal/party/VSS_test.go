@@ -89,7 +89,7 @@ func TestDealer(t *testing.T) {
 			tmp := bls.ZeroG1
 			bls.AddG1(&tmp, &piTest.PiContents[j].CZj, &piTest.PiContents[j].gFj)
 			assert.True(t, bls.EqualG1(&tmp, &piTest.PiContents[j].CBj), "verify CBj = CZj * gFj")
-			assert.True(t, p[i].KZG.CheckProofSingle(&piTest.PiContents[j].CZj, &piTest.PiContents[j].WZ0, &p[i].FS.ExpandedRootsOfUnity[0], &bls.ZERO), "verify CZj and WZ0j")
+			assert.True(t, p[i].KZG.CheckProofSingle(&piTest.PiContents[j].CZj, &piTest.PiContents[j].WZ0, &bls.ZERO, &bls.ZERO), "verify CZj and WZ0j")
 
 		}
 
@@ -103,15 +103,6 @@ func TestDealer(t *testing.T) {
 		tmpGs := *bls.LinCombG1(gFjList[1:], p[i].LagrangeCoefficients[0])
 
 		assert.True(t, bls.EqualG1(&piTest.Gs, &tmpGs), "[VSSReceive] Verify g^s = \\prod g^{lambda[index]*F(index)} = \\prod (g^F(index))^lambda[index]")
-
-		//KZG verification
-		//for j := 1; uint32(j) <= 2*F+1; j++ {
-		//	Bij := gmp.NewInt(0)
-		//	WBij := p[i].KZG.NewG1()
-		//	Bij.SetBytes(content.BijList[j])
-		//	WBij.SetCompressedBytes(content.WBijList[j])
-		//	assert.True(t, p[i].KZG.VerifyEval(piTest.PiContents[j].CBj, gmp.NewInt(int64((i+1))), Bij, WBij), "[VSSReceive] KZG verification")
-		//}
 	}
 }
 

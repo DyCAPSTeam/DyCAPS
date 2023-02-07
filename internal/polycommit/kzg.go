@@ -4,7 +4,6 @@
 package polycommit
 
 import (
-	"fmt"
 	"github.com/DyCAPSTeam/DyCAPS/internal/bls"
 )
 
@@ -22,9 +21,9 @@ func NewKZGSettings(fs *FFTSettings, secretG1 []bls.G1Point, secretG2 []bls.G2Po
 	if len(secretG1) != len(secretG2) {
 		panic("secret list lengths don't match")
 	}
-	if uint64(len(secretG1)) < fs.MaxWidth {
-		panic(fmt.Errorf("expected more values for secrets, MaxWidth: %d, got: %d", fs.MaxWidth, len(secretG1)))
-	}
+	//if uint64(len(secretG1)) < fs.MaxWidth {
+	//	panic(fmt.Errorf("expected more values for secrets, MaxWidth: %d, got: %d", fs.MaxWidth, len(secretG1)))
+	//} //NOTE:In DyCAPS,we do not use FFT so we ingore these lines.
 
 	ks := &KZGSettings{
 		FFTSettings: fs,

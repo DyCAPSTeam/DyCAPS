@@ -59,8 +59,8 @@ type HonestParty struct {
 
 	Proof *Pi //pi
 
-	fullShare_CoeffForm    []bls.Fr // B(i,y), i=p.PID+1
-	reducedShare_CoeffForm []bls.Fr // B(x,index), index=p.PID+1
+	fullShare    []bls.Fr // B(i,y), i=p.PID+1
+	reducedShare []bls.Fr // B(x,index), index=p.PID+1
 
 	witness        []bls.G1Point //witness[index] = w_B(i,*), each party has at least 2t+1 witness
 	witnessIndexes []int         //witnessIndexes[index] means the * value of witness[index]
@@ -122,10 +122,8 @@ type HonestParty struct {
 func NewHonestParty(e uint32, N uint32, F uint32, pid uint32, ipList []string, portList []string, ipListNext []string, portListNext []string, sigPK *share.PubPoly, sigSK *share.PriShare) *HonestParty {
 	var SysSuite = pairing.NewSuiteBn256()
 
-	scale := GetScaleByCommitteeSize(N)
-	FS := polycommit.NewFFTSettings(scale)
-	secretG1, secretG2 := polycommit.GenerateTestingSetup("46015081477078601964787943834255776126696019968430095991502055467779756761969", FS.MaxWidth)
-	KZG := polycommit.NewKZGSettings(FS, secretG1, secretG2)
+	secretG1, secretG2 := polycommit.GenerateTestingSetup("46015081477078601964787943834255776126696019968430095991502055467779756761969", uint64(F+1))
+	KZG := polycommit.NewKZGSettings(nil, secretG1, secretG2)
 
 	var mutexKZG sync.Mutex
 
@@ -140,10 +138,16 @@ func NewHonestParty(e uint32, N uint32, F uint32, pid uint32, ipList []string, p
 	}
 
 	LagrangeCoefficients := make([][]bls.Fr, N+1)
+	knownIndices := make([]bls.Fr, 2*F+1)
+	for i := 0; uint32(i) < 2*F+1; i++ {
+		bls.AsFr(&knownIndices[i], uint64(i+1))
+	}
+
 	for i := 0; uint32(i) <= N; i++ {
 		LagrangeCoefficients[i] = make([]bls.Fr, 2*F+1)
-		target := FS.ExpandedRootsOfUnity[i]
-		GetLagrangeCoefficients(2*F, FS.ExpandedRootsOfUnity[1:2*F+1+1], target, LagrangeCoefficients[i])
+		var target bls.Fr
+		bls.AsFr(&target, uint64(i))
+		GetLagrangeCoefficients(2*F, knownIndices, target, LagrangeCoefficients[i])
 	}
 
 	p := HonestParty{
@@ -162,16 +166,15 @@ func NewHonestParty(e uint32, N uint32, F uint32, pid uint32, ipList []string, p
 		SigPK:    sigPK,
 		SigSK:    sigSK,
 
-		FS:       FS,
 		KZG:      KZG,
 		mutexKZG: &mutexKZG,
 
 		Proof: piInit,
 
-		fullShare_CoeffForm:    make([]bls.Fr, 2*F+1),
-		reducedShare_CoeffForm: make([]bls.Fr, F+1),
-		witness:                witness,
-		witnessIndexes:         witnessIndexes,
+		fullShare:      make([]bls.Fr, 2*F+1),
+		reducedShare:   make([]bls.Fr, F+1),
+		witness:        witness,
+		witnessIndexes: witnessIndexes,
 
 		LagrangeCoefficients: LagrangeCoefficients,
 

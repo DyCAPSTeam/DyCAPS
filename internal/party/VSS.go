@@ -2,6 +2,7 @@ package party
 
 import (
 	"github.com/DyCAPSTeam/DyCAPS/internal/bls"
+	"github.com/DyCAPSTeam/DyCAPS/internal/polyring"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 	"google.golang.org/protobuf/proto"
 	"log"
@@ -45,7 +46,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 		log.Printf("[VSSEcho][Party %v] Verify VSSSend SUCCESS\n", p.PID)
 		p.Proof.Set(piFromSend, p.F)
 
-		//prepare for interpolation
+		//prepare for polyring
 		for j := uint32(1); j < 2*p.F+2; j++ {
 
 			bls.CopyG1(&p.witness[j], &witnessFromSend[j])
@@ -53,29 +54,18 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 		}
 
 		//interpolate 2t-degree polynomial B*(i,y)
-		KnownExpIndexes := make([]int, 2*p.F+1) //start from 0
+		KnownIndexes := make([]bls.Fr, 2*p.F+1) //start from 0
 		KnownValues := make([]bls.Fr, 2*p.F+1)
 		for j := uint32(0); j < 2*p.F+1; j++ {
-			KnownExpIndexes[j] = int(j + 1)
+			bls.AsFr(&KnownIndexes[j], uint64(j+1))
 			bls.CopyFr(&KnownValues[j], &polyValueFromSend[j+1])
 		}
 
-		samples := GetSamples(KnownExpIndexes, KnownValues, p.FS.MaxWidth)
+		fullShareFromSend := polyring.LagrangeInterpolate(int(2*p.F), KnownIndexes, KnownValues)
 
-		fullShareFromSend_EvalForm, err2 := p.FS.RecoverPolyFromSamples(samples, p.FS.ZeroPolyViaMultiplication)
-		if err2 != nil {
-			log.Fatalln(err2)
-		}
-
-		fullShareFromSend_CoeffForm, err3 := p.FS.FFT(fullShareFromSend_EvalForm, true)
-		fullShareFromSend_CoeffForm = fullShareFromSend_CoeffForm[:2*p.F+1]
-		if err3 != nil {
-			log.Fatalln(err3)
-		}
 		//set the final reduceShare and witnesses, then break
-		copy(p.fullShare_CoeffForm, fullShareFromSend_CoeffForm)
-		copy(p.fullShare_EvalForm, fullShareFromSend_EvalForm)
-		log.Printf("[VSSRecover][Party %v] Get full share B(i,y):\n %s", p.PID, PolyToString(p.fullShare_CoeffForm))
+		copy(p.fullShare, fullShareFromSend)
+		log.Printf("[VSSRecover][Party %v] Get full share B(i,y):\n %s", p.PID, PolyToString(p.fullShare))
 	}
 
 	log.Printf("[VSS][Party %v] Exist VSS now\n", p.PID)
@@ -93,13 +83,13 @@ func (p *HonestParty) VerifyVSSSendReceived(polyValue []bls.Fr, witness []bls.G1
 
 	tmpGs := *bls.LinCombG1(gFjList[1:], p.LagrangeCoefficients[0])
 	if !bls.EqualG1(&piReceived.Gs, &tmpGs) {
-		log.Printf("[VSSEcho][Party %v] VSSSend Verify FAIL, g_s=%v, but prod(g^F(w^index))=%v \n", p.PID, piReceived.Gs.String(), tmpGs.String())
+		log.Printf("[VSSEcho][Party %v] VSSSend Verify FAIL, g_s=%v, but prod(g^F(index))=%v \n", p.PID, piReceived.Gs.String(), tmpGs.String())
 	}
 
 	//Verify KZG.VerifyEval(CZjk,0,0,WZjk0) == 1 && CBjk == CZjk * g^Fj(k) for k in [1,2t+1]
 	for k := uint32(1); k < 2*p.F+2; k++ {
 
-		verifyEval := p.KZG.CheckProofSingle(&piReceived.PiContents[k].CZj, &piReceived.PiContents[k].WZ0, &p.FS.ExpandedRootsOfUnity[0], &bls.ZERO)
+		verifyEval := p.KZG.CheckProofSingle(&piReceived.PiContents[k].CZj, &piReceived.PiContents[k].WZ0, &bls.ZERO, &bls.ZERO)
 
 		var verifyCBj = false
 		var tmp bls.G1Point
@@ -114,11 +104,12 @@ func (p *HonestParty) VerifyVSSSendReceived(polyValue []bls.Fr, witness []bls.G1
 	//Verify v'ji,w'ji w.r.t pi'
 	for j := uint32(1); j < 2*p.F+2; j++ {
 		//KZG Verify
-
-		verifyPoint := p.KZG.CheckProofSingle(&piReceived.PiContents[j].CBj, &witness[j], &p.FS.ExpandedRootsOfUnity[p.PID+1], &polyValue[j])
+		var position bls.Fr
+		bls.AsFr(&position, uint64(p.PID+1))
+		verifyPoint := p.KZG.CheckProofSingle(&piReceived.PiContents[j].CBj, &witness[j], &position, &polyValue[j])
 
 		if !verifyPoint {
-			log.Printf("[VSSEcho][Party %v] VSSSend KZGVerify FAIL when verify v'ji and w'ji, i=w^%v, CBj[%v]=%v, polyValue[%v]=%v, witness[%v]=%v\n", p.PID, p.PID+1, j, piReceived.PiContents[j].CBj, j, polyValue[j], j, witness[j])
+			log.Printf("[VSSEcho][Party %v] VSSSend KZGVerify FAIL when verify v'ji and w'ji, i=%v, CBj[%v]=%v, polyValue[%v]=%v, witness[%v]=%v\n", p.PID, p.PID+1, j, piReceived.PiContents[j].CBj, j, polyValue[j], j, witness[j])
 			return false
 		}
 	}
