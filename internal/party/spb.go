@@ -7,9 +7,8 @@ forked from https://github.com/xygdys/Buada_BFT
 import (
 	"bytes"
 	"context"
-
-	"go.dedis.ch/kyber/v3/pairing"
-	"go.dedis.ch/kyber/v3/sign/bls"
+	kyberbls "github.com/drand/kyber-bls12381"
+	"github.com/drand/kyber/sign/bls"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -62,6 +61,6 @@ func validator(p *HonestParty, ID []byte, sender uint32, value []byte, validatio
 	buf.WriteByte(1)
 	buf.Write(h[:])
 	sm := buf.Bytes()
-	err := bls.Verify(pairing.NewSuiteBn256(), p.SigPK.Commit(), sm, validation)
+	err := bls.NewSchemeOnG1(kyberbls.NewBLS12381Suite()).Verify(p.SigPK.Commit(), sm, validation)
 	return err
 }

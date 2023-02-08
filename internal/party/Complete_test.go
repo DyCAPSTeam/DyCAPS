@@ -39,7 +39,9 @@ func TestCompleteProcess(t *testing.T) {
 	}
 
 	var client Client
-	bls.AsFr(&client.s, uint64(111111111111111))
+	var secret bls.Fr
+	bls.AsFr(&secret, uint64(1111111111111112345))
+	client.SetSecret(secret)
 	client.HonestParty = NewHonestParty(0, N, F, 0x7fffffff, ipList, portList, ipListNext, portListNext, pk, nil)
 	err := client.InitSendChannel()
 	if err != nil {

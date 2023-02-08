@@ -12,9 +12,8 @@ import (
 	"github.com/DyCAPSTeam/DyCAPS/pkg/core"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/utils"
-
-	"go.dedis.ch/kyber/v3/pairing"
-	"go.dedis.ch/kyber/v3/sign/tbls"
+	kyberbls "github.com/drand/kyber-bls12381"
+	"github.com/drand/kyber/sign/tbls"
 )
 
 //MainProcess is the main process of smvba instances
@@ -162,7 +161,7 @@ func election(ctx context.Context, p *HonestParty, IDr []byte, doneFlageChannel 
 		buf.Write(IDr)
 		coinName := buf.Bytes()
 
-		coinShare, _ := tbls.Sign(pairing.NewSuiteBn256(), p.SigSK, coinName) //sign("Done"||ID||r||coin share)
+		coinShare, _ := tbls.NewThresholdSchemeOnG1(kyberbls.NewBLS12381Suite()).Sign(p.SigSK, coinName) //sign("Done"||ID||r||coin share)
 		doneMessage := core.Encapsulation("Done", IDr, p.PID, &protobuf.Done{
 			CoinShare: coinShare,
 		})
@@ -187,7 +186,7 @@ func preVote(ctx context.Context, p *HonestParty, IDr []byte, l uint32, Lr *sync
 		buf.WriteByte(byte(0)) //false
 		buf.Write(IDr)
 		sm := buf.Bytes()
-		sigShare, _ := tbls.Sign(pairing.NewSuiteBn256(), p.SigSK, sm) //sign(false||ID||r)
+		sigShare, _ := tbls.NewThresholdSchemeOnG1(kyberbls.NewBLS12381Suite()).Sign(p.SigSK, sm) //sign(false||ID||r)
 		preVoteMessage := core.Encapsulation("PreVote", IDr, p.PID, &protobuf.PreVote{
 			Vote:  false,
 			Value: nil,

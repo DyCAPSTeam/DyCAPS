@@ -3,9 +3,9 @@ package party
 import (
 	"bytes"
 	"encoding/gob"
-	"go.dedis.ch/kyber/v3"
-	"go.dedis.ch/kyber/v3/pairing"
-	"go.dedis.ch/kyber/v3/share"
+	"github.com/drand/kyber"
+	kyberbls "github.com/drand/kyber-bls12381"
+	"github.com/drand/kyber/share"
 	"io/ioutil"
 	"log"
 )
@@ -13,29 +13,31 @@ import (
 //SigKeyGen return pk and sks for threshold signature
 //n is the number of parties, t is the threshold of combining signature
 func SigKeyGen(n uint32, t uint32) ([]*share.PriShare, *share.PubPoly) {
-	suit := pairing.NewSuiteBn256()
+	suit := kyberbls.NewBLS12381Suite()
+
 	random := suit.RandomStream()
 
 	x := suit.G1().Scalar().Pick(random)
 
-	// priploy
-	priploy := share.NewPriPoly(suit.G2(), int(t), x, suit.RandomStream())
-	// n points in ploy
-	npoints := priploy.Shares(int(n))
-	//pub ploy
-	pubploy := priploy.Commit(suit.G2().Point().Base())
-	return npoints, pubploy
+	// pripoly
+	pripoly := share.NewPriPoly(suit.G2(), int(t), x, suit.RandomStream())
+	// n points in poly
+	npoints := pripoly.Shares(int(n))
+	//pub poly
+	pubpoly := pripoly.Commit(suit.G2().Point().Base())
+	return npoints, pubpoly
 }
 
 //here t = 2f + 1
 func SigKeyGenFix(n uint32, t uint32) ([]*share.PriShare, *share.PubPoly) {
-	suit := pairing.NewSuiteBn256()
+	suit := kyberbls.NewBLS12381Suite()
 
 	coeff := make([]kyber.Scalar, t)
 	coeff_bytes := make([][]byte, t)
+
 	ReadFromFile(&coeff_bytes, "coefficients")
 	for i := 0; uint32(i) < t; i++ {
-		coeff[i] = suit.Scalar().One()
+		coeff[i] = suit.G1().Scalar().One()
 		coeff[i].SetBytes(coeff_bytes[i])
 	}
 
@@ -49,13 +51,13 @@ func SigKeyGenFix(n uint32, t uint32) ([]*share.PriShare, *share.PubPoly) {
 }
 
 func SigKeyGenFix_New(n uint32, t uint32) ([]*share.PriShare, *share.PubPoly) {
-	suit := pairing.NewSuiteBn256()
+	suit := kyberbls.NewBLS12381Suite()
 
 	coeff := make([]kyber.Scalar, t)
 	coeff_bytes := make([][]byte, t)
 	ReadFromFile(&coeff_bytes, "coefficients_new")
 	for i := 0; uint32(i) < t; i++ {
-		coeff[i] = suit.Scalar().One()
+		coeff[i] = suit.G1().Scalar().One()
 		coeff[i].SetBytes(coeff_bytes[i])
 	}
 
@@ -82,7 +84,7 @@ func ReadFromFile(data interface{}, filename string) {
 }
 
 func GenCoefficientsFile(N int, T int) {
-	suit := pairing.NewSuiteBn256()
+	suit := kyberbls.NewBLS12381Suite()
 	random := suit.RandomStream()
 
 	x := suit.G1().Scalar().Pick(random)
@@ -97,7 +99,7 @@ func GenCoefficientsFile(N int, T int) {
 	coeff := make([]kyber.Scalar, T)
 	coeff_bytes := make([][]byte, T)
 	for i := 0; i < T; i++ {
-		coeff[i] = suit.Scalar().One()
+		coeff[i] = suit.G1().Scalar().One()
 		coeff[i].Set(pripoly.Coefficients()[i])
 		coeff_bytes[i], _ = coeff[i].MarshalBinary()
 	}
@@ -113,7 +115,7 @@ func GenCoefficientsFile(N int, T int) {
 	coeff_new := make([]kyber.Scalar, T)
 	coeff_bytes_new := make([][]byte, T)
 	for i := 0; i < T; i++ {
-		coeff_new[i] = suit.Scalar().One()
+		coeff_new[i] = suit.G1().Scalar().One()
 		coeff_new[i].Set(pripoly_new.Coefficients()[i])
 		coeff_bytes_new[i], _ = coeff_new[i].MarshalBinary()
 	}

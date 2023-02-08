@@ -4,8 +4,10 @@ import (
 	"github.com/DyCAPSTeam/DyCAPS/internal/bls"
 	"github.com/DyCAPSTeam/DyCAPS/internal/polycommit"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
-	"go.dedis.ch/kyber/v3/pairing"
-	"go.dedis.ch/kyber/v3/share"
+	kyberbls "github.com/drand/kyber-bls12381"
+	"github.com/drand/kyber/share"
+	"github.com/drand/kyber/sign"
+	"github.com/drand/kyber/sign/tbls"
 	"sync"
 	"time"
 )
@@ -53,9 +55,9 @@ type HonestParty struct {
 	KZG      *polycommit.KZGSettings
 	mutexKZG *sync.Mutex
 
-	SysSuite *pairing.SuiteBn256
-	SigPK    *share.PubPoly  //tss pk
-	SigSK    *share.PriShare //tss sk
+	tblsScheme sign.ThresholdScheme
+	SigPK      *share.PubPoly  //tss pk
+	SigSK      *share.PriShare //tss sk
 
 	Proof *Pi //pi
 
@@ -119,7 +121,8 @@ type RecoverMsg struct {
 
 //NewHonestParty returns a new honest party object
 func NewHonestParty(e uint32, N uint32, F uint32, pid uint32, ipList []string, portList []string, ipListNext []string, portListNext []string, sigPK *share.PubPoly, sigSK *share.PriShare) *HonestParty {
-	var SysSuite = pairing.NewSuiteBn256()
+	var SysSuite = kyberbls.NewBLS12381Suite()
+	tblsScheme := tbls.NewThresholdSchemeOnG1(SysSuite)
 
 	secretG1, secretG2 := polycommit.GenerateTestingSetup("46015081477078601964787943834255776126696019968430095991502055467779756761969", uint64(F+1))
 	KZG := polycommit.NewKZGSettings(nil, secretG1, secretG2)
@@ -161,9 +164,9 @@ func NewHonestParty(e uint32, N uint32, F uint32, pid uint32, ipList []string, p
 		sendChannels:       make([]chan *protobuf.Message, N),
 		sendToNextChannels: make([]chan *protobuf.Message, N),
 
-		SysSuite: SysSuite,
-		SigPK:    sigPK,
-		SigSK:    sigSK,
+		tblsScheme: tblsScheme,
+		SigPK:      sigPK,
+		SigSK:      sigSK,
 
 		KZG:      KZG,
 		mutexKZG: &mutexKZG,

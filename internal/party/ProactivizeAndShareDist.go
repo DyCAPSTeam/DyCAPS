@@ -4,7 +4,6 @@ import (
 	"github.com/DyCAPSTeam/DyCAPS/internal/bls"
 	"github.com/DyCAPSTeam/DyCAPS/internal/polyring"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
-	"go.dedis.ch/kyber/v3/sign/tbls"
 	"google.golang.org/protobuf/proto"
 	"log"
 	"strconv"
@@ -289,8 +288,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				//log.Printf("[Proactivize Vote][New party %v] Verify Reshare message from party %v ok\n", p.PID, m.Sender)
 
 				//sign sig share for indexJ (index 0 is not used)
-				SigShare, _ := tbls.Sign(p.SysSuite, p.SigSK, []byte(strconv.FormatUint(uint64(indexJ), 10)))
-
+				SigShare, _ := p.tblsScheme.Sign(p.SigSK, []byte(strconv.FormatUint(uint64(indexJ), 10)))
 				//prepare the Recover message
 				var RecoverMessage protobuf.Recover
 				RecoverMessage.Index = indexJ
@@ -385,7 +383,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 
 				KZGVerifyOk := p.KZG.CheckProofSingle(&C, &wkij, &index, &vkij)
 
-				SigShareVerifyOk := tbls.Verify(p.SysSuite, p.SigPK, []byte(strconv.FormatUint(uint64(k), 10)), ReceivedSigShare)
+				SigShareVerifyOk := p.tblsScheme.VerifyPartial(p.SigPK, []byte(strconv.FormatUint(uint64(k), 10)), ReceivedSigShare)
 
 				if KZGVerifyOk && (SigShareVerifyOk == nil) {
 					mutexSRec.Lock()
@@ -409,7 +407,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 							tmpSig[i] = SSig[k][i].Sig
 						}
 						//converting uint32 to int is dangerous
-						CombinedSig[k], _ = tbls.Recover(p.SysSuite, p.SigPK, []byte(strconv.FormatUint(uint64(k), 10)), tmpSig, int(2*p.F), int(p.N))
+						CombinedSig[k], _ = p.tblsScheme.Recover(p.SigPK, []byte(strconv.FormatUint(uint64(k), 10)), tmpSig, int(2*p.F), int(p.N))
 						CombinedFlag[k] = true
 						//log.Printf("[Proactivize Recover][New party %v] Have combined a full signature for party %v, holding %v signatures now\n", p.PID, k, len(MVBAIn.Sig)+1)
 
@@ -426,6 +424,8 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 						mutexMVBAIn.Unlock()
 					}
 					mutexSRec.Unlock()
+				} else {
+					log.Printf("[Proactivize Recover][New party %v] Verify Recover message from party %v FAIL, k=%v. Current Srec[%v] lenth: %v\\n", p.PID, mSender, k, k, len(SRec[k]))
 				}
 				if MVBASent {
 					//log.Printf("[Proactivize Recover][New party %v] Recover done\n", p.PID)
