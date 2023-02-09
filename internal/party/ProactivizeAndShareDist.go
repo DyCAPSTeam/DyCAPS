@@ -117,6 +117,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 
 		var CommitMessage = new(protobuf.Commit)
 		CommitMessage.Pi = make([]*protobuf.PiContent, 2*p.F+1)
+		CommitMessage.PayloadMsg = p.Value
 		for j := uint32(0); j < 2*p.F+1; j++ {
 			CommitMessage.Pi[j] = new(protobuf.PiContent)
 			CommitMessage.Pi[j].J = piI[j].j

@@ -8,6 +8,8 @@ import (
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/sign"
 	"github.com/drand/kyber/sign/tbls"
+	"log"
+	"math/rand"
 	"sync"
 	"time"
 )
@@ -83,6 +85,9 @@ type HonestParty struct {
 	ProactivizeEnd       time.Time
 	ShareDistStart       time.Time
 	ShareDistEnd         time.Time
+
+	MessageLength int64
+	Value         []byte
 }
 
 // SRecElement is the set of elements for recover
@@ -120,7 +125,7 @@ type RecoverMsg struct {
 }
 
 //NewHonestParty returns a new honest party object
-func NewHonestParty(e uint32, N uint32, F uint32, pid uint32, ipList []string, portList []string, ipListNext []string, portListNext []string, sigPK *share.PubPoly, sigSK *share.PriShare) *HonestParty {
+func NewHonestParty(e uint32, N uint32, F uint32, pid uint32, ipList []string, portList []string, ipListNext []string, portListNext []string, sigPK *share.PubPoly, sigSK *share.PriShare, messageLength int64) *HonestParty {
 	var SysSuite = kyberbls.NewBLS12381Suite()
 	tblsScheme := tbls.NewThresholdSchemeOnG1(SysSuite)
 
@@ -138,6 +143,11 @@ func NewHonestParty(e uint32, N uint32, F uint32, pid uint32, ipList []string, p
 		witness[i] = bls.ZeroG1
 		witnessIndexes[i] = bls.ZERO
 	}
+
+	rand.Seed(time.Now().UnixNano())
+	Value := make([]byte, messageLength)
+	rand.Read(Value)
+	log.Println("Party", pid, "Generate random value,length = ", messageLength)
 
 	LagrangeCoefficients := make([][]bls.Fr, N+1)
 	knownIndices := make([]bls.Fr, 2*F+1)
@@ -194,6 +204,9 @@ func NewHonestParty(e uint32, N uint32, F uint32, pid uint32, ipList []string, p
 		ProactivizeEnd:       time.Now(),
 		ShareDistStart:       time.Now(),
 		ShareDistEnd:         time.Now(),
+
+		MessageLength: messageLength,
+		Value:         Value,
 	}
 	return &p
 }

@@ -106,6 +106,7 @@ message ShareReduce{
 }
 message Commit{
   repeated PiContent Pi = 1;
+  bytes PayloadMsg = 2;
 }
 message Reshare{
   repeated bytes Qk = 1;

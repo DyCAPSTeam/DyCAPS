@@ -22,8 +22,8 @@ func TestCompleteProcess(t *testing.T) {
 	var p []*HonestParty = make([]*HonestParty, N)
 	var pNext []*HonestParty = make([]*HonestParty, N)
 	for i := uint32(0); i < N; i++ {
-		p[i] = NewHonestParty(0, N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i])
-		pNext[i] = NewHonestParty(1, N, F, i, ipListNext, portListNext, nil, nil, pkNew, skNew[i])
+		p[i] = NewHonestParty(0, N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i], 0)
+		pNext[i] = NewHonestParty(1, N, F, i, ipListNext, portListNext, nil, nil, pkNew, skNew[i], 0)
 	}
 
 	for i := uint32(0); i < N; i++ {
@@ -41,7 +41,7 @@ func TestCompleteProcess(t *testing.T) {
 	var secret bls.Fr
 	bls.AsFr(&secret, uint64(1111111111111112345))
 	client.SetSecret(secret)
-	client.HonestParty = NewHonestParty(0, N, F, 0x7fffffff, ipList, portList, ipListNext, portListNext, pk, nil)
+	client.HonestParty = NewHonestParty(0, N, F, 0x7fffffff, ipList, portList, ipListNext, portListNext, pk, nil, 0)
 	err := client.InitSendChannel()
 	if err != nil {
 		log.Printf("[VSS] Client InitSendChannel err: %v\n", err)

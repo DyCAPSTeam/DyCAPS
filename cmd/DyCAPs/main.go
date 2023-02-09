@@ -27,6 +27,7 @@ func main() {
 	interval1 := flag.Int("t1", 10, "waiting for some time so that new parties get ready")
 	interval2 := flag.Int("t2", 15, "waiting for some time so that old parties get ready")
 	interval3 := flag.Int("t3", 20, "the interval for startSig")
+	messageLength := flag.Int("ml", 0, "the size of payload message.")
 	flag.Parse()
 
 	if *option1 == "1" {
@@ -49,7 +50,7 @@ func main() {
 			portList := ReadPortList(*ListPath, "")[0:*N]
 			ipListNext := ReadIpList(*ListPath, "Next")[0:*N]
 			portListNext := ReadPortList(*ListPath, "Next")[0:*N]
-			p := party.NewHonestParty(0, uint32(*N), uint32(*F), uint32(*id), ipList, portList, ipListNext, portListNext, pk, sk[*id])
+			p := party.NewHonestParty(0, uint32(*N), uint32(*F), uint32(*id), ipList, portList, ipListNext, portListNext, pk, sk[*id], int64(*messageLength))
 			p.InitReceiveChannel()
 
 			time.Sleep(time.Duration(*interval2) * time.Second) //waiting for all nodes to initialize their ReceiveChannel
@@ -82,7 +83,7 @@ func main() {
 
 			ipListNext := ReadIpList(*ListPath, "Next")[0:*N]
 			portListNext := ReadPortList(*ListPath, "Next")[0:*N]
-			p := party.NewHonestParty(1, uint32(*N), uint32(*F), uint32(*id), ipListNext, portListNext, nil, nil, pkNew, skNew[*id])
+			p := party.NewHonestParty(1, uint32(*N), uint32(*F), uint32(*id), ipListNext, portListNext, nil, nil, pkNew, skNew[*id], int64(*messageLength))
 			p.InitReceiveChannel()
 
 			time.Sleep(time.Duration(*interval1) * time.Second) //waiting for all nodes to initialize their ReceiveChannel
@@ -119,7 +120,7 @@ func main() {
 			defer OutputLog.Close()
 			log.SetOutput(OutputLog)
 
-			p := party.NewHonestParty(1, uint32(*N), uint32(*F), uint32(*id), ipList, portList, ipList, portList, pk, sk[*id])
+			p := party.NewHonestParty(1, uint32(*N), uint32(*F), uint32(*id), ipList, portList, ipList, portList, pk, sk[*id], int64(*messageLength))
 			p.InitReceiveChannel()
 
 			time.Sleep(time.Duration(*interval1) * time.Second) //waiting for all nodes to initialize their ReceiveChannel
@@ -176,7 +177,7 @@ func main() {
 			var secret bls.Fr
 			bls.AsFr(&secret, uint64(111111111111111))
 			client.SetSecret(secret)
-			client.HonestParty = party.NewHonestParty(0, uint32(*N), uint32(*F), 0x7fffffff, ipList, portList, ipList, portList, nil, nil)
+			client.HonestParty = party.NewHonestParty(0, uint32(*N), uint32(*F), 0x7fffffff, ipList, portList, ipList, portList, nil, nil, int64(*messageLength))
 
 			time.Sleep(time.Duration(*interval3) * time.Second) //waiting for all nodes to initialize their ReceiveChannel. The Client starts at last.
 

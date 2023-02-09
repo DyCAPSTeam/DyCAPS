@@ -23,8 +23,8 @@ func TestShareReduce(t *testing.T) {
 	var p []*HonestParty = make([]*HonestParty, N)
 	var pNext []*HonestParty = make([]*HonestParty, N)
 	for i := uint32(0); i < N; i++ {
-		p[i] = NewHonestParty(0, N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i])
-		pNext[i] = NewHonestParty(1, N, F, i, ipListNext, portListNext, nil, nil, pkNew, skNew[i])
+		p[i] = NewHonestParty(0, N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i], 0)
+		pNext[i] = NewHonestParty(1, N, F, i, ipListNext, portListNext, nil, nil, pkNew, skNew[i], 0)
 	}
 
 	for i := uint32(0); i < N; i++ {
@@ -42,7 +42,7 @@ func TestShareReduce(t *testing.T) {
 
 	bls.AsFr(&client.s, uint64(111111111111111))
 
-	client.HonestParty = NewHonestParty(0, N, F, 0x7fffffff, ipList, portList, ipListNext, portListNext, pk, sk[2*F+1])
+	client.HonestParty = NewHonestParty(0, N, F, 0x7fffffff, ipList, portList, ipListNext, portListNext, pk, sk[2*F+1], 0)
 	err := client.InitSendChannel()
 	if err != nil {
 		log.Printf("[VSS] Client InitSendChannel err: %v\n", err)

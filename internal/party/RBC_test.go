@@ -22,7 +22,7 @@ func TestRBC(t *testing.T) {
 
 	var p []*HonestParty = make([]*HonestParty, N)
 	for i := uint32(0); i < N; i++ {
-		p[i] = NewHonestParty(0, N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i])
+		p[i] = NewHonestParty(0, N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i], 0)
 	}
 	for i := uint32(0); i < N; i++ {
 		p[i].InitReceiveChannel()
@@ -64,7 +64,7 @@ func TestRBCExlude(t *testing.T) {
 
 	var p []*HonestParty = make([]*HonestParty, N)
 	for i := uint32(0); i < N; i++ {
-		p[i] = NewHonestParty(0, N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i])
+		p[i] = NewHonestParty(0, N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i], 0)
 	}
 	for i := uint32(0); i < N; i++ {
 		p[i].InitReceiveChannel()
@@ -107,7 +107,7 @@ func TestMultiRBC(t *testing.T) {
 
 	var p []*HonestParty = make([]*HonestParty, N)
 	for i := uint32(0); i < N; i++ {
-		p[i] = NewHonestParty(0, N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i])
+		p[i] = NewHonestParty(0, N, F, i, ipList, portList, ipListNext, portListNext, pk, sk[i], 0)
 	}
 	for i := uint32(0); i < N; i++ {
 		p[i].InitReceiveChannel()
