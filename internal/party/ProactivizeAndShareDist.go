@@ -442,8 +442,8 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 							//Recover ends and MVBA starts.
 							p.RecoverEnd = time.Now()
 							p.MVBAStart = time.Now()
-							MVBAResChan <- MainProcess(p, ID, MVBAInData, []byte{}) //temporary solution (MainProcess means smvba.MainProcess)
 							MVBASent = true
+							MVBAResChan <- MainProcess(p, ID, MVBAInData, []byte{}) //temporary solution (MainProcess means smvba.MainProcess)
 						}
 						mutexMVBAIn.Unlock()
 					}
@@ -453,7 +453,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				}
 				if MVBASent {
 					//log.Printf("[Proactivize Recover][New party %v] Recover done\n", p.PID)
-					// break
+					break
 				}
 			}
 		}(k)
