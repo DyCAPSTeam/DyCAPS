@@ -27,7 +27,7 @@ func main() {
 	interval1 := flag.Int("t1", 10, "waiting for some time so that new parties get ready")
 	interval2 := flag.Int("t2", 15, "waiting for some time so that old parties get ready")
 	interval3 := flag.Int("t3", 20, "the interval for startSig")
-	messageLength := flag.Int("ml", 0, "the size of payload message.")
+	messageLength := flag.Int64("ml", 0, "the size of payload message.")
 	flag.Parse()
 
 	if *option1 == "1" {
