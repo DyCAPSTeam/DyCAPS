@@ -466,8 +466,6 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 		}
 	}
 
-	p.ProactivizeEnd = time.Now()
-
 	//log.Printf("[Proactivize Refresh][New party %v] Have recovered Qsum:\n", p.PID)
 	//log.Println("Qsum(x):",PolyToString(Qsum))
 	//log.Printf("[Proactivize Refresh][New party %v] Previous reducedShare B(x,i):\n", p.PID)
@@ -483,7 +481,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	//log.Printf("[Proactivize Refresh][New party %v] New reducedShare B'(x,i):\n", p.PID)
 	//log.Printf("B'(x,%v):%s",p.PID+1,PolyToString(p.reducedShare))
 	//log.Printf("[Proactivize Refresh][New party %v] Refresh done\n", p.PID)
-
+	p.ProactivizeEnd = time.Now()
 	ProactivizeDone <- true
 
 	//-------------------------------------ShareDist-------------------------------------
