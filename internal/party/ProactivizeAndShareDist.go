@@ -418,8 +418,8 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 						if !MVBASent && uint32(len(MVBAIn.J)) >= p.F+1 {
 							log.Printf("[Proactivize MVBA][New party %v] Call MVBA with input length %v\n", p.PID, len(MVBAIn.J))
 							MVBAInData, _ := proto.Marshal(MVBAIn)
-							MVBAResChan <- MainProcess(p, ID, MVBAInData, []byte{}) //temporary solution (MainProcess means smvba.MainProcess)
 							MVBASent = true
+							MVBAResChan <- MainProcess(p, ID, MVBAInData, []byte{}) //temporary solution (MainProcess means smvba.MainProcess)
 						}
 						mutexMVBAIn.Unlock()
 					}
@@ -429,7 +429,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				}
 				if MVBASent {
 					//log.Printf("[Proactivize Recover][New party %v] Recover done\n", p.PID)
-					// break
+					break
 				}
 			}
 		}(k)
