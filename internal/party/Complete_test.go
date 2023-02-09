@@ -18,7 +18,6 @@ func TestCompleteProcess(t *testing.T) {
 	F := uint32(1)
 	sk, pk := SigKeyGen(N, 2*F+1)
 	skNew, pkNew := SigKeyGen(N, 2*F+1)
-	// KZG.SetupFix(int(2 * F))
 
 	var p []*HonestParty = make([]*HonestParty, N)
 	var pNext []*HonestParty = make([]*HonestParty, N)
