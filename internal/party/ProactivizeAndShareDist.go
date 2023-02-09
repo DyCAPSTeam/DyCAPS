@@ -385,8 +385,6 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	var MVBASent = false
 	MVBAResChan := make(chan []byte, 1)
 
-	//ctx, cancel := context.WithCancel(context.Background())
-
 	for k := uint32(1); k <= p.N; k++ {
 		go func(k uint32) {
 			if !flgCom[k] {
@@ -443,7 +441,6 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 							MVBAInData, _ := proto.Marshal(MVBAIn)
 							//Recover ends and MVBA starts.
 							p.RecoverEnd = time.Now()
-							//cancel()
 							p.MVBAStart = time.Now()
 							MVBAResChan <- MainProcess(p, ID, MVBAInData, []byte{}) //temporary solution (MainProcess means smvba.MainProcess)
 							MVBASent = true
