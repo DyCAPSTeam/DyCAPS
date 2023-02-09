@@ -14,6 +14,7 @@ import (
 func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 
 	p.ProactivizeStart = time.Now()
+	p.InitStart = time.Now()
 
 	var flgCom = make([]bool, p.N+1)
 	var flgRec = make([]bool, p.N+1)
@@ -91,50 +92,54 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 		bls.CopyFr(&Q[p.PID+1][j][0], &Fj) // Q_i(0,index)=F_i(index)
 	}
 
+	p.InitEnd = time.Now()
+
 	startCom <- true
 	startReshare <- true
 
 	//Commit
-	go func() {
-		<-startCom
+	p.CommitStart = time.Now()
+	<-startCom
+	for j := uint32(1); j <= 2*p.F+1; j++ {
+		bls.MulG1(&gFj, &bls.GenG1, &Q[p.PID+1][j][0])
+		copy(Z[j], Q[p.PID+1][j])
+		bls.CopyFr(&Z[j][0], &bls.ZERO) //Z_ij(x)=Q_i(x,index)-F_j(index), which means Z_ij(0)=0
 
-		for j := uint32(1); j <= 2*p.F+1; j++ {
-			bls.MulG1(&gFj, &bls.GenG1, &Q[p.PID+1][j][0])
-			copy(Z[j], Q[p.PID+1][j])
-			bls.CopyFr(&Z[j][0], &bls.ZERO) //Z_ij(x)=Q_i(x,index)-F_j(index), which means Z_ij(0)=0
+		CQ[p.PID+1][j] = *p.KZG.CommitToPoly(Q[p.PID+1][j])
+		CZ[j] = *p.KZG.CommitToPoly(Z[j])
+		wZ[j] = *p.KZG.ComputeProofSingle(Z[j], bls.ZERO)
 
-			CQ[p.PID+1][j] = *p.KZG.CommitToPoly(Q[p.PID+1][j])
-			CZ[j] = *p.KZG.CommitToPoly(Z[j])
-			wZ[j] = *p.KZG.ComputeProofSingle(Z[j], bls.ZERO)
+		piI = append(piI, PiContent{
+			j,
+			CQ[p.PID+1][j],
+			CZ[j],
+			wZ[j],
+			gFj})
+	}
 
-			piI = append(piI, PiContent{
-				j,
-				CQ[p.PID+1][j],
-				CZ[j],
-				wZ[j],
-				gFj})
-		}
+	var CommitMessage = new(protobuf.Commit)
+	CommitMessage.Pi = make([]*protobuf.PiContent, 2*p.F+1)
+	for j := uint32(0); j < 2*p.F+1; j++ {
+		CommitMessage.Pi[j] = new(protobuf.PiContent)
+		CommitMessage.Pi[j].J = piI[j].j
+		CommitMessage.Pi[j].WZ0 = bls.ToCompressedG1(&piI[j].WZ0)
+		CommitMessage.Pi[j].CBj = bls.ToCompressedG1(&piI[j].CBj)
+		CommitMessage.Pi[j].CZj = bls.ToCompressedG1(&piI[j].CZj)
+		CommitMessage.Pi[j].GFj = bls.ToCompressedG1(&piI[j].gFj)
+	}
+	CommitMessageData, _ := proto.Marshal(CommitMessage)
 
-		var CommitMessage = new(protobuf.Commit)
-		CommitMessage.Pi = make([]*protobuf.PiContent, 2*p.F+1)
-		for j := uint32(0); j < 2*p.F+1; j++ {
-			CommitMessage.Pi[j] = new(protobuf.PiContent)
-			CommitMessage.Pi[j].J = piI[j].j
-			CommitMessage.Pi[j].WZ0 = bls.ToCompressedG1(&piI[j].WZ0)
-			CommitMessage.Pi[j].CBj = bls.ToCompressedG1(&piI[j].CBj)
-			CommitMessage.Pi[j].CZj = bls.ToCompressedG1(&piI[j].CZj)
-			CommitMessage.Pi[j].GFj = bls.ToCompressedG1(&piI[j].gFj)
-		}
-		CommitMessageData, _ := proto.Marshal(CommitMessage)
-
-		RBCID := string(ID) + "_1," + strconv.FormatUint(uint64(p.PID+1), 10)
-		p.RBCSend(&protobuf.Message{Type: "Commit", Sender: p.PID, Id: ID, Data: CommitMessageData}, []byte(RBCID))
-		ComSent <- true
-		//log.Printf("[Proactivize Commit][New party %v] Have broadcasted the COM message, RBCID: %s \n", p.PID, RBCID)
-		//log.Printf("[Proactivize Commit][New party %v] Commit done\n", p.PID)
-	}()
+	RBCID := string(ID) + "_1," + strconv.FormatUint(uint64(p.PID+1), 10)
+	p.RBCSend(&protobuf.Message{Type: "Commit", Sender: p.PID, Id: ID, Data: CommitMessageData}, []byte(RBCID))
+	ComSent <- true
+	//log.Printf("[Proactivize Commit][New party %v] Have broadcasted the COM message, RBCID: %s \n", p.PID, RBCID)
+	//log.Printf("[Proactivize Commit][New party %v] Commit done\n", p.PID)
+	p.CommitEnd = time.Now()
 
 	//Verify
+	VerifyEndChan := make(chan bool, p.N)
+	p.VerifyStart = time.Now()
+
 	for j := uint32(1); j <= p.N; j++ {
 		go func(j uint32) {
 			m := p.RBCReceive([]byte(string(ID) + "_1," + strconv.FormatUint(uint64(j), 10)))
@@ -181,7 +186,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 					bls.CopyG1(&CQ[j][k+1], CQk)
 				}
 			}
-
+			revertFlag = false //added to avoid getting stuck.(for latency test only.)
 			if revertFlag {
 				//discard the previously stored CQjk
 				for k := 0; uint32(k) < 2*p.F+1; k++ {
@@ -200,54 +205,62 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				startVote[j] <- true
 				startRecover[j] <- true
 				//log.Printf("[Proactivize Verify][New party %v] Verify Com message from RBC_1,%v done\n", p.PID, j)
+				VerifyEndChan <- true // Added for split latency test.
 			}
 		}(j)
 	}
+	//从channel中接收n个消息后结束阻塞
+	for i := 0; uint32(i) < p.N; i++ {
+		<-VerifyEndChan
+	}
+	p.VerifyEnd = time.Now()
 
 	//Reshare
-	go func() {
-		<-startReshare
-		//log.Printf("[Proactivize Reshare][New party %v] Reshare starts\n", p.PID)
+	//这里也把go func() 去掉，避免Recover部分空等。
+	<-startReshare
+	//log.Printf("[Proactivize Reshare][New party %v] Reshare starts\n", p.PID)
 
-		// var wQ = make([][]*pbc.Element, p.N+1)
-		for k := uint32(1); k <= p.N; k++ {
-			var reshareMessage protobuf.Reshare
-			//in reshareMessage, index 0 is used (unlike the other slices)
-			reshareMessage.Qk = make([][]byte, 2*p.F+1)
-			reshareMessage.WQk = make([][]byte, 2*p.F+1)
+	// var wQ = make([][]*pbc.Element, p.N+1)
+	p.ReshareStart = time.Now()
+	for k := uint32(1); k <= p.N; k++ {
+		var reshareMessage protobuf.Reshare
+		//in reshareMessage, index 0 is used (unlike the other slices)
+		reshareMessage.Qk = make([][]byte, 2*p.F+1)
+		reshareMessage.WQk = make([][]byte, 2*p.F+1)
 
-			for j := uint32(1); j <= 2*p.F+1; j++ {
-				var tmpQkj bls.Fr
-				var tmpwQ bls.G1Point
-				var positionQ bls.Fr
-				bls.AsFr(&positionQ, uint64(k))
-				bls.EvalPolyAt(&tmpQkj, Q[p.PID+1][j], &positionQ)
+		for j := uint32(1); j <= 2*p.F+1; j++ {
+			var tmpQkj bls.Fr
+			var tmpwQ bls.G1Point
+			var positionQ bls.Fr
+			bls.AsFr(&positionQ, uint64(k))
+			bls.EvalPolyAt(&tmpQkj, Q[p.PID+1][j], &positionQ)
 
-				tmpwQ = *p.KZG.ComputeProofSingle(Q[p.PID+1][j], positionQ)
+			tmpwQ = *p.KZG.ComputeProofSingle(Q[p.PID+1][j], positionQ)
 
-				reshareMessage.WQk[j-1] = bls.ToCompressedG1(&tmpwQ)
-				tmpQkj_Bytes_Array := bls.FrTo32(&tmpQkj)
-				tmpQkj_Bytes_Slice := make([]byte, 32)
-				copy(tmpQkj_Bytes_Slice, tmpQkj_Bytes_Array[:])
-				reshareMessage.Qk[j-1] = tmpQkj_Bytes_Slice
+			reshareMessage.WQk[j-1] = bls.ToCompressedG1(&tmpwQ)
+			tmpQkj_Bytes_Array := bls.FrTo32(&tmpQkj)
+			tmpQkj_Bytes_Slice := make([]byte, 32)
+			copy(tmpQkj_Bytes_Slice, tmpQkj_Bytes_Array[:])
+			reshareMessage.Qk[j-1] = tmpQkj_Bytes_Slice
 
-				bls.CopyFr(&vQ[p.PID+1][j][k], &tmpQkj)
-				bls.CopyG1(&wQ[p.PID+1][j][k], &tmpwQ)
-			}
-
-			reshareData, _ := proto.Marshal(&reshareMessage)
-			p.Send(&protobuf.Message{Type: "Reshare", Id: ID, Sender: p.PID, Data: reshareData}, k-1)
+			bls.CopyFr(&vQ[p.PID+1][j][k], &tmpQkj)
+			bls.CopyG1(&wQ[p.PID+1][j][k], &tmpwQ)
 		}
-		ReshareSent <- true
-		//log.Printf("[Proactivize Reshare][New party %v] Reshare done\n", p.PID)
-	}()
+
+		reshareData, _ := proto.Marshal(&reshareMessage)
+		p.Send(&protobuf.Message{Type: "Reshare", Id: ID, Sender: p.PID, Data: reshareData}, k-1)
+	}
+	ReshareSent <- true
+	p.ReshareEnd = time.Now()
+	//log.Printf("[Proactivize Reshare][New party %v] Reshare done\n", p.PID)
 
 	//Vote
 	// var SigShare = make(map[uint32]map[uint32][]byte)
 	// for i := uint32(1); i <= p.N; i++ {
 	// 	SigShare[i] = make(map[uint32][]byte)
 	// }
-
+	p.VoteStart = time.Now()
+	VoteEndChan := make(chan bool, p.N)
 	for ctr := uint32(1); ctr <= p.N; ctr++ {
 		//ctr is not used here
 		go func(ctr uint32) {
@@ -313,12 +326,19 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 					p.Send(&protobuf.Message{Type: "Recover", Id: ID, Sender: p.PID, Data: RecoverMessageData}, l-1)
 				}
 				VoteSent[indexJ] <- true
+				VoteEndChan <- true
 				//log.Printf("[Proactivize Vote][New party %v] Have sent the Recover message, derived from Reshare from party %v\n", p.PID, m.Sender)
 			}
 		}(ctr)
 	}
+	//waiting for "vote" ends.
+	for i := 0; uint32(i) < p.N; i++ {
+		<-VoteEndChan
+	}
+	p.VoteEnd = time.Now()
 
 	//Recover
+	p.RecoverStart = time.Now()
 	var SRec = make([][]SRecElement, p.N+1) // start from 1
 	var SSig = make([][]SSigElement, p.N+1) // start from 1
 	var mutexSRec sync.Mutex
@@ -364,6 +384,9 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	MVBAIn.Sig = make([][]byte, 0)
 	var MVBASent = false
 	MVBAResChan := make(chan []byte, 1)
+
+	//ctx, cancel := context.WithCancel(context.Background())
+
 	for k := uint32(1); k <= p.N; k++ {
 		go func(k uint32) {
 			if !flgCom[k] {
@@ -418,6 +441,10 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 						if !MVBASent && uint32(len(MVBAIn.J)) >= p.F+1 {
 							log.Printf("[Proactivize MVBA][New party %v] Call MVBA with input length %v\n", p.PID, len(MVBAIn.J))
 							MVBAInData, _ := proto.Marshal(MVBAIn)
+							//Recover ends and MVBA starts.
+							p.RecoverEnd = time.Now()
+							//cancel()
+							p.MVBAStart = time.Now()
 							MVBAResChan <- MainProcess(p, ID, MVBAInData, []byte{}) //temporary solution (MainProcess means smvba.MainProcess)
 							MVBASent = true
 						}
@@ -440,9 +467,14 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	MVBAResData := <-MVBAResChan
 	var MVBARes protobuf.MVBAIN
 	proto.Unmarshal(MVBAResData, &MVBARes)
+
+	//MVBA ends here.
+	p.MVBAEnd = time.Now()
+
 	log.Printf("[Proactivize MVBA][New party %v] MBVA done\n", p.PID)
 	// log.Printf("[Proactivize MVBA][New party %v] Output MBVA result: %v\n", p.PID, MVBARes.J)
 
+	p.RefreshStart = time.Now()
 	var CQsum = make([]bls.G1Point, p.N+1)
 	var Qsum = make([]bls.Fr, p.F+1)
 
@@ -484,6 +516,8 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	//log.Printf("B'(x,%v):%s",p.PID+1,PolyToString(p.reducedShare))
 	//log.Printf("[Proactivize Refresh][New party %v] Refresh done\n", p.PID)
 
+	p.RefreshEnd = time.Now()
+	p.ProactivizeEnd = time.Now()
 	ProactivizeDone <- true
 
 	//-------------------------------------ShareDist-------------------------------------
