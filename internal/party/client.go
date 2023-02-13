@@ -19,7 +19,9 @@ func (client *Client) Share(ID []byte) {
 	pi.PiContents = make([]PiContent, 2*client.F+2) // here we do not use pi.Pi_contents[0]
 
 	//pi <- g^s
+	client.mutexKZG.Lock()
 	bls.MulG1(&(pi.Gs), &bls.GenG1, &client.s)
+	client.mutexKZG.Unlock()
 
 	log.Printf("[VSSSend] pi.Gs: %v\n", pi.Gs.String())
 
@@ -69,12 +71,13 @@ func (client *Client) Share(ID []byte) {
 	var gFjList = make([]bls.G1Point, 2*client.F+2)
 
 	for i := uint32(1); i <= 2*client.F+1; i++ {
-
+		client.mutexKZG.Lock()
 		CBList[i] = *client.KZG.CommitToPoly(BList[i])
 		CZList[i] = *client.KZG.CommitToPoly(ZList[i])
 		WZ0List[i] = *client.KZG.ComputeProofSingle(ZList[i], bls.ZERO)
 
 		bls.MulG1(&gFjList[i], &bls.GenG1, &F_Vals[i])
+		client.mutexKZG.Unlock()
 		//add to pi
 		pi.PiContents[i] = PiContent{j: i, CBj: CBList[i], CZj: CZList[i], WZ0: WZ0List[i], gFj: gFjList[i]}
 	}
@@ -88,7 +91,9 @@ func (client *Client) Share(ID []byte) {
 		for j := 1; uint32(j) <= 2*client.F+1; j++ {
 			var position bls.Fr
 			bls.AsFr(&position, uint64(i))
+			client.mutexKZG.Lock()
 			WBij[i][j] = *client.KZG.ComputeProofSingle(BList[j], position)
+			client.mutexKZG.Unlock()
 		}
 
 	}
