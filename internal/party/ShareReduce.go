@@ -88,7 +88,9 @@ func (p *HonestParty) ShareReduceReceive(ID []byte) {
 
 		var tmpPosition bls.Fr
 		bls.AsFr(&tmpPosition, uint64(m.Sender+1))
+		p.mutexKZG.Lock()
 		verified := p.KZG.CheckProofSingle(&C, &wJ, &tmpPosition, &vJ)
+		p.mutexKZG.Unlock()
 
 		if verified {
 			cStr := string(ShareReduceData.C)

@@ -80,20 +80,22 @@ func (p *HonestParty) VerifyVSSSendReceived(polyValue []bls.Fr, witness []bls.G1
 	for j := uint32(1); j < 2*p.F+2; j++ {
 		bls.CopyG1(&gFjList[j], &piReceived.PiContents[j].gFj)
 	}
-
+	p.mutexKZG.Lock()
 	tmpGs := *bls.LinCombG1(gFjList[1:], p.LagrangeCoefficients[0])
+	p.mutexKZG.Unlock()
 	if !bls.EqualG1(&piReceived.Gs, &tmpGs) {
 		log.Printf("[VSSEcho][Party %v] VSSSend Verify FAIL, g_s=%v, but prod(g^F(index))=%v \n", p.PID, piReceived.Gs.String(), tmpGs.String())
 	}
 
 	//Verify KZG.VerifyEval(CZjk,0,0,WZjk0) == 1 && CBjk == CZjk * g^Fj(k) for k in [1,2t+1]
 	for k := uint32(1); k < 2*p.F+2; k++ {
-
+		p.mutexKZG.Lock()
 		verifyEval := p.KZG.CheckProofSingle(&piReceived.PiContents[k].CZj, &piReceived.PiContents[k].WZ0, &bls.ZERO, &bls.ZERO)
 
 		var verifyCBj = false
 		var tmp bls.G1Point
 		bls.AddG1(&tmp, &piReceived.PiContents[k].CZj, &piReceived.PiContents[k].gFj)
+		p.mutexKZG.Unlock()
 		verifyCBj = bls.EqualG1(&tmp, &piReceived.PiContents[k].CBj)
 		if !verifyEval || !verifyCBj {
 			log.Printf("[VSSEcho][Party %v] VSSSend Verify FAIL, k=%v\n", p.PID, k)
@@ -106,8 +108,9 @@ func (p *HonestParty) VerifyVSSSendReceived(polyValue []bls.Fr, witness []bls.G1
 		//KZG Verify
 		var position bls.Fr
 		bls.AsFr(&position, uint64(p.PID+1))
+		p.mutexKZG.Lock()
 		verifyPoint := p.KZG.CheckProofSingle(&piReceived.PiContents[j].CBj, &witness[j], &position, &polyValue[j])
-
+		p.mutexKZG.Unlock()
 		if !verifyPoint {
 			log.Printf("[VSSEcho][Party %v] VSSSend KZGVerify FAIL when verify v'ji and w'ji, i=%v, CBj[%v]=%v, polyValue[%v]=%v, witness[%v]=%v\n", p.PID, p.PID+1, j, piReceived.PiContents[j].CBj, j, polyValue[j], j, witness[j])
 			return false

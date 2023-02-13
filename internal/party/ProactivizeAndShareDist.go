@@ -99,13 +99,17 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 		<-startCom
 
 		for j := uint32(1); j <= 2*p.F+1; j++ {
+			p.mutexKZG.Lock()
 			bls.MulG1(&gFj, &bls.GenG1, &Q[p.PID+1][j][0])
+			p.mutexKZG.Unlock()
 			copy(Z[j], Q[p.PID+1][j])
 			bls.CopyFr(&Z[j][0], &bls.ZERO) //Z_ij(x)=Q_i(x,index)-F_j(index), which means Z_ij(0)=0
 
+			p.mutexKZG.Lock()
 			CQ[p.PID+1][j] = *p.KZG.CommitToPoly(Q[p.PID+1][j])
 			CZ[j] = *p.KZG.CommitToPoly(Z[j])
 			wZ[j] = *p.KZG.ComputeProofSingle(Z[j], bls.ZERO)
+			p.mutexKZG.Unlock()
 
 			piI = append(piI, PiContent{
 				j,
@@ -168,9 +172,11 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				GFk, _ := bls.FromCompressedG1(ReceivedData.Pi[k].GFj)
 
 				var mulRes bls.G1Point
+				p.mutexKZG.Lock()
 				bls.AddG1(&mulRes, CZk, GFk)
 
 				verifyKZGOk := p.KZG.CheckProofSingle(CZk, wZk, &bls.ZERO, &bls.ZERO)
+				p.mutexKZG.Unlock()
 
 				if !bls.EqualG1(CQk, &mulRes) || !verifyKZGOk {
 					log.Printf("[Proactivize Verify][New party %v] Verify Zj[%v](0)=0 FAIL, j=%v\n", p.PID, k, j)
@@ -224,7 +230,9 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				bls.AsFr(&positionQ, uint64(k))
 				bls.EvalPolyAt(&tmpQkj, Q[p.PID+1][j], &positionQ)
 
+				p.mutexKZG.Lock()
 				tmpwQ = *p.KZG.ComputeProofSingle(Q[p.PID+1][j], positionQ)
+				p.mutexKZG.Unlock()
 
 				reshareMessage.WQk[j-1] = bls.ToCompressedG1(&tmpwQ)
 				tmpQkj_Bytes_Array := bls.FrTo32(&tmpQkj)
@@ -278,8 +286,9 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				C := CQ[indexJ][k]
 				var position_vjki bls.Fr
 				bls.AsFr(&position_vjki, uint64(p.PID+1))
+				p.mutexKZG.Lock()
 				verifyReshareOK = p.KZG.CheckProofSingle(&C, &wjki[k], &position_vjki, &vjki[k])
-
+				p.mutexKZG.Unlock()
 				if !verifyReshareOK {
 					log.Printf("[Proactivize Vote][New party %v] Verify Reshare message from party %v FAIL, CQ[%v][%v]: %s, vjki:%v, wjki:%s\n", p.PID, m.Sender, indexJ, k, CQ[indexJ][k].String(), vjki[k].String(), wjki[k].String())
 					// break
@@ -301,7 +310,9 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 						wQ[indexJ][l][p.PID+1] = wjki[l]
 					} else {
 						vQ[indexJ][l][p.PID+1] = bls.LinCombFr(vjki[1:], p.LagrangeCoefficients[l])
+						p.mutexKZG.Lock()
 						wQ[indexJ][l][p.PID+1] = *bls.LinCombG1(wjki[1:], p.LagrangeCoefficients[l])
+						p.mutexKZG.Unlock()
 					}
 					// send Recover
 
@@ -382,7 +393,9 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				var index bls.Fr
 				bls.AsFr(&index, uint64(mSender+1))
 
+				p.mutexKZG.Lock()
 				KZGVerifyOk := p.KZG.CheckProofSingle(&C, &wkij, &index, &vkij)
+				p.mutexKZG.Unlock()
 
 				SigShareVerifyOk := p.tblsScheme.VerifyPartial(p.SigPK, []byte(strconv.FormatUint(uint64(k), 10)), ReceivedSigShare)
 
@@ -452,7 +465,9 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 		//wait until all related flgCom = 1
 		if !flgCom[j] {
 			<-RecDone[j]
+			p.mutexKZG.Lock()
 			CQ[j][p.PID+1] = *p.KZG.CommitToPoly(Q[j][p.PID+1])
+			p.mutexKZG.Unlock()
 		}
 
 		for i := 0; uint32(i) < p.F+1; i++ {
@@ -463,7 +478,9 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 
 		for i := uint32(1); i <= p.N; i++ {
 			tmpCQ := CQsum[i]
+			p.mutexKZG.Lock()
 			bls.AddG1(&CQsum[i], &tmpCQ, &CQ[j][i])
+			p.mutexKZG.Unlock()
 		}
 	}
 
@@ -518,7 +535,9 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 			var positionJ bls.Fr
 			bls.AsFr(&positionJ, uint64(j))
 			bls.EvalPolyAt(&Bij, p.reducedShare, &positionJ)
+			p.mutexKZG.Lock()
 			wBij = *p.KZG.ComputeProofSingle(p.reducedShare, positionJ)
+			p.mutexKZG.Unlock()
 
 			var ShareDistMessage protobuf.ShareDist
 			tmpBij_Array := bls.FrTo32(&Bij)
@@ -536,8 +555,9 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 	//Commit
 	go func() {
 		var CB bls.G1Point
+		p.mutexKZG.Lock()
 		CB = *p.KZG.CommitToPoly(p.reducedShare)
-
+		p.mutexKZG.Unlock()
 		var NewcommitMessage protobuf.NewCommit
 		NewcommitMessage.CB = bls.ToCompressedG1(&CB)
 		p.RBCSend(&protobuf.Message{Type: "NewCommit", Id: ID, Sender: p.PID, Data: NewcommitMessage.CB}, []byte(string(ID)+"_2,"+strconv.FormatUint(uint64(p.PID+1), 10)))
@@ -563,7 +583,9 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 			}
 
 			var addResult bls.G1Point
+			p.mutexKZG.Lock()
 			bls.AddG1(&addResult, &oldCB, &CQsum[j])
+			p.mutexKZG.Unlock()
 
 			if bls.EqualG1(ReceivedCB, &addResult) {
 				// log.Printf("[ShareDist][New party %v] Verify NEWCOM from RBC_2j SUCCESS, j=%v\n", p.PID, j)
@@ -609,7 +631,9 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 			wjShareDist, _ = bls.FromCompressedG1(ReceivedShareDistData.WB)
 			bls.AsFr(&i, uint64(p.PID+1))
 
+			p.mutexKZG.Lock()
 			verifyKZGOk := p.KZG.CheckProofSingle(&currentCB, wjShareDist, &i, &vjShareDist)
+			p.mutexKZG.Unlock()
 
 			if verifyKZGOk {
 				//log.Printf("[ShareDist Interpolate][New party %v] Verify ShareDist message from new party %v SUCCESS\n", p.PID, j)

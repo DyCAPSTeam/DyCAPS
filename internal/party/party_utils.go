@@ -317,7 +317,10 @@ func (p *HonestParty) InterpolateComOrWit(degree uint32, targetIndex uint32, Lis
 		return CWList[targetIndex-1]
 	} else {
 		if (targetIndex >= 0 && targetIndex <= 3*p.F+1) && uint32(degree) == 2*p.F {
-			return *bls.LinCombG1(List, p.LagrangeCoefficients[targetIndex])
+			p.mutexKZG.Lock()
+			ans1 := *bls.LinCombG1(List, p.LagrangeCoefficients[targetIndex])
+			p.mutexKZG.Unlock()
+			return ans1
 		}
 
 		lambda := make([]bls.Fr, degree+1)
@@ -330,8 +333,10 @@ func (p *HonestParty) InterpolateComOrWit(degree uint32, targetIndex uint32, Lis
 		var target bls.Fr
 		bls.AsFr(&target, uint64(targetIndex))
 		GetLagrangeCoefficients(degree, knownIndexes, target, lambda)
-
-		return *bls.LinCombG1(List, lambda)
+		p.mutexKZG.Lock()
+		ans2 := *bls.LinCombG1(List, lambda)
+		p.mutexKZG.Unlock()
+		return ans2
 	}
 }
 
@@ -354,6 +359,9 @@ func (p *HonestParty) InterpolateComOrWitByKnownIndexes(degree uint32, targetInd
 		var target bls.Fr
 		bls.AsFr(&target, uint64(targetIndex))
 		GetLagrangeCoefficients(degree, knownIndexes, target, lambda)
-		return *bls.LinCombG1(List, lambda)
+		p.mutexKZG.Lock()
+		ans := *bls.LinCombG1(List, lambda)
+		p.mutexKZG.Unlock()
+		return ans
 	}
 }
