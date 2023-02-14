@@ -156,7 +156,9 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				bls.CopyG1(&GFjList[i], tmpGFj)
 			}
 
+			p.mutexKZG.Lock()
 			interRes := p.InterpolateComOrWit(2*p.F, 0, GFjList)
+			p.mutexKZG.Unlock()
 
 			var revertFlag = false
 			if !bls.EqualG1(&interRes, &bls.ZeroG1) {
@@ -203,8 +205,9 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				//Interpolate and set the remaining CQjk
 				for k := 2*p.F + 2; k <= p.N; k++ {
 
+					p.mutexKZG.Lock()
 					CQ[j][k] = p.InterpolateComOrWit(2*p.F, k, CQ[j][1:2*p.F+2])
-
+					p.mutexKZG.Unlock()
 				}
 				flgCom[j] = true
 				startVote[j] <- true
@@ -611,7 +614,9 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				for i := uint32(1); i <= 2*p.F+1; i++ {
 					bls.CopyG1(&CBList[i], &p.Proof.PiContents[i].CBj)
 				}
+				p.mutexKZG.Lock()
 				oldCB = p.InterpolateComOrWit(2*p.F, j, CBList[1:])
+				p.mutexKZG.Unlock()
 			}
 
 			var addResult bls.G1Point
@@ -666,7 +671,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 			p.mutexKZG.Lock()
 			verifyKZGOk := p.KZG.CheckProofSingle(&currentCB, wjShareDist, &i, &vjShareDist)
 			p.mutexKZG.Unlock()
-			
+
 			if verifyKZGOk {
 				//log.Printf("[ShareDist Interpolate][New party %v] Verify ShareDist message from new party %v SUCCESS\n", p.PID, j)
 				SB = append(SB, SBElement{

@@ -28,8 +28,10 @@ func (p *HonestParty) ShareReduceSend(ID []byte) {
 	//interpolate the remaining commitments and witnesses
 
 	for j := uint32(1); j < p.N+1; j++ {
+		p.mutexKZG.Lock()
 		tmpCB[j] = p.InterpolateComOrWit(2*p.F, j, tmpCB[1:2*p.F+2])
 		tmpWB[j] = p.InterpolateComOrWitByKnownIndexes(2*p.F, j, p.witnessIndexes, p.witness)
+		p.mutexKZG.Unlock()
 	}
 
 	for j := uint32(0); j < p.N; j++ {
