@@ -153,7 +153,9 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				bls.CopyG1(&GFjList[i], tmpGFj)
 			}
 
+			p.mutexKZG.Lock()
 			interRes := p.InterpolateComOrWit(2*p.F, 0, GFjList)
+			p.mutexKZG.Unlock()
 
 			var revertFlag = false
 			if !bls.EqualG1(&interRes, &bls.ZeroG1) {
@@ -199,8 +201,9 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				// fmt.Printf("[Proactivize Verfiy][New party %v] Verify pi_j from RBC_1j SUCCESS, j = %v\n", p.PID, j)
 				//Interpolate and set the remaining CQjk
 				for k := 2*p.F + 2; k <= p.N; k++ {
-
+					p.mutexKZG.Lock()
 					CQ[j][k] = p.InterpolateComOrWit(2*p.F, k, CQ[j][1:2*p.F+2])
+					p.mutexKZG.Unlock()
 
 				}
 				flgCom[j] = true
@@ -579,7 +582,9 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 				for i := uint32(1); i <= 2*p.F+1; i++ {
 					bls.CopyG1(&CBList[i], &p.Proof.PiContents[i].CBj)
 				}
+				p.mutexKZG.Lock()
 				oldCB = p.InterpolateComOrWit(2*p.F, j, CBList[1:])
+				p.mutexKZG.Unlock()
 			}
 
 			var addResult bls.G1Point
