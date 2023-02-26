@@ -622,7 +622,9 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 			//wait until the commitment of B'(x,j) is included in SCom
 			<-SComChan[j]
 
+			SComMutex.Lock()
 			currentCB := SCom[j].CB
+			SComMutex.Unlock()
 			var vjShareDist bls.Fr
 			var wjShareDist *bls.G1Point
 			var i bls.Fr
