@@ -6,9 +6,9 @@ Three branches are included in this repo:
 
 * `byStep` :  evaluate the latency of each step in `DyCAPS.Handoff`, where the steps are executed sequentially. *Sequential execution consumes around 20% more seconds than concurrent execution.
 
-* `payload ` : evaluate the latency and throughput of `DyCAPS.Handoff` with different payload sizes. In this case, `DyCAPS.Handoff` can be seen as a dynamic-committee version of [Dumbo](https://eprint.iacr.org/2020/841.pdf).
+* `payload` : evaluate the latency and throughput of `DyCAPS.Handoff` with different payload sizes. Given a payload, `DyCAPS.Handoff` serves as a dynamic-committee version of [Dumbo](https://eprint.iacr.org/2020/841.pdf). Besides, setting `payload=0` gives the same functionality as `main`.
 
-We note that altough we have implemented both `DyCAPS.Share` and `DyCAPS.Handoff` in this repo, the shares are transferred to the  parties by a trusted dealer when we test the latency of `DyCAPS.Handoff`.
+In this repo, the shares are sent to the parties by a trusted dealer during the latency benchmark (just for simplicity).
 
 ### Dependencies
 
