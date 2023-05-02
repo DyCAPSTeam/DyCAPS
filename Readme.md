@@ -13,9 +13,8 @@ We note that altough we have implemented both `DyCAPS.Share` and `DyCAPS.Handoff
 ### Dependencies
 
 * go v1.18 or later versions
-* the [GMP](https://gmplib.org/) library
-* the [go wrapper](https://github.com/Nik-U/pbc) for the PBC library
-* DEDIS Advanced Crypto Library for Go: [dedis/kyber](https://github.com/dedis/kyber)
+* Reed-Solomon Erasure Coding in Go : [klauspost/reedsolomon](https://github.com/klauspost/reedsolomon)
+* DEDIS Advanced Crypto Library for Go: [drand/kyber](https://github.com/drand/kyber)
 * [KZG and FFT utils](https://github.com/protolambda/go-kzg) built on top of BLS12-381 (experimental)
 
 ### Configure
