@@ -1,6 +1,9 @@
 //go:build bignum_hbls
 // +build bignum_hbls
 
+/*
+forked from https://github.com/protolambda/go-kzg at Feb 2,2023
+*/
 package bls
 
 import (

@@ -1,3 +1,7 @@
+/*
+forked from https://github.com/protolambda/go-kzg at Feb 2,2023
+*/
+
 // Original: https://github.com/ethereum/research/blob/master/polynomial_reconstruction/polynomial_reconstruction.py
 // Changes:
 // - flattened leaf construction,
