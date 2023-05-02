@@ -1,6 +1,9 @@
 //go:build !bignum_pure && !bignum_hol256
 // +build !bignum_pure,!bignum_hol256
 
+/*
+forked from https://github.com/protolambda/go-kzg at Feb 2,2023
+*/
 package polycommit
 
 import "github.com/DyCAPSTeam/DyCAPS/internal/bls"

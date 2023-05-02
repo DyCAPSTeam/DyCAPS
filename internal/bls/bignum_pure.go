@@ -1,6 +1,9 @@
 //go:build bignum_pure
 // +build bignum_pure
 
+/*
+forked from https://github.com/protolambda/go-kzg at Feb 2,2023
+*/
 package bls
 
 import (
