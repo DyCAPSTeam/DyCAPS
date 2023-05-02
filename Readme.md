@@ -2,19 +2,20 @@ This repo contains the implementation of the paper [*DyCAPS: Asynchronous Proact
 
 Three branches are included in this repo:
 
-* `main` :  test the latency of `DyCAPS.Handoff`.
+* `main` :  evaluate the latency of `DyCAPS.Handoff`.
 
-* `byStep` :  test the latency of each step in `DyCAPS.Handoff`, where the steps are executed sequentially. *Sequential execution consumes around 20% more seconds than concurrent execution.
+* `byStep` :  evaluate the latency of each step in `DyCAPS.Handoff`, where the steps are executed sequentially. *Sequential execution consumes around 20% more seconds than concurrent execution.
 
-* `payload ` : test the latency and throughput of `DyCAPS.Handoff` with different payload sizes. In this case, `DyCAPS.Handoff` is seen as a dynamic-committee BFT protocol like [Dumbo](https://eprint.iacr.org/2020/841.pdf).
+* `payload ` : evaluate the latency and throughput of `DyCAPS.Handoff` with different payload sizes. In this case, `DyCAPS.Handoff` can be seen as a dynamic-committee version of [Dumbo](https://eprint.iacr.org/2020/841.pdf).
 
 We note that altough we have implemented both `DyCAPS.Share` and `DyCAPS.Handoff` in this repo, the shares are transferred to the  parties by a trusted dealer when we test the latency of `DyCAPS.Handoff`.
 
 ### Dependencies
 
 * go v1.18 or later versions
-* the [GMP](https://gmplib.org/) library
-* the [go wrapper](https://github.com/Nik-U/pbc) for the PBC library
+* Reed-Solomon Erasure Coding in Go : [klauspost/reedsolomon](https://github.com/klauspost/reedsolomon)
+* DEDIS Advanced Crypto Library for Go: [drand/kyber](https://github.com/drand/kyber)
+* [KZG and FFT utils](https://github.com/protolambda/go-kzg) built on top of BLS12-381 (experimental)
 
 ### Configure
 
