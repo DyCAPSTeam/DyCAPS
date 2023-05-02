@@ -1,7 +1,11 @@
-// Original: https://github.com/ethereum/research/blob/master/kzg_data_availability/kzg_proofs.py
-
 //go:build !bignum_pure && !bignum_hol256
 // +build !bignum_pure,!bignum_hol256
+
+/*
+forked from https://github.com/protolambda/go-kzg at Feb 2,2023
+*/
+
+// Original: https://github.com/ethereum/research/blob/master/kzg_data_availability/kzg_proofs.py
 
 package polycommit
 

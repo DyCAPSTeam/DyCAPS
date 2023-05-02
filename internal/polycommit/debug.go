@@ -1,3 +1,6 @@
+/*
+forked from https://github.com/protolambda/go-kzg at Feb 2,2023
+*/
 package polycommit
 
 import (
