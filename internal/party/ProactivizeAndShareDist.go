@@ -1,14 +1,15 @@
 package party
 
 import (
-	"github.com/DyCAPSTeam/DyCAPS/internal/bls"
-	"github.com/DyCAPSTeam/DyCAPS/internal/polyring"
-	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
-	"google.golang.org/protobuf/proto"
 	"log"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/DyCAPSTeam/DyCAPS/internal/bls"
+	"github.com/DyCAPSTeam/DyCAPS/internal/polyring"
+	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
+	"google.golang.org/protobuf/proto"
 )
 
 func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
@@ -146,6 +147,7 @@ func (p *HonestParty) ProactivizeAndShareDist(ID []byte) {
 			var ReceivedData protobuf.Commit
 			proto.Unmarshal(m.Data, &ReceivedData)
 
+			//TODO: This part can be replaced by verifying the commitment of KZG (reducing the communication cost from O(2t+1) to O(1))
 			GFjList := make([]bls.G1Point, 2*p.F+1)
 			for i := uint32(0); i < 2*p.F+1; i++ {
 				tmpGFj, _ := bls.FromCompressedG1(ReceivedData.Pi[i].GFj)
