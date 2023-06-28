@@ -3,29 +3,30 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/DyCAPSTeam/DyCAPS/internal/bls"
-	"github.com/DyCAPSTeam/DyCAPS/internal/party"
 	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/DyCAPSTeam/DyCAPS/internal/bls"
+	"github.com/DyCAPSTeam/DyCAPS/internal/party"
 )
 
 func main() {
 	//metadataPath := "metadata"
 	//ListPath := "list"
 
-	N := flag.Int("n", 4, "the size of the commitee")
-	F := flag.Int("f", 4, "the maximum of faults")
+	N := flag.Int("n", 4, "the size of the committee")
+	F := flag.Int("f", 1, "the maximum of faults")
 	id := flag.Int("id", 0, "the id of the node")
 	metadataPath := flag.String("mp", "", "metadataPath")
 	ListPath := flag.String("lp", "", "listPath")
-	option1 := flag.String("op1", "2", "1 means generating the parameters while 2 means executing the protocol")
-	option2 := flag.String("op2", "commitee", "choose one from client,currentCommitee,newCommitee,onlyOneCommitee")
-	interval1 := flag.Int("t1", 10, "waiting for some time so that new parties get ready")
-	interval2 := flag.Int("t2", 15, "waiting for some time so that old parties get ready")
+	option1 := flag.String("op1", "2", "1 means generating the setup parameters, 2 means executing the protocol")
+	option2 := flag.String("op2", "committee", "choose one from client, oldCommittee, newCommittee, onlyOneCommittee")
+	interval1 := flag.Int("t1", 10, "wait for t1 seconds so that new parties get ready")
+	interval2 := flag.Int("t2", 15, "wait for t2 seconds so that old parties get ready")
 	interval3 := flag.Int("t3", 20, "the interval for startSig")
 	flag.Parse()
 
@@ -33,12 +34,11 @@ func main() {
 		party.GenCoefficientsFile(*N, 2**F+1)
 		return
 	} else if *option1 == "2" {
-
 		sk, pk := party.SigKeyGenFix(uint32(*N), uint32(2**F+1))
 		skNew, pkNew := party.SigKeyGenFix_New(uint32(*N), uint32(2**F+1))
 		switch *option2 {
-		case "currentCommitee":
-			OutputLog, err := os.OpenFile(*metadataPath+"/executingLogOld"+strconv.Itoa(*id), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
+		case "oldCommittee":
+			OutputLog, err := os.OpenFile(*metadataPath+"/exeLogOld"+strconv.Itoa(*id), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
 			if err != nil {
 				log.Fatalf("error opening file: %v", err)
 			}
@@ -56,15 +56,15 @@ func main() {
 
 			p.InitSendChannel()
 			p.InitSendToNextChannel()
-			log.Printf("[VSS] OldParty %v starting...\n", id)
-			fmt.Printf("[VSS] OldParty %v starting...\n", id)
+			log.Printf("[VSS][Old Party %v] starting...\n", id)
+			fmt.Printf("[VSS][Old Party %v] starting...\n", id)
 			p.VSSShareReceive([]byte("vssshare"))
-			log.Printf("[VSS][OldParty %v] VSS finished\n", id)
-			fmt.Printf("[VSS] [OldParty %v]VSS finished\n", id)
+			log.Printf("[VSS][Old Party %v] VSS finished\n", id)
+			fmt.Printf("[VSS][Old Party %v] VSS finished\n", id)
 			p.PrepareSend([]byte("shareReduce"))
 			p.ShareReduceSend([]byte("shareReduce"))
-			log.Printf("[ShareReduce] [OldParty %v]ShareReduce done\n", id)
-			fmt.Printf("[ShareReduce][OldParty %v] ShareReduce done\n", id)
+			log.Printf("[ShareReduce][Old Party %v]ShareReduce done\n", id)
+			fmt.Printf("[ShareReduce][Old Party %v] ShareReduce done\n", id)
 
 			f, _ := os.OpenFile(*metadataPath+"/logold"+strconv.Itoa(int(p.PID)), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0777)
 			defer f.Close()
@@ -72,8 +72,8 @@ func main() {
 			fmt.Fprintf(f, "ShareReduceLatencyOld, %d\n", p.ShareReduceEnd_old.Sub(p.ShareReduceStart_old).Nanoseconds())
 
 			time.Sleep(20000 * time.Second)
-		case "newCommitee":
-			OutputLog, err := os.OpenFile(*metadataPath+"/executingLogNew"+strconv.Itoa(*id), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
+		case "newCommittee":
+			OutputLog, err := os.OpenFile(*metadataPath+"/exeLogNew"+strconv.Itoa(*id), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
 			if err != nil {
 				log.Fatalf("error opening file: %v", err)
 			}
@@ -88,17 +88,17 @@ func main() {
 			time.Sleep(time.Duration(*interval1) * time.Second) //waiting for all nodes to initialize their ReceiveChannel
 
 			p.InitSendChannel()
-			log.Printf("[ShareReduce][NewParty %v] ShareReduce starting...\n", p.PID)
-			fmt.Printf("[ShareReduce][NewParty %v] ShareReduce starting...\n", p.PID)
+			log.Printf("[ShareReduce][New Party %v] ShareReduce starting...\n", p.PID)
+			fmt.Printf("[ShareReduce][New Party %v] ShareReduce starting...\n", p.PID)
 			p.PrepareReceive([]byte("shareReduce"))
 			p.ShareReduceReceive([]byte("shareReduce"))
-			log.Printf("[ShareReduce][NewParty %v] ShareReduce finished\n", p.PID)
-			fmt.Printf("[ShareReduce][NewParty %v] ShareReduce finished\n", p.PID)
-			log.Printf("[Proactivize][NewParty %v] Proactivize starting\n", p.PID)
-			fmt.Printf("[Proactivize][NewParty %v] Proactivize starting\n", p.PID)
+			log.Printf("[ShareReduce][New Party %v] ShareReduce finished\n", p.PID)
+			fmt.Printf("[ShareReduce][New Party %v] ShareReduce finished\n", p.PID)
+			log.Printf("[Proactivize][New Party %v] Proactivize starting\n", p.PID)
+			fmt.Printf("[Proactivize][New Party %v] Proactivize starting\n", p.PID)
 			p.ProactivizeAndShareDist([]byte("ProactivizeAndShareDist"))
-			log.Printf("[ShareDist] [NewParty %v]ShareDist finished\n", p.PID)
-			fmt.Printf("[ShareDist][NewParty %v] ShareDist finished\n", p.PID)
+			log.Printf("[ShareDist][New Party %v]ShareDist finished\n", p.PID)
+			fmt.Printf("[ShareDist][New Party %v] ShareDist finished\n", p.PID)
 
 			f, _ := os.OpenFile(*metadataPath+"/lognew"+strconv.Itoa(int(p.PID)), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0777)
 			defer f.Close()
@@ -109,7 +109,7 @@ func main() {
 
 			time.Sleep(20000 * time.Second)
 
-		case "onlyOneCommitee":
+		case "onlyOneCommittee":
 			ipList := ReadIpList(*ListPath, "")[0:*N]
 			portList := ReadPortList(*ListPath, "")[0:*N]
 			OutputLog, err := os.OpenFile(*metadataPath+"/executingLog"+strconv.Itoa(*id), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
