@@ -1,9 +1,10 @@
 package party
 
 import (
+	"log"
+
 	"github.com/DyCAPSTeam/DyCAPS/internal/bls"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
-	"log"
 )
 
 type Client struct {
@@ -23,7 +24,7 @@ func (client *Client) Share(ID []byte) {
 	bls.MulG1(&(pi.Gs), &bls.GenG1, &client.s)
 	client.mutexKZG.Unlock()
 
-	log.Printf("[VSSSend] pi.Gs: %v\n", pi.Gs.String())
+	// log.Printf("[VSSSend] pi.Gs: %v\n", pi.Gs.String())
 
 	//generate a 2t-degree random polynomial F, where F(0) = s
 

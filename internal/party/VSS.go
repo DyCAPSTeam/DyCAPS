@@ -1,11 +1,12 @@
 package party
 
 import (
+	"log"
+
 	"github.com/DyCAPSTeam/DyCAPS/internal/bls"
 	"github.com/DyCAPSTeam/DyCAPS/internal/polyring"
 	"github.com/DyCAPSTeam/DyCAPS/pkg/protobuf"
 	"google.golang.org/protobuf/proto"
-	"log"
 )
 
 func (p *HonestParty) VSSShareReceive(ID []byte) {
@@ -65,7 +66,7 @@ func (p *HonestParty) VSSShareReceive(ID []byte) {
 
 		//set the final reduceShare and witnesses, then break
 		copy(p.fullShare, fullShareFromSend)
-		log.Printf("[VSSRecover][Party %v] Get full share B(i,y):\n %s", p.PID, PolyToString(p.fullShare))
+		// log.Printf("[VSSRecover][Party %v] Get full share B(i,y):\n %s", p.PID, PolyToString(p.fullShare))
 	}
 
 	log.Printf("[VSS][Party %v] Exist VSS now\n", p.PID)

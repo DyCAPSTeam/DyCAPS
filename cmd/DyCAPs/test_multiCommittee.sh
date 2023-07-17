@@ -31,4 +31,4 @@ do
   echo "newCommitee $i established"
 done
 
-sleep 10000
+sleep 40
